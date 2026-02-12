@@ -65,3 +65,5 @@ UX de Tri (Extensions) : Le tri par fréquence est bien plus utile que l'ordre a
 Ergonomie Visuelle : L'élargissement de la sidebar et l'ajout du compteur de lignes transforment l'outil en un véritable dashboard de "Context Engineering".
 
 Zéro-Configuration (Thème) : La détection automatique du thème Windows offre une intégration native et professionnelle dès la première seconde d'utilisation.
+
+et aussi rendre les textes "100% côté client Aucun fichier envoyé Tiktoken o200k_base" un peu plus clair (blanc) sur la page d'acceuil
