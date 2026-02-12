@@ -1,22 +1,67 @@
-pouvoir changer le nombre de token max (ici c que 128k) (dans une page parametre ou jsp ce qu'est le mieux)
+L'utilisateur souhaite finaliser le développement de ContextPacker, une application web React/Vite de "Context Engineering". Les priorités sont l'optimisation des performances (lazy-selection, alertes de volume), la personnalisation poussée (paramètres persistants, seuils dynamiques), et une UI/UX haut de gamme (thème système, sidebar élargie, métriques détaillées). L'objectif est d'obtenir un code prêt pour la production et un README prêt pour GitHub.
 
-mettre ContextPacker en haut a gauche avec le logo pr genre rappelelr le nom de l'application 
+2. RÉÉCRITURE OPTIMISÉE (Le Prompt)
+Rôle : Expert Senior Fullstack Developer (React/Vite) & Architecte UI/UX.
 
-pour la minification mettre un hover qui explique ce que ca fait quand on active 
+Objectif : Développer la version 2.0 de l'application "ContextPacker". L'application doit transformer un répertoire local en un prompt structuré pour LLM, avec une gestion intelligente du volume de données et une interface futuriste hautement personnalisable.
 
-pour la partie extensions (en dessous du btn minification), il faut chnager le texte en "extensions a selectionner" et trier les extensions par nombre de fichier plutot que par ordre alphabetique
+1. Interface Utilisateur (UI/UX) & Branding :
 
-faut plus mettre en valeur le copier dans le presse papier pour le résultat, c'est quand meme l'utilité principale de l'app, peut etre faire un btn pr telecharger directement en txt le résultat aussi, genre pouvoir soit telecharger soit copier dans le presse papier
+Header : Afficher le logo existant et le nom "ContextPacker" en haut à gauche. À droite, intégrer un groupe d'actions : [Toggle Thème (Lune/Soleil)], [Copier dans le presse-papier], [Télécharger .txt].
 
-il faut que de base ca lise le gitignore pour ne pas inclure les fichiers qui sont dans le gitignore, peut etre ajoute une option, en dessous de extensions genre "prendre en compte le contenu du gitignore" et genre si on selectionne ca et qu'on clique sur le btn tout selectionner ca selectionne tous les fichiers sauf ceux qui sont dans le gitignore, et si on desactive ca bah ca selectionne tout sans se soucier du gitignore pour la partie "selectionner tout"
+Gestion du Thème : Par défaut, l'application doit suivre le thème du système (Windows/macOS). Permettre un switch manuel via le bouton dédié.
 
+Sidebar (Gauche) : Élargir le panneau de 15% par rapport à une sidebar standard. Pour chaque fichier, afficher : Nom, Extension, Nombre de lignes, Taille (KB) et Nombre de tokens.
 
-augmenter la largeur du panneau a gauche, la ca fait trop petit, surtout pour les projets avec bcp de fichiers, ca serait mieux d'avoir plus de place pour voir les noms des fichiers et les extensions le nombre de token et leur taille etc etc (peut etre 15 % en plus), ajouter le nombre de lignes avec le nombre de token et la taille du fichier 
+Bouton d'Import : Libellé clair : "Ouvrir un nouveau projet ou dossier".
 
-de plus il faut que de base qd je selectionne un dossier, les fichiers ils soient pas tous selectionnes, parce que sinon ca prends du temps a charger, aussi mettre une petite popup qd des dossiers ou fichiers sont vraiment lourd seuil a parametrer sois meme dans un fichier parametre ig) ou genre is c superieur a ce seuil ca fait une popup de confirmation pour eviter de charger pour rien sinon ca peut etre long
+2. Logique de Sélection & Filtrage (Client-Side) :
 
-aussi faut changer le contenu du texte du bouton pour ouvrir un dossier en haut a gauche la, en genre ouvrir un nouveau dossier ou projet ou un truc du genre, parce que la c pas clair du tout, on sait pas si ca va ouvrir un dossier dans le projet actuel ou si ca va ouvrir un nouveau projet etc etc, faut que ce soit plus clair pour l'utilisateur
+Lazy Selection : À l'ouverture d'un dossier, aucun fichier n'est sélectionné par défaut (évite les lags sur les gros projets).
 
-ajouter un mode clairet un mode sombre, avec un bouton pour switcher entre les deux, et peut etre aussi une option pour que ca switch automatiquement en fonction de l'heure ou de la luminosité de l'ecran ou un truc du genre, le btn met le en haut a droite a coté du btn de telechargement et de copier dans le presse papier, et aussi ajouter une option dans les parametres pour choisir le theme par defaut (clair ou sombre) en fonction de ce qu'il y a sur le pc si possible (theme windows)
+Bulk Actions : Ajouter un bouton "Tout sélectionner / Tout désélectionner".
 
-il faut aussi créer un readme stylé au format mardkown pour que ca s'affiche bien sur github, j'ai mis une capture d'écran de la page d'acceuil dans ./assets/accueil.png, il faut que tu l'inclues dans le readme pour que les gens voient a quoi ca ressemble, et aussi expliquer comment utiliser l'application, les fonctionnalités etc etc, et aussi mettre un lien vers la page de parametre pour expliquer les différentes options qu'on peut configurer etc etc
+Intelligence .gitignore : Ajouter une option "Appliquer les règles du .gitignore". Si cochée, le bouton "Tout sélectionner" respectera ces exclusions.
+
+Extensions : Section "Extensions à sélectionner". Trier dynamiquement les extensions par fréquence d'apparition dans le dossier (du plus de fichiers au moins de fichiers).
+
+Sécurité (Binaires) : Ignorer automatiquement les fichiers non-textuels pour éviter les erreurs de lecture.
+
+3. Système de Paramètres & Seuils : Créer un panneau de configuration sauvegardé dans le localStorage :
+
+Token Limit : Définit la limite maximale de tokens (ex: 128k, 200k, etc.).
+
+Popup de Confirmation : Afficher une alerte avant de charger un dossier si :
+
+Le poids total dépasse 40% de la limite de tokens définie.
+
+OU si le volume dépasse un seuil manuel défini par l'utilisateur dans les paramètres.
+
+Minification : Option pour supprimer commentaires et lignes vides. Ajouter un tooltip au survol : "Optimise le contexte en réduisant le nombre de tokens sans altérer la logique du code."
+
+4. Analyse de Tokens & Format :
+
+Compteur : Utiliser js-tiktoken (encodage gpt-4o).
+
+Output : > ```text [CONTEXTPACKER - PROJET: {NOM}] | TOKENS: {TOTAL} | MINIFICATION: {OUI/NON} [STRUCTURE : {TREE}]
+
+[FILE: {PATH}] | [LINES: {L}] | [TOKENS: {T}]
+{CODE}
+
+**5. Documentation (README.md) :**
+Générer un `README.md` professionnel pour GitHub :
+- Inclure l'image d'accueil via `./assets/accueil.png`.
+- Présentation des fonctionnalités clés (Stitcher, Tiktoken, Minification, .gitignore).
+- Guide de configuration des paramètres personnels.
+Stack Technique : React 18, Vite, Tailwind CSS, Framer Motion, Lucide-React, js-tiktoken.
+
+3. LISTE DES AMÉLIORATIONS
+Intelligence de Performance (Lazy-Load) : En ne sélectionnant rien par défaut, l'application reste fluide même si l'utilisateur ouvre par mégarde un dossier contenant des milliers de fichiers.
+
+Seuils de Sécurité Dynamiques : La popup basée sur les 40% de la limite de tokens est une sécurité contextuelle innovante qui s'adapte aux capacités de l'IA choisie par l'utilisateur.
+
+UX de Tri (Extensions) : Le tri par fréquence est bien plus utile que l'ordre alphabétique : il place immédiatement les fichiers .py ou .js en haut de liste si c'est le cœur du projet.
+
+Ergonomie Visuelle : L'élargissement de la sidebar et l'ajout du compteur de lignes transforment l'outil en un véritable dashboard de "Context Engineering".
+
+Zéro-Configuration (Thème) : La détection automatique du thème Windows offre une intégration native et professionnelle dès la première seconde d'utilisation.
