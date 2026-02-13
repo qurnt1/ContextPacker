@@ -7,7 +7,7 @@
 ---
 ## Testez !
 
-[**Live Demo**](https://contextpacker.qurnt.dev) (API File System Access requise, utilisez un navigateur Chromium)
+[**Live Demo**](https://qurnt1.github.io/ContextPacker/) (API File System Access requise, utilisez un navigateur Chromium)
 
 ## ✨ Fonctionnalités
 
