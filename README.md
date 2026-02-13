@@ -5,6 +5,9 @@
 ![Accueil](./assets/accueil.png)
 
 ---
+## Testez !
+
+[**Live Demo**](https://contextpacker.qurnt.dev) (API File System Access requise, utilisez un navigateur Chromium)
 
 ## ✨ Fonctionnalités
 
@@ -72,7 +75,7 @@ Aucune fichier n'est sélectionné à l'ouverture d'un projet. Sélectionnez uni
 
 ```bash
 # Cloner le dépôt
-git clone https://github.com/votre-user/ContextPacker.git
+git clone https://github.com/qurnt1/ContextPacker.git
 cd ContextPacker
 
 # Installer les dépendances
