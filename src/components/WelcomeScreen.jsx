@@ -38,20 +38,30 @@ export default function WelcomeScreen({ onOpen, isScanning, scanCount }) {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.6 }}
-          className="text-5xl font-bold tracking-tight mb-3"
+          className="text-5xl font-bold tracking-tight mb-1"
         >
-          <span className="text-white">Context</span>
+          <span className="text-cyber-text">Context</span>
           <span className="text-cyber-cyan text-glow-cyan">Packer</span>
         </motion.h1>
+
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.38, duration: 0.5 }}
+          className="text-xs font-mono text-cyber-text-3 mb-5"
+        >
+          v2.2
+        </motion.p>
 
         {/* Subtitle */}
         <motion.p
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.45, duration: 0.6 }}
-          className="text-gray-400 text-lg mb-10 max-w-md mx-auto leading-relaxed"
+          className="text-cyber-text-2 text-lg mb-10 max-w-lg mx-auto leading-relaxed"
         >
-          Compilez vos fichiers sources en un prompt unique, optimisé pour les fenêtres de contexte IA.
+          Générez instantanément le contexte complet de votre projet pour votre IA.
+          Évitez les copier-coller manuels fastidieux et assemblez tout votre code en un prompt unique et optimisé.
         </motion.p>
 
         {/* CTA */}
@@ -72,13 +82,13 @@ export default function WelcomeScreen({ onOpen, isScanning, scanCount }) {
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
                   <span>
-                    Analyse en cours… <span className="font-mono text-white">{scanCount}</span> fichiers
+                    Analyse en cours… <span className="font-mono text-cyber-text">{scanCount}</span> fichiers
                   </span>
                 </>
               ) : (
                 <>
                   <FolderOpen className="w-5 h-5" />
-                  <span>Ouvrir un projet</span>
+                  <span>Ouvrir un nouveau projet ou dossier</span>
                 </>
               )}
             </motion.button>
@@ -90,24 +100,24 @@ export default function WelcomeScreen({ onOpen, isScanning, scanCount }) {
                   L'API File System Access n'est pas supportée par ce navigateur.
                 </span>
               </div>
-              <p className="text-gray-500 text-sm">
+              <p className="text-cyber-text-3 text-sm">
                 Utilisez Chrome, Edge ou un navigateur basé sur Chromium.
               </p>
             </div>
           )}
         </motion.div>
 
-        {/* Footer info */}
+        {/* Footer info - texte plus clair */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.9, duration: 0.8 }}
-          className="mt-12 flex items-center justify-center gap-6 text-xs text-gray-600"
+          className="mt-12 flex items-center justify-center gap-6 text-xs text-cyber-text-2 font-medium"
         >
           <span>100% côté client</span>
-          <span className="w-1 h-1 rounded-full bg-gray-700" />
+          <span className="w-1 h-1 rounded-full bg-cyber-cyan/30" />
           <span>Aucun fichier envoyé</span>
-          <span className="w-1 h-1 rounded-full bg-gray-700" />
+          <span className="w-1 h-1 rounded-full bg-cyber-cyan/30" />
           <span>Tiktoken o200k_base</span>
         </motion.div>
       </div>

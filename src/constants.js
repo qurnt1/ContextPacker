@@ -55,5 +55,7 @@ export const BINARY_EXTENSIONS = new Set([
 ]);
 
 export const TOKEN_WARNING_THRESHOLD = 128_000;
+export const DEFAULT_TOKEN_LIMITS = [32_000, 64_000, 128_000, 200_000, 500_000, 1_000_000];
+export const DEFAULT_WARNING_PERCENT = 40;
 export const MAX_FILE_SIZE = 1_000_000; // 1 MB
 export const MAX_HIGHLIGHT_SIZE = 50_000; // 50 KB

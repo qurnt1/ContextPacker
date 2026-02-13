@@ -1,14 +1,18 @@
 import { useState, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { ThemeProvider } from './hooks/useTheme';
+import { useLocalStorage } from './hooks/useLocalStorage';
 import WelcomeScreen from './components/WelcomeScreen';
+import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import MainPanel from './components/MainPanel';
 import Dashboard from './components/Dashboard';
-import { useLocalStorage } from './hooks/useLocalStorage';
+import WarningPopup from './components/WarningPopup';
 import { scanDirectory } from './utils/scanner';
 import { generatePlainOutput } from './utils/outputFormatter';
+import { DEFAULT_WARNING_PERCENT } from './constants';
 
-export default function App() {
+function AppInner() {
   const [projectName, setProjectName] = useState('');
   const [files, setFiles] = useState([]);
   const [tree, setTree] = useState(null);
@@ -16,39 +20,51 @@ export default function App() {
   const [scanCount, setScanCount] = useState(0);
   const [selectedPaths, setSelectedPaths] = useState(new Set());
   const [minifyEnabled, setMinifyEnabled] = useLocalStorage('cp-minify', false);
+  const [gitignoreEnabled, setGitignoreEnabled] = useLocalStorage('cp-gitignore', true);
+  const [tokenLimit, setTokenLimit] = useLocalStorage('cp-token-limit', 128_000);
+  const [warningPercent, setWarningPercent] = useLocalStorage('cp-warning-pct', DEFAULT_WARNING_PERCENT);
+  const [customThreshold, setCustomThreshold] = useLocalStorage('cp-custom-threshold', 0);
+  const [showWarning, setShowWarning] = useState(false);
+  const [pendingPaths, setPendingPaths] = useState(null);
 
-  // Derived: unique extensions
+  // Extensions sorted by frequency (desc)
   const extensions = useMemo(() => {
-    const exts = new Set();
+    const countMap = {};
     files.forEach((f) => {
-      if (f.extension) exts.add(f.extension);
+      if (f.extension) {
+        countMap[f.extension] = (countMap[f.extension] || 0) + 1;
+      }
     });
-    return [...exts].sort();
+    return Object.entries(countMap)
+      .sort((a, b) => b[1] - a[1])
+      .map(([ext]) => ext);
   }, [files]);
 
-  // Derived: selected files sorted by size desc
+  // Selected files sorted by size desc
   const selectedFiles = useMemo(() => {
     return files
       .filter((f) => selectedPaths.has(f.path))
       .sort((a, b) => b.size - a.size);
   }, [files, selectedPaths]);
 
-  // Derived: stats
+  // Stats
   const stats = useMemo(() => {
     const totalTokens = selectedFiles.reduce(
       (sum, f) => sum + (minifyEnabled ? f.minifiedTokens : f.tokens),
       0
     );
     const totalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
+    const totalLines = selectedFiles.reduce((sum, f) => sum + (f.lines || 0), 0);
     return {
       totalTokens,
       totalSize,
+      totalLines,
       fileCount: selectedFiles.length,
       totalFiles: files.length,
     };
   }, [selectedFiles, minifyEnabled, files.length]);
 
-  // Derived: output text for clipboard
+  // Output text
   const outputText = useMemo(() => {
     if (selectedFiles.length === 0) return '';
     return generatePlainOutput(
@@ -74,7 +90,8 @@ export default function App() {
       setProjectName(result.name);
       setFiles(result.files);
       setTree(result.tree);
-      setSelectedPaths(new Set(result.files.map((f) => f.path)));
+      // Lazy Selection: aucun fichier sélectionné par défaut
+      setSelectedPaths(new Set());
       setIsScanning(false);
     } catch (err) {
       if (err.name !== 'AbortError') {
@@ -83,6 +100,29 @@ export default function App() {
       setIsScanning(false);
     }
   }, []);
+
+  // Check threshold warnings before applying bulk selection
+  const checkAndApplySelection = useCallback(
+    (newPaths) => {
+      const newFiles = files.filter((f) => newPaths.has(f.path));
+      const newTokenTotal = newFiles.reduce(
+        (sum, f) => sum + (minifyEnabled ? f.minifiedTokens : f.tokens),
+        0
+      );
+
+      const overPercent = newTokenTotal > (tokenLimit * warningPercent) / 100;
+      const overCustom = customThreshold > 0 && newTokenTotal > customThreshold;
+
+      if (overPercent || overCustom) {
+        setPendingPaths(newPaths);
+        setShowWarning(true);
+        return;
+      }
+
+      setSelectedPaths(newPaths);
+    },
+    [files, minifyEnabled, tokenLimit, warningPercent, customThreshold]
+  );
 
   const togglePath = useCallback((path) => {
     setSelectedPaths((prev) => {
@@ -128,17 +168,31 @@ export default function App() {
   );
 
   const selectAll = useCallback(() => {
-    setSelectedPaths(new Set(files.map((f) => f.path)));
-  }, [files]);
+    const allPaths = new Set(files.map((f) => f.path));
+    checkAndApplySelection(allPaths);
+  }, [files, checkAndApplySelection]);
 
   const deselectAll = useCallback(() => {
     setSelectedPaths(new Set());
   }, []);
 
+  const handleWarningConfirm = useCallback(() => {
+    if (pendingPaths) {
+      setSelectedPaths(pendingPaths);
+      setPendingPaths(null);
+    }
+    setShowWarning(false);
+  }, [pendingPaths]);
+
+  const handleWarningCancel = useCallback(() => {
+    setPendingPaths(null);
+    setShowWarning(false);
+  }, []);
+
   const hasProject = files.length > 0;
 
   return (
-    <div className="h-screen flex flex-col bg-cyber-bg text-gray-200 font-sans overflow-hidden">
+    <div className="h-screen flex flex-col bg-cyber-bg text-cyber-text font-sans overflow-hidden transition-colors duration-300">
       <AnimatePresence mode="wait">
         {!hasProject ? (
           <WelcomeScreen
@@ -155,6 +209,16 @@ export default function App() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.4 }}
           >
+            <Header
+              onOpenProject={handleOpenProject}
+              isScanning={isScanning}
+              tokenLimit={tokenLimit}
+              onChangeTokenLimit={setTokenLimit}
+              warningPercent={warningPercent}
+              onChangeWarningPercent={setWarningPercent}
+              customThreshold={customThreshold}
+              onChangeCustomThreshold={setCustomThreshold}
+            />
             <div className="flex flex-1 overflow-hidden">
               <Sidebar
                 projectName={projectName}
@@ -163,6 +227,7 @@ export default function App() {
                 selectedPaths={selectedPaths}
                 extensions={extensions}
                 minifyEnabled={minifyEnabled}
+                gitignoreEnabled={gitignoreEnabled}
                 stats={stats}
                 onTogglePath={togglePath}
                 onToggleFolder={toggleFolder}
@@ -170,8 +235,7 @@ export default function App() {
                 onSelectAll={selectAll}
                 onDeselectAll={deselectAll}
                 onToggleMinify={() => setMinifyEnabled((v) => !v)}
-                onOpenProject={handleOpenProject}
-                isScanning={isScanning}
+                onToggleGitignore={() => setGitignoreEnabled((v) => !v)}
               />
               <MainPanel
                 projectName={projectName}
@@ -183,10 +247,40 @@ export default function App() {
                 outputText={outputText}
               />
             </div>
-            <Dashboard stats={stats} minifyEnabled={minifyEnabled} />
+            <Dashboard
+              stats={stats}
+              minifyEnabled={minifyEnabled}
+              tokenLimit={tokenLimit}
+              outputText={outputText}
+              projectName={projectName}
+            />
           </motion.div>
         )}
       </AnimatePresence>
+
+      <WarningPopup
+        isOpen={showWarning}
+        totalTokens={
+          pendingPaths
+            ? files
+                .filter((f) => pendingPaths.has(f.path))
+                .reduce((sum, f) => sum + (minifyEnabled ? f.minifiedTokens : f.tokens), 0)
+            : stats.totalTokens
+        }
+        tokenLimit={tokenLimit}
+        warningPercent={warningPercent}
+        customThreshold={customThreshold}
+        onConfirm={handleWarningConfirm}
+        onCancel={handleWarningCancel}
+      />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppInner />
+    </ThemeProvider>
   );
 }

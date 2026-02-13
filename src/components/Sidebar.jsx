@@ -1,13 +1,13 @@
 import { motion } from 'framer-motion';
 import {
-  FolderOpen,
   CheckSquare,
   Square,
   Scissors,
   ToggleLeft,
   ToggleRight,
   Package,
-  Loader2,
+  GitBranch,
+  Info,
 } from 'lucide-react';
 import FileTree from './FileTree';
 import { formatNumber } from '../utils/helpers';
@@ -19,6 +19,7 @@ export default function Sidebar({
   selectedPaths,
   extensions,
   minifyEnabled,
+  gitignoreEnabled,
   stats,
   onTogglePath,
   onToggleFolder,
@@ -26,90 +27,112 @@ export default function Sidebar({
   onSelectAll,
   onDeselectAll,
   onToggleMinify,
-  onOpenProject,
-  isScanning,
+  onToggleGitignore,
 }) {
   return (
     <motion.aside
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="w-80 min-w-[320px] flex flex-col bg-cyber-surface border-r border-cyber-border overflow-hidden"
+      className="w-[370px] min-w-[370px] flex flex-col bg-cyber-surface border-r border-cyber-border overflow-hidden transition-colors duration-300"
     >
       {/* Header */}
       <div className="p-4 border-b border-cyber-border">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <Package className="w-4 h-4 text-cyber-cyan flex-shrink-0" />
-            <h2 className="font-semibold text-sm text-white truncate">{projectName}</h2>
-          </div>
-          <button
-            onClick={onOpenProject}
-            disabled={isScanning}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg neon-border text-cyber-cyan hover:bg-cyber-cyan/10 transition-colors disabled:opacity-50"
-          >
-            {isScanning ? <Loader2 className="w-3 h-3 animate-spin" /> : <FolderOpen className="w-3 h-3" />}
-            Ouvrir
-          </button>
+        <div className="flex items-center gap-2 min-w-0 mb-3">
+          <Package className="w-4 h-4 text-cyber-cyan flex-shrink-0" />
+          <h2 className="font-semibold text-sm text-cyber-text truncate">{projectName}</h2>
         </div>
 
         {/* Quick stats */}
-        <div className="text-xs text-gray-500 flex items-center gap-2">
+        <div className="text-xs text-cyber-text-3 flex items-center gap-3 flex-wrap">
           <span>
-            <span className="text-gray-300 font-medium">{stats.fileCount}</span>/{stats.totalFiles} fichiers
+            <span className="text-cyber-text-2 font-medium">{stats.fileCount}</span>/{stats.totalFiles} fichiers
           </span>
-          <span className="text-gray-700">•</span>
+          <span className="text-cyber-border">•</span>
           <span>
-            <span className="text-gray-300 font-medium">{formatNumber(stats.totalTokens)}</span> tokens
+            <span className="text-cyber-text-2 font-medium">{formatNumber(stats.totalTokens)}</span> tokens
+          </span>
+          <span className="text-cyber-border">•</span>
+          <span>
+            <span className="text-cyber-text-2 font-medium">{formatNumber(stats.totalLines)}</span> lignes
           </span>
         </div>
       </div>
 
       {/* Controls */}
-      <div className="p-4 border-b border-cyber-border space-y-3">
+      <div className="p-4 border-b border-cyber-border space-y-2.5">
         {/* Select All / Deselect All */}
         <div className="flex gap-2">
           <button
             onClick={onSelectAll}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-cyber-surface-2 hover:bg-cyber-cyan/10 text-gray-300 hover:text-cyber-cyan transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-cyber-surface-2 hover:bg-cyber-cyan/10 text-cyber-text-2 hover:text-cyber-cyan transition-colors"
           >
             <CheckSquare className="w-3.5 h-3.5" />
             Tout sélectionner
           </button>
           <button
             onClick={onDeselectAll}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-cyber-surface-2 hover:bg-red-500/10 text-gray-300 hover:text-red-400 transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-cyber-surface-2 hover:bg-red-500/10 text-cyber-text-2 hover:text-red-400 transition-colors"
           >
             <Square className="w-3.5 h-3.5" />
             Tout désélectionner
           </button>
         </div>
 
-        {/* Minification toggle */}
+        {/* .gitignore toggle */}
         <button
-          onClick={onToggleMinify}
+          onClick={onToggleGitignore}
           className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
-            minifyEnabled
-              ? 'bg-cyber-cyan/10 neon-border text-cyber-cyan'
-              : 'bg-cyber-surface-2 text-gray-400 hover:text-gray-300'
+            gitignoreEnabled
+              ? 'bg-purple-500/10 border border-purple-500/25 text-purple-300'
+              : 'bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-text-2'
           }`}
         >
           <div className="flex items-center gap-2 text-xs font-medium">
-            <Scissors className="w-3.5 h-3.5" />
-            Minification
+            <GitBranch className="w-3.5 h-3.5" />
+            Appliquer .gitignore
           </div>
-          {minifyEnabled ? (
-            <ToggleRight className="w-5 h-5 text-cyber-cyan" />
+          {gitignoreEnabled ? (
+            <ToggleRight className="w-5 h-5 text-purple-400" />
           ) : (
             <ToggleLeft className="w-5 h-5" />
           )}
         </button>
+
+        {/* Minification toggle with tooltip */}
+        <div className="relative group">
+          <button
+            onClick={onToggleMinify}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
+              minifyEnabled
+                ? 'bg-cyber-cyan/10 neon-border text-cyber-cyan'
+                : 'bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-text-2'
+            }`}
+          >
+            <div className="flex items-center gap-2 text-xs font-medium">
+              <Scissors className="w-3.5 h-3.5" />
+              Minification
+              <Info className="w-3 h-3 opacity-40" />
+            </div>
+            {minifyEnabled ? (
+              <ToggleRight className="w-5 h-5 text-cyber-cyan" />
+            ) : (
+              <ToggleLeft className="w-5 h-5" />
+            )}
+          </button>
+          {/* Tooltip */}
+          <div className="absolute left-0 right-0 bottom-full mb-1.5 px-3 py-2 rounded-lg bg-cyber-bg border border-cyber-border text-[11px] text-cyber-text-2 leading-relaxed opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 z-20 shadow-xl">
+            Optimise le contexte en réduisant le nombre de tokens sans altérer la logique du code.
+          </div>
+        </div>
       </div>
 
       {/* Extension Filters */}
       <div className="px-4 py-3 border-b border-cyber-border">
-        <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-2 font-semibold">Extensions</p>
-        <div className="flex flex-wrap gap-1.5">
+        <p className="text-[10px] uppercase tracking-wider text-cyber-text-3 mb-2 font-semibold">
+          Extensions à sélectionner
+        </p>
+        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
           {extensions.map((ext) => {
             const total = files.filter((f) => f.extension === ext).length;
             const selected = files.filter((f) => f.extension === ext && selectedPaths.has(f.path)).length;
@@ -125,7 +148,7 @@ export default function Sidebar({
                     ? 'bg-cyber-cyan/20 text-cyber-cyan neon-border'
                     : someSelected
                       ? 'bg-cyber-cyan/10 text-cyber-cyan/70 border border-cyber-cyan/20'
-                      : 'bg-cyber-surface-2 text-gray-500 border border-transparent hover:border-gray-700'
+                      : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:border-cyber-border'
                 }`}
               >
                 <span>{ext || '(aucune)'}</span>
