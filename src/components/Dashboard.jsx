@@ -1,59 +1,70 @@
 import { motion } from 'framer-motion';
-import { Hash, FileStack, Scissors, AlertTriangle, BarChart3 } from 'lucide-react';
+import { Hash, FileStack, Scissors, AlertTriangle, BarChart3, AlignLeft } from 'lucide-react';
 import { formatNumber } from '../utils/helpers';
-import { TOKEN_WARNING_THRESHOLD } from '../constants';
 
-export default function Dashboard({ stats, minifyEnabled }) {
-  const { totalTokens, fileCount, totalFiles } = stats;
-  const usage = totalTokens / TOKEN_WARNING_THRESHOLD;
-  const isWarning = totalTokens > TOKEN_WARNING_THRESHOLD;
+export default function Dashboard({ stats, minifyEnabled, tokenLimit }) {
+  const { totalTokens, fileCount, totalFiles, totalLines } = stats;
+  const usage = totalTokens / tokenLimit;
+  const isWarning = totalTokens > tokenLimit;
   const percentage = Math.min(usage * 100, 100);
+
+  const limitLabel = tokenLimit >= 1_000_000
+    ? `${(tokenLimit / 1_000_000).toFixed(tokenLimit % 1_000_000 === 0 ? 0 : 1)}M`
+    : `${(tokenLimit / 1_000).toFixed(0)}K`;
 
   return (
     <motion.div
       initial={{ y: 20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ delay: 0.2 }}
-      className="h-14 border-t border-cyber-border bg-cyber-surface/80 backdrop-blur flex items-center px-6 gap-6"
+      className="h-14 border-t border-cyber-border bg-cyber-surface/80 backdrop-blur flex items-center px-6 gap-5 transition-colors duration-300"
     >
       {/* Token count */}
       <div className="flex items-center gap-2">
         <Hash className={`w-3.5 h-3.5 ${isWarning ? 'text-red-400' : 'text-cyber-cyan'}`} />
-        <span className={`font-mono text-sm font-semibold tabular-nums ${isWarning ? 'text-red-400' : 'text-white'}`}>
+        <span className={`font-mono text-sm font-semibold tabular-nums ${isWarning ? 'text-red-400' : 'text-cyber-text'}`}>
           {formatNumber(totalTokens)}
         </span>
-        <span className="text-xs text-gray-500">tokens</span>
+        <span className="text-xs text-cyber-text-3">tokens</span>
       </div>
 
-      {/* Separator */}
       <div className="w-px h-5 bg-cyber-border" />
 
       {/* File count */}
       <div className="flex items-center gap-2">
         <FileStack className="w-3.5 h-3.5 text-purple-400" />
-        <span className="font-mono text-sm text-gray-300 tabular-nums">
-          {fileCount}<span className="text-gray-600">/{totalFiles}</span>
+        <span className="font-mono text-sm text-cyber-text-2 tabular-nums">
+          {fileCount}<span className="text-cyber-text-3">/{totalFiles}</span>
         </span>
-        <span className="text-xs text-gray-500">fichiers</span>
+        <span className="text-xs text-cyber-text-3">fichiers</span>
       </div>
 
-      {/* Separator */}
+      <div className="w-px h-5 bg-cyber-border" />
+
+      {/* Lines */}
+      <div className="flex items-center gap-2">
+        <AlignLeft className="w-3.5 h-3.5 text-blue-400" />
+        <span className="font-mono text-sm text-cyber-text-2 tabular-nums">
+          {formatNumber(totalLines)}
+        </span>
+        <span className="text-xs text-cyber-text-3">lignes</span>
+      </div>
+
       <div className="w-px h-5 bg-cyber-border" />
 
       {/* Minification */}
       <div className="flex items-center gap-2">
-        <Scissors className={`w-3.5 h-3.5 ${minifyEnabled ? 'text-emerald-400' : 'text-gray-600'}`} />
-        <span className={`text-xs font-medium ${minifyEnabled ? 'text-emerald-400' : 'text-gray-500'}`}>
+        <Scissors className={`w-3.5 h-3.5 ${minifyEnabled ? 'text-emerald-400' : 'text-cyber-text-3'}`} />
+        <span className={`text-xs font-medium ${minifyEnabled ? 'text-emerald-400' : 'text-cyber-text-3'}`}>
           {minifyEnabled ? 'ON' : 'OFF'}
         </span>
       </div>
 
-      {/* Separator */}
       <div className="w-px h-5 bg-cyber-border" />
 
       {/* Progress bar */}
       <div className="flex-1 flex items-center gap-3">
-        <BarChart3 className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
+        <BarChart3 className="w-3.5 h-3.5 text-cyber-text-3 flex-shrink-0" />
         <div className="flex-1 h-2 bg-cyber-surface-2 rounded-full overflow-hidden max-w-xs">
           <motion.div
             className={`h-full rounded-full ${
@@ -66,8 +77,8 @@ export default function Dashboard({ stats, minifyEnabled }) {
             transition={{ duration: 0.6, ease: 'easeOut' }}
           />
         </div>
-        <span className="font-mono text-[10px] text-gray-500 tabular-nums flex-shrink-0">
-          {percentage.toFixed(1)}% de 128K
+        <span className="font-mono text-[10px] text-cyber-text-3 tabular-nums flex-shrink-0">
+          {percentage.toFixed(1)}% de {limitLabel}
         </span>
       </div>
 

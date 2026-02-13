@@ -10,7 +10,7 @@ import {
   Check,
   Minus,
 } from 'lucide-react';
-import { formatSize, formatNumber } from '../utils/helpers';
+import { formatSize } from '../utils/helpers';
 
 const CODE_EXTENSIONS = new Set([
   '.js', '.jsx', '.ts', '.tsx', '.py', '.rb', '.go', '.rs', '.java',
@@ -32,17 +32,14 @@ const FileTree = memo(function FileTree({
 
   const isDirectory = node.type === 'directory';
 
-  // Compute selection state for directories
   const selectionState = useMemo(() => {
     if (!isDirectory) {
       return selectedPaths.has(node.path) ? 'all' : 'none';
     }
-
     const descendantFiles = files.filter(
       (f) => f.path.startsWith(node.path ? node.path + '/' : '')
     );
     if (descendantFiles.length === 0) return 'none';
-
     const selectedCount = descendantFiles.filter((f) => selectedPaths.has(f.path)).length;
     if (selectedCount === 0) return 'none';
     if (selectedCount === descendantFiles.length) return 'all';
@@ -66,11 +63,7 @@ const FileTree = memo(function FileTree({
     }
   };
 
-  const tokens = isDirectory
-    ? null
-    : minifyEnabled
-      ? node.minifiedTokens
-      : node.tokens;
+  const tokens = isDirectory ? null : minifyEnabled ? node.minifiedTokens : node.tokens;
 
   if (isRoot) {
     return (
@@ -93,32 +86,26 @@ const FileTree = memo(function FileTree({
 
   const isCode = node.extension && CODE_EXTENSIONS.has(node.extension);
   const FileIcon = isDirectory
-    ? expanded
-      ? FolderOpen
-      : Folder
-    : isCode
-      ? FileCode2
-      : FileText;
+    ? expanded ? FolderOpen : Folder
+    : isCode ? FileCode2 : FileText;
 
   const iconColor = isDirectory
     ? 'text-cyber-cyan/70'
-    : isCode
-      ? 'text-purple-400/70'
-      : 'text-gray-500';
+    : isCode ? 'text-purple-400/70' : 'text-cyber-text-3';
 
   return (
     <div>
       {/* Node row */}
       <div
-        className={`group flex items-center gap-1 py-[3px] px-1 rounded cursor-pointer transition-colors duration-150 hover:bg-white/[0.03] ${
-          !isDirectory && selectionState === 'all' ? 'bg-cyber-cyan/[0.04]' : ''
+        className={`group flex items-center gap-1 py-[3px] px-1 rounded cursor-pointer transition-colors duration-150 hover:bg-cyber-cyan/[0.04] ${
+          !isDirectory && selectionState === 'all' ? 'bg-cyber-cyan/[0.06]' : ''
         }`}
-        style={{ paddingLeft: `${(depth - 1) * 16 + 4}px` }}
+        style={{ paddingLeft: `${(depth - 1) * 14 + 4}px` }}
         onClick={() => (isDirectory ? setExpanded((v) => !v) : handleCheckboxClick({ stopPropagation: () => {} }))}
       >
-        {/* Expand/collapse for dirs */}
+        {/* Expand/collapse */}
         {isDirectory ? (
-          <span className="w-4 h-4 flex items-center justify-center text-gray-500 flex-shrink-0">
+          <span className="w-4 h-4 flex items-center justify-center text-cyber-text-3 flex-shrink-0">
             {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
           </span>
         ) : (
@@ -133,7 +120,7 @@ const FileTree = memo(function FileTree({
               ? 'bg-cyber-cyan/30 border-cyber-cyan/60 text-cyber-cyan'
               : selectionState === 'some'
                 ? 'bg-cyber-cyan/15 border-cyber-cyan/40 text-cyber-cyan'
-                : 'border-gray-700 hover:border-gray-500'
+                : 'border-cyber-border hover:border-cyber-text-3'
           }`}
         >
           {selectionState === 'all' && <Check className="w-2.5 h-2.5" />}
@@ -144,22 +131,29 @@ const FileTree = memo(function FileTree({
         <FileIcon className={`w-3.5 h-3.5 flex-shrink-0 ${iconColor}`} />
 
         {/* Name */}
-        <span className="text-[12px] truncate flex-1 text-gray-300 group-hover:text-gray-100 transition-colors">
+        <span className="text-[11px] truncate flex-1 text-cyber-text-2 group-hover:text-cyber-text transition-colors">
           {node.name}
         </span>
 
-        {/* Tokens badge (files only) */}
-        {!isDirectory && tokens != null && (
-          <span className="text-[9px] font-mono text-gray-600 flex-shrink-0 tabular-nums">
-            {tokens > 999 ? `${(tokens / 1000).toFixed(1)}k` : tokens}
-          </span>
-        )}
-
-        {/* Size badge (files only) */}
-        {!isDirectory && node.size != null && (
-          <span className="text-[9px] font-mono text-gray-700 flex-shrink-0 ml-1 tabular-nums">
-            {formatSize(node.size)}
-          </span>
+        {/* File metadata badges */}
+        {!isDirectory && (
+          <div className="flex items-center gap-1 flex-shrink-0 ml-1">
+            {node.lines != null && (
+              <span className="text-[9px] font-mono text-cyber-text-3 tabular-nums" title="Lignes">
+                {node.lines}L
+              </span>
+            )}
+            {node.size != null && (
+              <span className="text-[9px] font-mono text-cyber-text-3 tabular-nums" title="Taille">
+                {formatSize(node.size)}
+              </span>
+            )}
+            {tokens != null && (
+              <span className="text-[9px] font-mono text-cyber-cyan/60 tabular-nums" title="Tokens">
+                {tokens > 999 ? `${(tokens / 1000).toFixed(1)}k` : tokens}t
+              </span>
+            )}
+          </div>
         )}
       </div>
 

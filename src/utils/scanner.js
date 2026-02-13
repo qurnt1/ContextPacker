@@ -63,6 +63,7 @@ export async function scanDirectory(dirHandle, onProgress) {
           if (isBinaryContent(content)) continue;
 
           const ext = getExtension(entry.name);
+          const lines = content.split('\n').length;
           const tokens = countTokens(content);
           const minified = minifyCode(content, ext);
           const minifiedTokens = minified !== content ? countTokens(minified) : tokens;
@@ -74,6 +75,7 @@ export async function scanDirectory(dirHandle, onProgress) {
             content,
             minifiedContent: minified,
             size: file.size,
+            lines,
             tokens,
             minifiedTokens,
           });
@@ -84,6 +86,7 @@ export async function scanDirectory(dirHandle, onProgress) {
             type: 'file',
             extension: ext,
             size: file.size,
+            lines,
             tokens,
             minifiedTokens,
           });

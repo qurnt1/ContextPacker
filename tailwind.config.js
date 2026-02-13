@@ -1,17 +1,21 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
         cyber: {
-          bg: '#050505',
-          surface: '#0a0a12',
-          'surface-2': '#12121e',
-          border: '#1a1a2e',
+          bg: 'var(--cp-bg)',
+          surface: 'var(--cp-surface)',
+          'surface-2': 'var(--cp-surface-2)',
+          border: 'var(--cp-border)',
           cyan: '#00e5ff',
           'cyan-dim': 'rgba(0,229,255,0.55)',
           'cyan-glow': 'rgba(0,229,255,0.15)',
+          text: 'var(--cp-text)',
+          'text-2': 'var(--cp-text-2)',
+          'text-3': 'var(--cp-text-3)',
         },
       },
       fontFamily: {

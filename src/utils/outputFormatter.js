@@ -1,8 +1,7 @@
 export function generatePlainOutput(projectName, selectedFiles, totalTokens, minifyEnabled, tree, selectedPaths) {
   let output = '';
 
-  output += `[CONTEXTPACKER - PROJET: ${projectName}]\n`;
-  output += `[TOTAL TOKENS: ${totalTokens}] | [MINIFICATION: ${minifyEnabled ? 'ON' : 'OFF'}]\n\n`;
+  output += `[CONTEXTPACKER - PROJET: ${projectName}] | TOKENS: ${totalTokens} | MINIFICATION: ${minifyEnabled ? 'OUI' : 'NON'}\n\n`;
 
   output += `[STRUCTURE]\n`;
   const filteredTree = filterTree(tree, selectedPaths);
@@ -16,8 +15,9 @@ export function generatePlainOutput(projectName, selectedFiles, totalTokens, min
   sortedFiles.forEach((file) => {
     const content = minifyEnabled ? file.minifiedContent : file.content;
     const tokens = minifyEnabled ? file.minifiedTokens : file.tokens;
+    const lines = content.split('\n').length;
     output += `${'─'.repeat(60)}\n`;
-    output += `[CHEMIN: ${file.path}] | [TOKENS: ${tokens}]\n`;
+    output += `[FILE: ${file.path}] | [LINES: ${lines}] | [TOKENS: ${tokens}]\n`;
     output += `${'─'.repeat(60)}\n`;
     output += content + '\n\n';
   });
