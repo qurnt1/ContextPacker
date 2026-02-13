@@ -5,13 +5,13 @@ const ThemeContext = createContext();
 export function ThemeProvider({ children }) {
   const [theme, setThemeRaw] = useState(() => {
     try {
-      return localStorage.getItem('cp-theme') || 'system';
+      return localStorage.getItem('cp-theme') || 'light';
     } catch {
-      return 'system';
+      return 'light';
     }
   });
 
-  const [resolved, setResolved] = useState('dark');
+  const [resolved, setResolved] = useState('light');
 
   useEffect(() => {
     if (theme === 'system') {

@@ -210,8 +210,8 @@ function AppInner() {
             transition={{ duration: 0.4 }}
           >
             <Header
-              outputText={outputText}
-              projectName={projectName}
+              onOpenProject={handleOpenProject}
+              isScanning={isScanning}
               tokenLimit={tokenLimit}
               onChangeTokenLimit={setTokenLimit}
               warningPercent={warningPercent}
@@ -236,14 +236,6 @@ function AppInner() {
                 onDeselectAll={deselectAll}
                 onToggleMinify={() => setMinifyEnabled((v) => !v)}
                 onToggleGitignore={() => setGitignoreEnabled((v) => !v)}
-                onOpenProject={handleOpenProject}
-                isScanning={isScanning}
-                tokenLimit={tokenLimit}
-                onChangeTokenLimit={setTokenLimit}
-                warningPercent={warningPercent}
-                onChangeWarningPercent={setWarningPercent}
-                customThreshold={customThreshold}
-                onChangeCustomThreshold={setCustomThreshold}
               />
               <MainPanel
                 projectName={projectName}
@@ -255,7 +247,13 @@ function AppInner() {
                 outputText={outputText}
               />
             </div>
-            <Dashboard stats={stats} minifyEnabled={minifyEnabled} tokenLimit={tokenLimit} />
+            <Dashboard
+              stats={stats}
+              minifyEnabled={minifyEnabled}
+              tokenLimit={tokenLimit}
+              outputText={outputText}
+              projectName={projectName}
+            />
           </motion.div>
         )}
       </AnimatePresence>

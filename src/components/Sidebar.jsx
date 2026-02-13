@@ -1,18 +1,15 @@
 import { motion } from 'framer-motion';
 import {
-  FolderOpen,
   CheckSquare,
   Square,
   Scissors,
   ToggleLeft,
   ToggleRight,
   Package,
-  Loader2,
   GitBranch,
   Info,
 } from 'lucide-react';
 import FileTree from './FileTree';
-import SettingsPanel from './SettingsPanel';
 import { formatNumber } from '../utils/helpers';
 
 export default function Sidebar({
@@ -31,14 +28,6 @@ export default function Sidebar({
   onDeselectAll,
   onToggleMinify,
   onToggleGitignore,
-  onOpenProject,
-  isScanning,
-  tokenLimit,
-  onChangeTokenLimit,
-  warningPercent,
-  onChangeWarningPercent,
-  customThreshold,
-  onChangeCustomThreshold,
 }) {
   return (
     <motion.aside
@@ -49,30 +38,9 @@ export default function Sidebar({
     >
       {/* Header */}
       <div className="p-4 border-b border-cyber-border">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <Package className="w-4 h-4 text-cyber-cyan flex-shrink-0" />
-            <h2 className="font-semibold text-sm text-cyber-text truncate">{projectName}</h2>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <SettingsPanel
-              tokenLimit={tokenLimit}
-              onChangeTokenLimit={onChangeTokenLimit}
-              warningPercent={warningPercent}
-              onChangeWarningPercent={onChangeWarningPercent}
-              customThreshold={customThreshold}
-              onChangeCustomThreshold={onChangeCustomThreshold}
-            />
-            <button
-              onClick={onOpenProject}
-              disabled={isScanning}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg neon-border text-cyber-cyan hover:bg-cyber-cyan/10 transition-colors disabled:opacity-50"
-              title="Ouvrir un nouveau projet ou dossier"
-            >
-              {isScanning ? <Loader2 className="w-3 h-3 animate-spin" /> : <FolderOpen className="w-3 h-3" />}
-              Ouvrir
-            </button>
-          </div>
+        <div className="flex items-center gap-2 min-w-0 mb-3">
+          <Package className="w-4 h-4 text-cyber-cyan flex-shrink-0" />
+          <h2 className="font-semibold text-sm text-cyber-text truncate">{projectName}</h2>
         </div>
 
         {/* Quick stats */}

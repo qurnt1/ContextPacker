@@ -4,13 +4,13 @@
 
 @layer base {
   :root {
-    --cp-bg: #050505;
-    --cp-surface: #0a0a12;
-    --cp-surface-2: #12121e;
-    --cp-border: #1a1a2e;
-    --cp-text: #e0e0e0;
-    --cp-text-2: #a0a0b0;
-    --cp-text-3: #606070;
+    --cp-bg: #050508;
+    --cp-surface: #0c0c16;
+    --cp-surface-2: #14141f;
+    --cp-border: #1e1e32;
+    --cp-text: #f4f4f5;
+    --cp-text-2: #d4d4d8;
+    --cp-text-3: #a1a1aa;
   }
 
   .light {

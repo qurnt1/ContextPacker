@@ -24,7 +24,6 @@ export default function MainPanel({
   minifyEnabled,
   tree,
   selectedPaths,
-  outputText,
 }) {
   const treeText = useMemo(() => {
     const filtered = filterTree(tree, selectedPaths);

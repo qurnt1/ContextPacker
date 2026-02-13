@@ -42,10 +42,10 @@ export default function SettingsPanel({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 300 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed right-0 top-0 bottom-0 w-[380px] bg-cyber-surface border-l border-cyber-border shadow-2xl z-[101] flex flex-col"
+              className="fixed right-0 top-0 h-full w-[380px] bg-cyber-surface border-l border-cyber-border shadow-2xl z-[101] flex flex-col"
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-cyber-border">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-cyber-border flex-shrink-0">
                 <div className="flex items-center gap-2">
                   <Settings className="w-4 h-4 text-cyber-cyan" />
                   <h2 className="text-sm font-semibold text-cyber-text">Paramètres</h2>
@@ -58,8 +58,8 @@ export default function SettingsPanel({
                 </button>
               </div>
 
-              {/* Content */}
-              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
+              {/* Content - Removed overflow-x-hidden which might cause issues, ensure h-full behavior */}
+              <div className="flex-1 overflow-y-auto px-5 py-6 space-y-8 min-h-0">
                 {/* Token Limit */}
                 <section>
                   <label className="text-xs font-semibold uppercase tracking-wider text-cyber-text-3 mb-2 block">
@@ -69,26 +69,30 @@ export default function SettingsPanel({
                     Définit la capacité maximale de la fenêtre de contexte cible.
                   </p>
                   <div className="grid grid-cols-3 gap-2">
-                    {DEFAULT_TOKEN_LIMITS.map((limit) => {
-                      const label =
-                        limit >= 1_000_000
-                          ? `${limit / 1_000_000}M`
-                          : `${limit / 1_000}k`;
-                      const isActive = tokenLimit === limit;
-                      return (
-                        <button
-                          key={limit}
-                          onClick={() => onChangeTokenLimit(limit)}
-                          className={`px-3 py-2 rounded-lg text-xs font-mono font-medium transition-all ${
-                            isActive
-                              ? 'bg-cyber-cyan/20 text-cyber-cyan border border-cyber-cyan/40'
-                              : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:border-cyber-border hover:text-cyber-text-2'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
+                    {DEFAULT_TOKEN_LIMITS && DEFAULT_TOKEN_LIMITS.length > 0 ? (
+                      DEFAULT_TOKEN_LIMITS.map((limit) => {
+                        const label =
+                          limit >= 1_000_000
+                            ? `${limit / 1_000_000}M`
+                            : `${limit / 1_000}k`;
+                        const isActive = tokenLimit === limit;
+                        return (
+                          <button
+                            key={limit}
+                            onClick={() => onChangeTokenLimit(limit)}
+                            className={`px-3 py-2 rounded-lg text-xs font-mono font-medium transition-all ${
+                              isActive
+                                ? 'bg-cyber-cyan/20 text-cyber-cyan border border-cyber-cyan/40'
+                                : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:border-cyber-border hover:text-cyber-text-2'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <p className="col-span-3 text-xs text-red-400">Erreur chargement limites</p>
+                    )}
                   </div>
                 </section>
 
@@ -159,7 +163,7 @@ export default function SettingsPanel({
               </div>
 
               {/* Footer */}
-              <div className="px-5 py-3 border-t border-cyber-border">
+              <div className="px-5 py-4 border-t border-cyber-border bg-cyber-surface flex-shrink-0">
                 <p className="text-[10px] text-cyber-text-3 text-center">
                   Tous les paramètres sont sauvegardés automatiquement.
                 </p>

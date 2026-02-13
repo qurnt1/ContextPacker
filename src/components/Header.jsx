@@ -1,35 +1,20 @@
 import { motion } from 'framer-motion';
-import { Zap, Moon, Sun, Monitor, Download, Clipboard, Check } from 'lucide-react';
-import { useState, useCallback } from 'react';
+import { Zap, Moon, Sun, Monitor, FolderOpen, Loader2 } from 'lucide-react';
+import { useCallback } from 'react';
 import { useTheme } from '../hooks/useTheme';
+import SettingsPanel from './SettingsPanel';
 
-export default function Header({ outputText, projectName }) {
+export default function Header({
+  onOpenProject,
+  isScanning,
+  tokenLimit,
+  onChangeTokenLimit,
+  warningPercent,
+  onChangeWarningPercent,
+  customThreshold,
+  onChangeCustomThreshold,
+}) {
   const { theme, setTheme, resolved } = useTheme();
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = useCallback(async () => {
-    if (!outputText) return;
-    try {
-      await navigator.clipboard.writeText(outputText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Copy failed:', err);
-    }
-  }, [outputText]);
-
-  const handleDownload = useCallback(() => {
-    if (!outputText) return;
-    const blob = new Blob([outputText], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${projectName || 'context'}-packed.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [outputText, projectName]);
 
   const cycleTheme = useCallback(() => {
     const order = ['system', 'dark', 'light'];
@@ -56,49 +41,50 @@ export default function Header({ outputText, projectName }) {
           <span className="text-cyber-cyan">Packer</span>
         </span>
         <span className="text-[10px] font-mono text-cyber-text-3 bg-cyber-surface-2 px-1.5 py-0.5 rounded">
-          v2.0
+          v2.2
         </span>
       </div>
 
-      {/* Right: Actions */}
+      {/* Right: Open Project + Theme + Settings */}
       <div className="flex items-center gap-1.5">
-        {/* Theme toggle */}
+        {/* Open Project */}
         <button
-          onClick={cycleTheme}
-          title={`Thème: ${themeLabel}`}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg text-cyber-text-2 hover:text-cyber-cyan hover:bg-cyber-cyan/10 transition-colors"
+          onClick={onOpenProject}
+          disabled={isScanning}
+          title="Ouvrir un nouveau projet ou dossier"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg neon-border text-cyber-cyan hover:bg-cyber-cyan/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <ThemeIcon className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">{themeLabel}</span>
+          {isScanning ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <FolderOpen className="w-3.5 h-3.5" />
+          )}
+          <span className="hidden sm:inline">Ouvrir un projet</span>
         </button>
 
         <div className="w-px h-5 bg-cyber-border" />
 
-        {/* Copy */}
+        {/* Theme toggle */}
         <button
-          onClick={handleCopy}
-          disabled={!outputText}
-          title="Copier dans le presse-papier"
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
-            copied
-              ? 'text-emerald-400 bg-emerald-400/10'
-              : 'text-cyber-text-2 hover:text-cyber-cyan hover:bg-cyber-cyan/10'
-          }`}
+          onClick={cycleTheme}
+          title={`Thème: ${themeLabel}`}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg text-cyber-text-2 hover:text-cyber-cyan hover:bg-cyber-cyan/10 transition-colors"
         >
-          {copied ? <Check className="w-3.5 h-3.5" /> : <Clipboard className="w-3.5 h-3.5" />}
-          <span className="hidden sm:inline">{copied ? 'Copié !' : 'Copier'}</span>
+          <ThemeIcon className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Thème : {themeLabel}</span>
         </button>
 
-        {/* Download */}
-        <button
-          onClick={handleDownload}
-          disabled={!outputText}
-          title="Télécharger .txt"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg text-cyber-text-2 hover:text-cyber-cyan hover:bg-cyber-cyan/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          <Download className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Télécharger</span>
-        </button>
+        <div className="w-px h-5 bg-cyber-border" />
+
+        {/* Settings */}
+        <SettingsPanel
+          tokenLimit={tokenLimit}
+          onChangeTokenLimit={onChangeTokenLimit}
+          warningPercent={warningPercent}
+          onChangeWarningPercent={onChangeWarningPercent}
+          customThreshold={customThreshold}
+          onChangeCustomThreshold={onChangeCustomThreshold}
+        />
       </div>
     </motion.header>
   );

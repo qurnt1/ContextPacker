@@ -50,7 +50,7 @@ export default function WelcomeScreen({ onOpen, isScanning, scanCount }) {
           transition={{ delay: 0.38, duration: 0.5 }}
           className="text-xs font-mono text-cyber-text-3 mb-5"
         >
-          v2.0
+          v2.2
         </motion.p>
 
         {/* Subtitle */}
@@ -58,9 +58,10 @@ export default function WelcomeScreen({ onOpen, isScanning, scanCount }) {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.45, duration: 0.6 }}
-          className="text-cyber-text-2 text-lg mb-10 max-w-md mx-auto leading-relaxed"
+          className="text-cyber-text-2 text-lg mb-10 max-w-lg mx-auto leading-relaxed"
         >
-          Compilez vos fichiers sources en un prompt unique, optimisé pour les fenêtres de contexte IA.
+          Générez instantanément le contexte complet de votre projet pour votre IA.
+          Évitez les copier-coller manuels fastidieux et assemblez tout votre code en un prompt unique et optimisé.
         </motion.p>
 
         {/* CTA */}
