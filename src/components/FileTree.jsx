@@ -29,18 +29,17 @@ const FileTree = memo(function FileTree({
   isRoot = false,
 }) {
   const [expanded, setExpanded] = useState(depth < 3);
-
   const isDirectory = node.type === 'directory';
 
   const selectionState = useMemo(() => {
     if (!isDirectory) {
       return selectedPaths.has(node.path) ? 'all' : 'none';
     }
-    const descendantFiles = files.filter(
-      (f) => f.path.startsWith(node.path ? node.path + '/' : '')
+    const descendantFiles = files.filter((file) =>
+      file.path.startsWith(node.path ? node.path + '/' : '')
     );
     if (descendantFiles.length === 0) return 'none';
-    const selectedCount = descendantFiles.filter((f) => selectedPaths.has(f.path)).length;
+    const selectedCount = descendantFiles.filter((file) => selectedPaths.has(file.path)).length;
     if (selectedCount === 0) return 'none';
     if (selectedCount === descendantFiles.length) return 'all';
     return 'some';
@@ -54,8 +53,8 @@ const FileTree = memo(function FileTree({
     });
   }, [node.children]);
 
-  const handleCheckboxClick = (e) => {
-    e.stopPropagation();
+  const handleCheckboxClick = (event) => {
+    event.stopPropagation();
     if (isDirectory) {
       onToggleFolder(node.path);
     } else {
@@ -85,25 +84,18 @@ const FileTree = memo(function FileTree({
   }
 
   const isCode = node.extension && CODE_EXTENSIONS.has(node.extension);
-  const FileIcon = isDirectory
-    ? expanded ? FolderOpen : Folder
-    : isCode ? FileCode2 : FileText;
-
-  const iconColor = isDirectory
-    ? 'text-cyber-cyan/70'
-    : isCode ? 'text-purple-400/70' : 'text-cyber-text-3';
+  const FileIcon = isDirectory ? (expanded ? FolderOpen : Folder) : isCode ? FileCode2 : FileText;
+  const iconColor = isDirectory ? 'text-cyber-cyan/70' : isCode ? 'text-cyber-text-2' : 'text-cyber-text-3';
 
   return (
     <div>
-      {/* Node row */}
       <div
         className={`group flex items-center gap-1 py-[3px] px-1 rounded cursor-pointer transition-colors duration-150 hover:bg-cyber-cyan/[0.04] ${
           !isDirectory && selectionState === 'all' ? 'bg-cyber-cyan/[0.06]' : ''
         }`}
         style={{ paddingLeft: `${(depth - 1) * 14 + 4}px` }}
-        onClick={() => (isDirectory ? setExpanded((v) => !v) : handleCheckboxClick({ stopPropagation: () => {} }))}
+        onClick={() => (isDirectory ? setExpanded((value) => !value) : handleCheckboxClick({ stopPropagation: () => {} }))}
       >
-        {/* Expand/collapse */}
         {isDirectory ? (
           <span className="w-4 h-4 flex items-center justify-center text-cyber-text-3 flex-shrink-0">
             {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
@@ -112,7 +104,6 @@ const FileTree = memo(function FileTree({
           <span className="w-4 h-4 flex-shrink-0" />
         )}
 
-        {/* Checkbox */}
         <button
           onClick={handleCheckboxClick}
           className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-colors border ${
@@ -123,44 +114,40 @@ const FileTree = memo(function FileTree({
                 : 'border-cyber-border hover:border-cyber-text-3'
           }`}
         >
-          {selectionState === 'all' && <Check className="w-2.5 h-2.5" />}
-          {selectionState === 'some' && <Minus className="w-2.5 h-2.5" />}
+          {selectionState === 'all' ? <Check className="w-2.5 h-2.5" /> : null}
+          {selectionState === 'some' ? <Minus className="w-2.5 h-2.5" /> : null}
         </button>
 
-        {/* Icon */}
         <FileIcon className={`w-3.5 h-3.5 flex-shrink-0 ${iconColor}`} />
 
-        {/* Name */}
         <span className="text-[11px] truncate flex-1 text-cyber-text-2 group-hover:text-cyber-text transition-colors">
           {node.name}
         </span>
 
-        {/* File metadata badges */}
-        {!isDirectory && (
+        {!isDirectory ? (
           <div className="flex items-center gap-1 flex-shrink-0 ml-1">
-            {node.lines != null && (
+            {node.lines != null ? (
               <span className="text-[9px] font-mono text-cyber-text-3 tabular-nums" title="Lignes">
                 {node.lines}L
               </span>
-            )}
-            {node.size != null && (
+            ) : null}
+            {node.size != null ? (
               <span className="text-[9px] font-mono text-cyber-text-3 tabular-nums" title="Taille">
                 {formatSize(node.size)}
               </span>
-            )}
-            {tokens != null && (
+            ) : null}
+            {tokens != null ? (
               <span className="text-[9px] font-mono text-cyber-cyan/60 tabular-nums" title="Tokens">
                 {tokens > 999 ? `${(tokens / 1000).toFixed(1)}k` : tokens}t
               </span>
-            )}
+            ) : null}
           </div>
-        )}
+        ) : null}
       </div>
 
-      {/* Children */}
-      {isDirectory && (
+      {isDirectory ? (
         <AnimatePresence initial={false}>
-          {expanded && sortedChildren.length > 0 && (
+          {expanded && sortedChildren.length > 0 ? (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
@@ -181,9 +168,9 @@ const FileTree = memo(function FileTree({
                 />
               ))}
             </motion.div>
-          )}
+          ) : null}
         </AnimatePresence>
-      )}
+      ) : null}
     </div>
   );
 });

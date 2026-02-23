@@ -4,28 +4,28 @@
 
 @layer base {
   :root {
-    --cp-bg: #050508;
-    --cp-surface: #0c0c16;
-    --cp-surface-2: #14141f;
-    --cp-border: #1e1e32;
-    --cp-text: #f4f4f5;
-    --cp-text-2: #d4d4d8;
-    --cp-text-3: #a1a1aa;
+    --cp-bg: #0a0a0a;
+    --cp-surface: #111111;
+    --cp-surface-2: #171717;
+    --cp-border: #2a2a2a;
+    --cp-text: #f5f5f5;
+    --cp-text-2: #cfcfcf;
+    --cp-text-3: #9f9f9f;
   }
 
   .light {
-    --cp-bg: #f5f5f7;
+    --cp-bg: #f5f5f5;
     --cp-surface: #ffffff;
-    --cp-surface-2: #eaeaef;
-    --cp-border: #d0d0d8;
-    --cp-text: #1a1a2e;
-    --cp-text-2: #4a4a5a;
-    --cp-text-3: #8a8a9a;
+    --cp-surface-2: #efefef;
+    --cp-border: #d8d8d8;
+    --cp-text: #0f0f0f;
+    --cp-text-2: #2a2a2a;
+    --cp-text-3: #656565;
   }
 
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(0, 229, 255, 0.25) transparent;
+    scrollbar-color: rgba(34, 197, 94, 0.25) transparent;
   }
 
   *::-webkit-scrollbar {
@@ -38,16 +38,16 @@
   }
 
   *::-webkit-scrollbar-thumb {
-    background: rgba(0, 229, 255, 0.25);
+    background: rgba(34, 197, 94, 0.25);
     border-radius: 3px;
   }
 
   *::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 229, 255, 0.45);
+    background: rgba(34, 197, 94, 0.45);
   }
 
   ::selection {
-    background: rgba(0, 229, 255, 0.3);
+    background: rgba(34, 197, 94, 0.3);
     color: #fff;
   }
 
@@ -63,42 +63,32 @@
 
 @layer utilities {
   .glow-cyan {
-    box-shadow: 0 0 15px rgba(0, 229, 255, 0.15),
-      0 0 30px rgba(0, 229, 255, 0.05);
+    box-shadow: 0 0 15px rgba(34, 197, 94, 0.15), 0 0 30px rgba(34, 197, 94, 0.05);
   }
 
   .glow-cyan-strong {
-    box-shadow: 0 0 20px rgba(0, 229, 255, 0.3),
-      0 0 40px rgba(0, 229, 255, 0.1);
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.3), 0 0 40px rgba(34, 197, 94, 0.1);
   }
 
   .text-glow-cyan {
-    text-shadow: 0 0 10px rgba(0, 229, 255, 0.5),
-      0 0 20px rgba(0, 229, 255, 0.2);
+    text-shadow: 0 0 10px rgba(34, 197, 94, 0.4), 0 0 20px rgba(34, 197, 94, 0.15);
   }
 
   .neon-border {
-    border: 1px solid rgba(0, 229, 255, 0.3);
+    border: 1px solid rgba(34, 197, 94, 0.3);
   }
 
   .neon-border-bright {
-    border: 1px solid rgba(0, 229, 255, 0.6);
+    border: 1px solid rgba(34, 197, 94, 0.55);
   }
 
   .grid-bg {
-    background-image: linear-gradient(
-        rgba(0, 229, 255, 0.03) 1px,
-        transparent 1px
-      ),
-      linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
+    background-image: linear-gradient(rgba(34, 197, 94, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(34, 197, 94, 0.03) 1px, transparent 1px);
     background-size: 40px 40px;
   }
 
   .radial-glow {
-    background: radial-gradient(
-      ellipse at center,
-      rgba(0, 229, 255, 0.06) 0%,
-      transparent 70%
-    );
+    background: radial-gradient(ellipse at center, rgba(34, 197, 94, 0.06) 0%, transparent 70%);
   }
 }

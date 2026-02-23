@@ -111,7 +111,7 @@ export default function SettingsPanel({
                               onClick={() => onChangeTokenLimit(limit)}
                               className={`px-3 py-2.5 rounded-lg text-xs font-mono font-medium transition-all duration-200 border ${
                                 isActive
-                                  ? 'bg-cyber-cyan/15 text-cyber-cyan border-cyber-cyan/30 shadow-[0_0_15px_rgba(0,229,255,0.15)]'
+                                  ? 'bg-cyber-cyan/15 text-cyber-cyan border-cyber-cyan/30 shadow-[0_0_15px_rgba(34,197,94,0.15)]'
                                   : 'bg-cyber-surface-2 text-cyber-text-2 border-transparent hover:border-cyber-border hover:bg-cyber-surface-2/80'
                               }`}
                             >
