@@ -1,112 +1,95 @@
-# ContextPacker v2.0
+# ContextPacker v3.0
 
-> Compilez vos fichiers sources en un prompt unique, optimisé pour les fenêtres de contexte IA.
+Transformez un projet complet en un prompt unique, structuré et prêt à coller dans votre LLM.
 
 ![Accueil](./assets/accueil.png)
 
----
-## Testez !
+## Demo
 
-[**Live Demo**](https://qurnt1.github.io/ContextPacker/) (API File System Access requise, utilisez un navigateur Chromium)
+[Live Demo](https://qurnt1.github.io/ContextPacker/)
 
-## ✨ bientot dans la V3 :
-possibilité de coller directement le lien d'un repo github public pour avoir le contenu du projet en un seul prompt  
+Note: pour l’import local, utilisez un navigateur Chromium (Chrome, Edge, Brave...) car l’app utilise la File System Access API.
 
-## ✨ Fonctionnalités
+## Nouveautés v3.0
 
-### 🔗 Stitcher intelligent
-Scannez n'importe quel dossier local et assemblez les fichiers sélectionnés en un seul bloc de texte structuré, prêt à être collé dans ChatGPT, Claude, Gemini ou tout autre LLM.
+- Choix de la source dès l’arrivée: `Dossier local` ou `Repository GitHub`.
+- Import GitHub public via URL (`https://github.com/owner/repo`) ou format court (`owner/repo`).
+- Option de sous-dossier pour ne scanner qu’une partie du repo GitHub.
+- Historique des repos récents (mémoire locale).
+- Token GitHub optionnel dans les paramètres pour améliorer la limite API.
+- Retour rapide à l’écran principal depuis le header.
 
-### 🎯 Tiktoken o200k_base
-Comptage précis des tokens via **js-tiktoken** avec l'encodeur `o200k_base` (GPT-4o). Le dashboard affiche en temps réel les tokens totaux, la taille et le nombre de lignes.
+## Fonctionnalités
 
-### ⚡ Minification
-Réduisez la taille de vos prompts en activant la minification : suppression des commentaires, espaces superflus et lignes vides. Support JS/TS, CSS, HTML, JSON, Python, et plus.
+- Stitcher intelligent: assemble les fichiers sélectionnés dans un seul contexte.
+- Lazy selection: aucun fichier présélectionné par défaut.
+- Tri des extensions par fréquence.
+- Support `.gitignore` + patterns ignorés courants.
+- Exclusion automatique des fichiers binaires.
+- Minification optionnelle (commentaires + lignes vides).
+- Comptage de tokens avec `js-tiktoken` (`o200k_base`, fallback `cl100k_base`).
+- Dashboard temps réel: tokens, lignes, volume, progression.
+- Export en `clipboard` ou en `.txt`.
 
-### 📂 Intégration .gitignore
-Activez le filtre `.gitignore` pour exclure automatiquement les fichiers et dossiers ignorés par Git (`node_modules`, `dist`, `.env`, etc.).
+## Exemple de sortie
 
-### 🎨 Thème adaptatif
-Trois modes d'affichage : **Système** (suit les préférences OS), **Sombre** et **Clair**. Le thème est persisté en `localStorage`.
-
-### ⚙️ Panneau de paramètres
-- **Limite de tokens** : 32K, 64K, 128K, 200K, 500K, 1M
-- **Seuil d'alerte** : popup de confirmation quand la sélection dépasse un pourcentage configurable de la limite
-- **Seuil personnalisé** : valeur absolue en tokens
-- Tous les réglages sont sauvegardés automatiquement.
-
-### 🚀 Lazy Selection
-Aucune fichier n'est sélectionné à l'ouverture d'un projet. Sélectionnez uniquement ce dont vous avez besoin via les extensions ou l'arborescence.
-
-### 📋 Export
-- **Copier** le résultat dans le presse-papier
-- **Télécharger** un fichier `.txt` prêt à l'emploi
-
----
-
-## 📐 Format de sortie
-
-```
-══════════════════════════════════════════════════════════
+```text
 [CONTEXTPACKER - PROJET: mon-projet] | TOKENS: 12 450 | MINIFICATION: NON
-══════════════════════════════════════════════════════════
 
-──────────────────────────────────────────────────────────
-[FILE: src/index.js] | [LINES: 42] | [TOKENS: 310]
-──────────────────────────────────────────────────────────
-... contenu du fichier ...
+[STRUCTURE]
+├── src/
+│   ├── App.jsx
+│   └── main.jsx
+└── package.json
+
+------------------------------------------------------------
+[FILE: src/App.jsx] | [LINES: 120] | [TOKENS: 950]
+... contenu ...
 ```
 
----
+## Stack technique
 
-## 🛠️ Stack technique
+- React 18
+- Vite
+- Tailwind CSS 3.4
+- Framer Motion
+- js-tiktoken
+- prism-react-renderer
+- lucide-react
+- ignore
 
-| Technologie | Rôle |
-|---|---|
-| **React 18** | UI composants |
-| **Vite** | Build & dev server |
-| **Tailwind CSS 3.4** | Styling utilitaire + CSS variables |
-| **Framer Motion** | Animations & transitions |
-| **js-tiktoken** | Tokenisation (o200k_base) |
-| **prism-react-renderer** | Coloration syntaxique |
-| **Lucide React** | Icônes |
-| **ignore** | Parsing `.gitignore` |
-
----
-
-## 🚀 Installation
+## Installation
 
 ```bash
-# Cloner le dépôt
 git clone https://github.com/qurnt1/ContextPacker.git
 cd ContextPacker
-
-# Installer les dépendances
 npm install
-
-# Lancer en développement
 npm run dev
+```
 
-# Build de production
+Build production:
+
+```bash
 npm run build
 ```
 
-> **Pré-requis** : Node.js ≥ 18, navigateur Chromium (Chrome, Edge, Brave…) pour l'API File System Access.
+## Configuration utilisateur
 
----
+Dans les paramètres:
 
-## 🔒 Confidentialité
+- Limite de tokens cible (32k -> 1M)
+- Seuil d’alerte en pourcentage
+- Seuil manuel absolu
+- Token GitHub optionnel
+- Minification et usage de `.gitignore` persistants en localStorage
 
-**100 % côté client.** Aucun fichier n'est envoyé à un serveur. Tout le traitement (scan, tokenisation, minification) s'exécute localement dans votre navigateur.
+## Confidentialité
 
----
+ContextPacker est 100% client-side.
 
-## 📝 Licence
+- Aucun fichier n’est envoyé à un serveur applicatif.
+- Le traitement (scan, tokenisation, minification, formatage) se fait dans le navigateur.
 
-MIT © 2025
+## Licence
 
----
-
-<p align="center">
-  <strong>ContextPacker v2.0</strong> — Prompt engineering, simplified.
-</p>
+MIT
