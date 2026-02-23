@@ -37,13 +37,20 @@ export default function Header({
       className="h-12 flex items-center justify-between px-4 border-b border-cyber-border bg-cyber-surface/80 backdrop-blur-sm z-50 flex-shrink-0"
     >
       <div className="flex items-center gap-2.5 min-w-0">
-        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-cyber-cyan/10 border border-cyber-cyan/20">
-          <Zap className="w-4 h-4 text-cyber-cyan" />
-        </div>
-        <span className="text-sm font-bold tracking-tight whitespace-nowrap">
-          <span className="text-cyber-text">Context</span>
-          <span className="text-cyber-cyan">Packer</span>
-        </span>
+        <button
+          onClick={onBackToWelcome}
+          disabled={isScanning}
+          title="Retour a l ecran principal"
+          className="flex items-center gap-2.5 rounded-lg px-1.5 py-1 hover:bg-cyber-cyan/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-cyber-cyan/10 border border-cyber-cyan/20">
+            <Zap className="w-4 h-4 text-cyber-cyan" />
+          </div>
+          <span className="text-sm font-bold tracking-tight whitespace-nowrap">
+            <span className="text-cyber-text">Context</span>
+            <span className="text-cyber-cyan">Packer</span>
+          </span>
+        </button>
         <span className="text-[10px] font-mono text-cyber-text-3 bg-cyber-surface-2 px-1.5 py-0.5 rounded">
           v3.0
         </span>
