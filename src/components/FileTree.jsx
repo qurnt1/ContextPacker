@@ -85,13 +85,13 @@ const FileTree = memo(function FileTree({
 
   const isCode = node.extension && CODE_EXTENSIONS.has(node.extension);
   const FileIcon = isDirectory ? (expanded ? FolderOpen : Folder) : isCode ? FileCode2 : FileText;
-  const iconColor = isDirectory ? 'text-cyber-cyan/70' : isCode ? 'text-cyber-text-2' : 'text-cyber-text-3';
+  const iconColor = isDirectory ? 'text-cyber-accent/70' : isCode ? 'text-cyber-text-2' : 'text-cyber-text-3';
 
   return (
     <div>
       <div
-        className={`group flex items-center gap-1 py-[3px] px-1 rounded cursor-pointer transition-colors duration-150 hover:bg-cyber-cyan/[0.04] ${
-          !isDirectory && selectionState === 'all' ? 'bg-cyber-cyan/[0.06]' : ''
+        className={`group flex items-center gap-1 py-[3px] px-1 rounded cursor-pointer transition-colors duration-150 hover:bg-cyber-accent/[0.04] ${
+          !isDirectory && selectionState === 'all' ? 'bg-cyber-accent/[0.06]' : ''
         }`}
         style={{ paddingLeft: `${(depth - 1) * 14 + 4}px` }}
         onClick={() => (isDirectory ? setExpanded((value) => !value) : handleCheckboxClick({ stopPropagation: () => {} }))}
@@ -108,9 +108,9 @@ const FileTree = memo(function FileTree({
           onClick={handleCheckboxClick}
           className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-colors border ${
             selectionState === 'all'
-              ? 'bg-cyber-cyan/30 border-cyber-cyan/60 text-cyber-cyan'
+              ? 'bg-cyber-accent/30 border-cyber-accent/60 text-cyber-accent'
               : selectionState === 'some'
-                ? 'bg-cyber-cyan/15 border-cyber-cyan/40 text-cyber-cyan'
+                ? 'bg-cyber-accent/15 border-cyber-accent/40 text-cyber-accent'
                 : 'border-cyber-border hover:border-cyber-text-3'
           }`}
         >
@@ -137,7 +137,7 @@ const FileTree = memo(function FileTree({
               </span>
             ) : null}
             {tokens != null ? (
-              <span className="text-[9px] font-mono text-cyber-cyan/60 tabular-nums" title="Tokens">
+              <span className="text-[9px] font-mono text-cyber-accent/60 tabular-nums" title="Tokens">
                 {tokens > 999 ? `${(tokens / 1000).toFixed(1)}k` : tokens}t
               </span>
             ) : null}

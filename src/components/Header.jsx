@@ -27,7 +27,7 @@ export default function Header({
   }, [theme, setTheme]);
 
   const ThemeIcon = theme === 'system' ? Monitor : resolved === 'dark' ? Moon : Sun;
-  const themeLabel = theme === 'system' ? 'Systeme' : resolved === 'dark' ? 'Sombre' : 'Clair';
+  const themeLabel = theme === 'system' ? 'Système' : resolved === 'dark' ? 'Sombre' : 'Clair';
   const sourceLabel = sourceMeta?.type === 'github' ? 'GitHub' : 'Local';
 
   return (
@@ -40,15 +40,15 @@ export default function Header({
         <button
           onClick={onBackToWelcome}
           disabled={isScanning}
-          title="Retour a l ecran principal"
-          className="flex items-center gap-2.5 rounded-lg px-1.5 py-1 hover:bg-cyber-cyan/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Retour à l’écran principal"
+          className="flex items-center gap-2.5 rounded-lg px-1.5 py-1 hover:bg-cyber-accent/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-cyber-cyan/10 border border-cyber-cyan/20">
-            <Zap className="w-4 h-4 text-cyber-cyan" />
+          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-cyber-accent/10 border border-cyber-accent/20">
+            <Zap className="w-4 h-4 text-cyber-accent" />
           </div>
           <span className="text-sm font-bold tracking-tight whitespace-nowrap">
             <span className="text-cyber-text">Context</span>
-            <span className="text-cyber-cyan">Packer</span>
+            <span className="text-cyber-accent">Packer</span>
           </span>
         </button>
         <span className="text-[10px] font-mono text-cyber-text-3 bg-cyber-surface-2 px-1.5 py-0.5 rounded">
@@ -63,8 +63,8 @@ export default function Header({
         <button
           onClick={onBackToWelcome}
           disabled={isScanning}
-          title="Retour a la page d accueil"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg text-cyber-text-2 hover:text-cyber-cyan hover:bg-cyber-cyan/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Retour à la page d’accueil"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg text-cyber-text-2 hover:text-cyber-accent hover:bg-cyber-accent/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Home className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Accueil</span>
@@ -76,7 +76,7 @@ export default function Header({
           onClick={onOpenProject}
           disabled={isScanning}
           title="Ouvrir un nouveau projet ou dossier local"
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg neon-border text-cyber-cyan hover:bg-cyber-cyan/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg neon-border text-cyber-accent hover:bg-cyber-accent/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isScanning ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -90,11 +90,11 @@ export default function Header({
 
         <button
           onClick={cycleTheme}
-          title={`Theme: ${themeLabel}`}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg text-cyber-text-2 hover:text-cyber-cyan hover:bg-cyber-cyan/10 transition-colors"
+          title={`Thème: ${themeLabel}`}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg text-cyber-text-2 hover:text-cyber-accent hover:bg-cyber-accent/10 transition-colors"
         >
           <ThemeIcon className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Theme : {themeLabel}</span>
+          <span className="hidden sm:inline">Thème : {themeLabel}</span>
         </button>
 
         <div className="w-px h-5 bg-cyber-border" />

@@ -38,7 +38,7 @@ export default function Sidebar({
     >
       <div className="p-4 border-b border-cyber-border">
         <div className="flex items-center gap-2 min-w-0 mb-3">
-          <Package className="w-4 h-4 text-cyber-cyan flex-shrink-0" />
+          <Package className="w-4 h-4 text-cyber-accent flex-shrink-0" />
           <h2 className="font-semibold text-sm text-cyber-text truncate">{projectName}</h2>
         </div>
 
@@ -61,17 +61,17 @@ export default function Sidebar({
         <div className="flex gap-2">
           <button
             onClick={onSelectAll}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-cyber-surface-2 hover:bg-cyber-cyan/10 text-cyber-text-2 hover:text-cyber-cyan transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-cyber-surface-2 hover:bg-cyber-accent/10 text-cyber-text-2 hover:text-cyber-accent transition-colors"
           >
             <CheckSquare className="w-3.5 h-3.5" />
-            Tout selectionner
+            Tout sélectionner
           </button>
           <button
             onClick={onDeselectAll}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-cyber-surface-2 hover:bg-red-500/10 text-cyber-text-2 hover:text-red-400 transition-colors"
           >
             <Square className="w-3.5 h-3.5" />
-            Tout deselectionner
+            Tout désélectionner
           </button>
         </div>
 
@@ -79,7 +79,7 @@ export default function Sidebar({
           onClick={onToggleGitignore}
           className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
             gitignoreEnabled
-              ? 'bg-cyber-cyan/10 border border-cyber-cyan/25 text-cyber-cyan'
+              ? 'bg-cyber-accent/10 border border-cyber-accent/25 text-cyber-accent'
               : 'bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-text-2'
           }`}
         >
@@ -88,7 +88,7 @@ export default function Sidebar({
             Appliquer .gitignore
           </div>
           {gitignoreEnabled ? (
-            <ToggleRight className="w-5 h-5 text-cyber-cyan" />
+            <ToggleRight className="w-5 h-5 text-cyber-accent" />
           ) : (
             <ToggleLeft className="w-5 h-5" />
           )}
@@ -99,7 +99,7 @@ export default function Sidebar({
             onClick={onToggleMinify}
             className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
               minifyEnabled
-                ? 'bg-cyber-cyan/10 neon-border text-cyber-cyan'
+                ? 'bg-cyber-accent/10 neon-border text-cyber-accent'
                 : 'bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-text-2'
             }`}
           >
@@ -108,17 +108,17 @@ export default function Sidebar({
               Minification
               <Info className="w-3 h-3 opacity-40" />
             </div>
-            {minifyEnabled ? <ToggleRight className="w-5 h-5 text-cyber-cyan" /> : <ToggleLeft className="w-5 h-5" />}
+            {minifyEnabled ? <ToggleRight className="w-5 h-5 text-cyber-accent" /> : <ToggleLeft className="w-5 h-5" />}
           </button>
           <div className="absolute left-0 right-0 bottom-full mb-1.5 px-3 py-2 rounded-lg bg-cyber-bg border border-cyber-border text-[11px] text-cyber-text-2 leading-relaxed opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 z-20 shadow-xl">
-            Optimise le contexte en reduisant le nombre de tokens sans alterer la logique du code.
+            Optimise le contexte en réduisant le nombre de tokens sans altérer la logique du code.
           </div>
         </div>
       </div>
 
       <div className="px-4 py-3 border-b border-cyber-border">
         <p className="text-[10px] uppercase tracking-wider text-cyber-text-3 mb-2 font-semibold">
-          Extensions a selectionner
+          Extensions à sélectionner
         </p>
         <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
           {extensions.map((ext) => {
@@ -133,9 +133,9 @@ export default function Sidebar({
                 onClick={() => onToggleExtension(ext)}
                 className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono transition-all duration-200 ${
                   allSelected
-                    ? 'bg-cyber-cyan/20 text-cyber-cyan neon-border'
+                    ? 'bg-cyber-accent/20 text-cyber-accent neon-border'
                     : someSelected
-                      ? 'bg-cyber-cyan/10 text-cyber-cyan/70 border border-cyber-cyan/20'
+                      ? 'bg-cyber-accent/10 text-cyber-accent/70 border border-cyber-accent/20'
                       : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:border-cyber-border'
                 }`}
               >

@@ -24,7 +24,7 @@ export default function CopyButton({ text }) {
       className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all duration-300 ${
         copied
           ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-          : 'bg-cyber-surface neon-border text-cyber-cyan hover:bg-cyber-cyan/10 glow-cyan'
+          : 'bg-cyber-surface neon-border text-cyber-accent hover:bg-cyber-accent/10 glow-accent'
       }`}
     >
       <AnimatePresence mode="wait">

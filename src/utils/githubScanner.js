@@ -30,7 +30,7 @@ export function parseGitHubRepoInput(input, manualSubPath = '') {
   if (/^https?:\/\//i.test(trimmed)) {
     const url = new URL(trimmed);
     if (!/^(www\.)?github\.com$/i.test(url.hostname)) {
-      throw new Error('Seules les URLs github.com sont supportees.');
+      throw new Error('Seules les URLs github.com sont supportées.');
     }
 
     const parts = url.pathname.split('/').filter(Boolean);
@@ -90,7 +90,7 @@ export async function scanGitHubRepo({
   );
 
   if (repoInfo.private) {
-    throw new Error('Les repositories prives ne sont pas supportes dans cette version.');
+    throw new Error('Les repositories privés ne sont pas supportés dans cette version.');
   }
 
   const resolvedRef = parsed.ref || repoInfo.default_branch;
@@ -116,7 +116,7 @@ export async function scanGitHubRepo({
 
   if (treeData.truncated) {
     throw new Error(
-      'Repository trop volumineux pour l API GitHub recursive tree (resultat tronque).'
+      'Repository trop volumineux pour l API GitHub recursive tree (résultat tronqué).'
     );
   }
 
@@ -187,7 +187,7 @@ export async function scanGitHubRepo({
   if (typeof onEstimate === 'function') {
     const shouldContinue = await onEstimate(estimate);
     if (!shouldContinue) {
-      const abortError = new Error('Chargement GitHub annule.');
+      const abortError = new Error('Chargement GitHub annulé.');
       abortError.name = 'AbortError';
       throw abortError;
     }
@@ -318,7 +318,7 @@ async function fetchGitHubJson(url, token) {
 
   const remaining = response.headers.get('x-ratelimit-remaining');
   if (response.status === 403 && remaining === '0') {
-    message = 'Limite GitHub API atteinte (rate limit). Ajoutez un token GitHub ou reessayez plus tard.';
+    message = 'Limite GitHub API atteinte (rate limit). Ajoutez un token GitHub ou réessayez plus tard.';
   }
 
   throw new Error(message);
@@ -345,7 +345,7 @@ async function fetchBlobText(owner, repo, ref, path, sha, token) {
   }
 
   if (!sha) {
-    throw new Error(`Impossible de telecharger ${path}`);
+    throw new Error(`Impossible de télécharger ${path}`);
   }
 
   const blobData = await fetchGitHubJson(

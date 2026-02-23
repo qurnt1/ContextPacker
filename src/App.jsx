@@ -140,7 +140,7 @@ function AppInner() {
               'Le repository semble volumineux :',
               `- ${estimate.fileCount} fichiers texte`,
               `- ${formatNumber(estimate.totalBytes)} bytes`,
-              `- ~${formatNumber(estimate.estimatedTokens)} tokens estimes`,
+              `- ~${formatNumber(estimate.estimatedTokens)} tokens estimés`,
               '',
               'Continuer le chargement ?',
             ];

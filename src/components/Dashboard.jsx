@@ -4,7 +4,7 @@ import { Hash, FileStack, AlignLeft, Clipboard, Download, Check, AlertTriangle }
 import { formatNumber } from '../utils/helpers';
 
 export default function Dashboard({ stats, tokenLimit, outputText, projectName }) {
-  const { totalTokens, fileCount, totalLines } = stats;
+  const { totalTokens, fileCount, totalFiles, totalLines } = stats;
   const usage = totalTokens / tokenLimit;
   const isWarning = totalTokens > tokenLimit;
   const percentage = Math.min(usage * 100, 100);
@@ -49,7 +49,7 @@ export default function Dashboard({ stats, tokenLimit, outputText, projectName }
       <div className="flex items-center gap-4 flex-shrink-0">
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
-            <Hash className={`w-3.5 h-3.5 ${isWarning ? 'text-red-400' : 'text-cyber-cyan'}`} />
+            <Hash className={`w-3.5 h-3.5 ${isWarning ? 'text-red-400' : 'text-cyber-accent'}`} />
             <span
               className={`font-mono text-sm font-bold tabular-nums ${
                 isWarning ? 'text-red-400' : 'text-cyber-text'
@@ -66,7 +66,9 @@ export default function Dashboard({ stats, tokenLimit, outputText, projectName }
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
             <FileStack className="w-3.5 h-3.5 text-cyber-text-2" />
-            <span className="font-mono text-sm font-medium text-cyber-text-2 tabular-nums">{fileCount}</span>
+            <span className="font-mono text-sm font-medium text-cyber-text-2 tabular-nums">
+              {fileCount}/{totalFiles}
+            </span>
           </div>
           <span className="text-[10px] text-cyber-text-3 font-medium uppercase tracking-wider">fichiers</span>
         </div>
@@ -95,7 +97,7 @@ export default function Dashboard({ stats, tokenLimit, outputText, projectName }
               <span className="text-[10px] font-bold">OVERFLOW</span>
             </div>
           ) : null}
-          <span className={`font-mono text-[10px] ${isWarning ? 'text-red-400 font-bold' : 'text-cyber-cyan'}`}>
+          <span className={`font-mono text-[10px] ${isWarning ? 'text-red-400 font-bold' : 'text-cyber-accent'}`}>
             {percentage.toFixed(1)}%
           </span>
         </div>
@@ -103,7 +105,7 @@ export default function Dashboard({ stats, tokenLimit, outputText, projectName }
           <div className="absolute inset-0 opacity-20 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.1)_25%,rgba(255,255,255,0.1)_50%,transparent_50%,transparent_75%,rgba(255,255,255,0.1)_75%,rgba(255,255,255,0.1)_100%)] bg-[length:8px_8px]" />
           <motion.div
             className={`h-full rounded-full shadow-[0_0_10px_rgba(0,0,0,0.5)] ${
-              isWarning ? 'bg-gradient-to-r from-red-600 to-red-400' : 'bg-gradient-to-r from-cyber-cyan/60 to-cyber-cyan'
+              isWarning ? 'bg-gradient-to-r from-red-600 to-red-400' : 'bg-gradient-to-r from-cyber-accent/60 to-cyber-accent'
             }`}
             initial={{ width: 0 }}
             animate={{ width: `${percentage}%` }}
@@ -119,19 +121,19 @@ export default function Dashboard({ stats, tokenLimit, outputText, projectName }
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${
             copied
               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-              : 'bg-cyber-cyan/10 text-cyber-cyan border border-cyber-cyan/30 hover:bg-cyber-cyan/20 hover:shadow-[0_0_15px_rgba(34,197,94,0.2)]'
+              : 'bg-cyber-accent/10 text-cyber-accent border border-cyber-accent/30 hover:bg-cyber-accent/20 hover:shadow-[0_0_15px_rgba(34,197,94,0.2)]'
           } disabled:opacity-50 disabled:cursor-not-allowed`}
-          title="Copier le resultat"
+          title="Copier le résultat"
         >
           {copied ? <Check className="w-4 h-4" /> : <Clipboard className="w-4 h-4" />}
-          <span className="hidden lg:inline">{copied ? 'Copie !' : 'Copier'}</span>
+          <span className="hidden lg:inline">{copied ? 'Copié !' : 'Copier'}</span>
         </button>
 
         <button
           onClick={handleDownload}
           disabled={!outputText}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide bg-cyber-surface-2 text-cyber-cyan border border-cyber-cyan/30 hover:bg-cyber-cyan/10 hover:shadow-[0_0_15px_rgba(34,197,94,0.2)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Telecharger le fichier .txt"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide bg-cyber-surface-2 text-cyber-accent border border-cyber-accent/30 hover:bg-cyber-accent/10 hover:shadow-[0_0_15px_rgba(34,197,94,0.2)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Télécharger le fichier .txt"
         >
           <Download className="w-4 h-4" />
           <span className="hidden lg:inline">.TXT</span>

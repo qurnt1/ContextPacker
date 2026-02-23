@@ -67,10 +67,10 @@ export default function WelcomeScreen({
       transition={{ duration: 0.5 }}
     >
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyber-cyan/20 to-transparent" />
-        <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyber-cyan/20 to-transparent" />
-        <div className="absolute top-0 left-0 h-full w-px bg-gradient-to-b from-transparent via-cyber-cyan/10 to-transparent" />
-        <div className="absolute top-0 right-0 h-full w-px bg-gradient-to-b from-transparent via-cyber-cyan/10 to-transparent" />
+        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyber-accent/20 to-transparent" />
+        <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyber-accent/20 to-transparent" />
+        <div className="absolute top-0 left-0 h-full w-px bg-gradient-to-b from-transparent via-cyber-accent/10 to-transparent" />
+        <div className="absolute top-0 right-0 h-full w-px bg-gradient-to-b from-transparent via-cyber-accent/10 to-transparent" />
       </div>
 
       <div className="w-full max-w-3xl text-center z-10 px-6">
@@ -81,7 +81,7 @@ export default function WelcomeScreen({
           className="mb-8"
         >
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-cyber-surface neon-border mb-6 animate-pulse-glow">
-            <Zap className="w-10 h-10 text-cyber-cyan" />
+            <Zap className="w-10 h-10 text-cyber-accent" />
           </div>
         </motion.div>
 
@@ -92,7 +92,7 @@ export default function WelcomeScreen({
           className="text-5xl font-bold tracking-tight mb-1"
         >
           <span className="text-cyber-text">Context</span>
-          <span className="text-cyber-cyan text-glow-cyan">Packer</span>
+          <span className="text-cyber-accent text-glow-accent">Packer</span>
         </motion.h1>
 
         <motion.p
@@ -126,7 +126,7 @@ export default function WelcomeScreen({
               disabled={isScanning}
               className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 source === 'local'
-                  ? 'bg-cyber-cyan/15 text-cyber-cyan border border-cyber-cyan/30'
+                  ? 'bg-cyber-accent/15 text-cyber-accent border border-cyber-accent/30'
                   : 'bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-text-2'
               }`}
             >
@@ -137,7 +137,7 @@ export default function WelcomeScreen({
               disabled={isScanning}
               className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 source === 'github'
-                  ? 'bg-cyber-cyan/15 text-cyber-cyan border border-cyber-cyan/30'
+                  ? 'bg-cyber-accent/15 text-cyber-accent border border-cyber-accent/30'
                   : 'bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-text-2'
               }`}
             >
@@ -151,7 +151,7 @@ export default function WelcomeScreen({
                 <button
                   onClick={onOpenLocal}
                   disabled={isScanning}
-                  className="w-full inline-flex items-center justify-center gap-3 px-6 py-3 rounded-xl bg-cyber-surface neon-border-bright text-cyber-cyan font-semibold transition-all duration-300 hover:bg-cyber-surface-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full inline-flex items-center justify-center gap-3 px-6 py-3 rounded-xl bg-cyber-surface neon-border-bright text-cyber-accent font-semibold transition-all duration-300 hover:bg-cyber-surface-2 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {isScanning && scanMode === 'local' ? (
                     <>
@@ -170,11 +170,11 @@ export default function WelcomeScreen({
                   <div className="flex items-center gap-2 text-amber-400 bg-amber-400/10 px-5 py-3 rounded-lg">
                     <AlertTriangle className="w-5 h-5" />
                     <span className="text-sm font-medium">
-                      File System Access API non supportee par ce navigateur.
+                      File System Access API non supportée par ce navigateur.
                     </span>
                   </div>
                   <p className="text-cyber-text-3 text-sm">
-                    Utilisez Chrome, Edge ou un navigateur base sur Chromium.
+                    Utilisez Chrome, Edge ou un navigateur basé sur Chromium.
                   </p>
                 </div>
               )}
@@ -191,7 +191,7 @@ export default function WelcomeScreen({
                   onChange={(event) => setRepoInput(event.target.value)}
                   disabled={isScanning}
                   placeholder="https://github.com/owner/repo"
-                  className="mt-1 w-full px-3 py-2 rounded-lg bg-cyber-surface-2 border border-cyber-border text-cyber-text text-sm focus:outline-none focus:border-cyber-cyan/50"
+                  className="mt-1 w-full px-3 py-2 rounded-lg bg-cyber-surface-2 border border-cyber-border text-cyber-text text-sm focus:outline-none focus:border-cyber-accent/50"
                 />
               </div>
 
@@ -205,7 +205,7 @@ export default function WelcomeScreen({
                   onChange={(event) => setSubPath(event.target.value)}
                   disabled={isScanning}
                   placeholder="ex: src/components"
-                  className="mt-1 w-full px-3 py-2 rounded-lg bg-cyber-surface-2 border border-cyber-border text-cyber-text text-sm focus:outline-none focus:border-cyber-cyan/50"
+                  className="mt-1 w-full px-3 py-2 rounded-lg bg-cyber-surface-2 border border-cyber-border text-cyber-text text-sm focus:outline-none focus:border-cyber-accent/50"
                 />
               </div>
 
@@ -218,15 +218,15 @@ export default function WelcomeScreen({
                   value={githubToken}
                   onChange={(event) => onChangeGithubToken(event.target.value)}
                   disabled={isScanning}
-                  placeholder="ghp_... (ameliore le rate limit)"
-                  className="mt-1 w-full px-3 py-2 rounded-lg bg-cyber-surface-2 border border-cyber-border text-cyber-text text-sm focus:outline-none focus:border-cyber-cyan/50"
+                  placeholder="ghp_... (améliore le rate limit)"
+                  className="mt-1 w-full px-3 py-2 rounded-lg bg-cyber-surface-2 border border-cyber-border text-cyber-text text-sm focus:outline-none focus:border-cyber-accent/50"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isScanning || !repoInput.trim()}
-                className="w-full inline-flex items-center justify-center gap-3 px-6 py-3 rounded-xl bg-cyber-surface neon-border-bright text-cyber-cyan font-semibold transition-all duration-300 hover:bg-cyber-surface-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full inline-flex items-center justify-center gap-3 px-6 py-3 rounded-xl bg-cyber-surface neon-border-bright text-cyber-accent font-semibold transition-all duration-300 hover:bg-cyber-surface-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isScanning && scanMode === 'github' ? (
                   <>
@@ -242,8 +242,8 @@ export default function WelcomeScreen({
               </button>
 
               <p className="text-[11px] text-cyber-text-3 leading-relaxed">
-                Version v3: repositories publics uniquement. Les repos recents sont memorises pour
-                accelerer vos imports.
+                Version v3: repositories publics uniquement. Les repos récents sont mémorisés pour
+                accélérer vos imports.
               </p>
             </form>
           )}
@@ -258,7 +258,7 @@ export default function WelcomeScreen({
             <div className="mt-4 border-t border-cyber-border pt-3">
               <p className="text-[10px] uppercase tracking-wider text-cyber-text-3 mb-2 font-semibold flex items-center gap-1.5">
                 <History className="w-3 h-3" />
-                Repositories recents
+                Repositories récents
               </p>
               <div className="flex flex-wrap gap-2">
                 {recentGitHubRepos.slice(0, 6).map((item) => (
@@ -266,7 +266,7 @@ export default function WelcomeScreen({
                     key={`${item.owner}/${item.repo}@${item.ref}:${item.subPath || ''}`}
                     onClick={() => handleRecentClick(item)}
                     disabled={isScanning}
-                    className="px-2.5 py-1 rounded text-[11px] font-mono bg-cyber-surface-2 hover:bg-cyber-cyan/10 text-cyber-text-2 hover:text-cyber-cyan border border-transparent hover:border-cyber-cyan/20 transition-colors"
+                    className="px-2.5 py-1 rounded text-[11px] font-mono bg-cyber-surface-2 hover:bg-cyber-accent/10 text-cyber-text-2 hover:text-cyber-accent border border-transparent hover:border-cyber-accent/20 transition-colors"
                     title={item.subPath ? `${item.owner}/${item.repo} (${item.subPath})` : `${item.owner}/${item.repo}`}
                   >
                     {item.owner}/{item.repo}
@@ -284,12 +284,12 @@ export default function WelcomeScreen({
           className="mt-8 flex items-center justify-center gap-6 text-xs text-cyber-text-2 font-medium"
         >
           <span className="inline-flex items-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-cyber-cyan/80" />
-            100% cote client
+            <ShieldCheck className="w-3.5 h-3.5 text-cyber-accent/80" />
+            100% côté client
           </span>
-          <span className="w-1 h-1 rounded-full bg-cyber-cyan/30" />
-          <span>Aucun fichier envoye</span>
-          <span className="w-1 h-1 rounded-full bg-cyber-cyan/30" />
+          <span className="w-1 h-1 rounded-full bg-cyber-accent/30" />
+          <span>Aucun fichier envoyé</span>
+          <span className="w-1 h-1 rounded-full bg-cyber-accent/30" />
           <span>Tiktoken o200k_base</span>
         </motion.div>
       </div>

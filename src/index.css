@@ -62,15 +62,15 @@
 }
 
 @layer utilities {
-  .glow-cyan {
+  .glow-accent {
     box-shadow: 0 0 15px rgba(34, 197, 94, 0.15), 0 0 30px rgba(34, 197, 94, 0.05);
   }
 
-  .glow-cyan-strong {
+  .glow-accent-strong {
     box-shadow: 0 0 20px rgba(34, 197, 94, 0.3), 0 0 40px rgba(34, 197, 94, 0.1);
   }
 
-  .text-glow-cyan {
+  .text-glow-accent {
     text-shadow: 0 0 10px rgba(34, 197, 94, 0.4), 0 0 20px rgba(34, 197, 94, 0.15);
   }
 
