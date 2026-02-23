@@ -5,7 +5,8 @@ import { minifyCode } from './minifier';
 import { countTokens, initEncoding } from './tokenCounter';
 import { MAX_FILE_SIZE } from '../constants';
 
-export async function scanDirectory(dirHandle, onProgress) {
+export async function scanDirectory(dirHandle, onProgress, options = {}) {
+  const { applyGitignore = true } = options;
   initEncoding();
 
   const projectName = dirHandle.name;
@@ -19,7 +20,10 @@ export async function scanDirectory(dirHandle, onProgress) {
     // No .gitignore found
   }
 
-  const filter = createIgnoreFilter(gitignoreContent);
+  const filter = createIgnoreFilter(gitignoreContent, {
+    enabled: applyGitignore,
+    includeDefaults: true,
+  });
   const files = [];
   const tree = { name: projectName, path: '', type: 'directory', children: [] };
   let count = 0;
