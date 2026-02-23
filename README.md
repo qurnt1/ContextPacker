@@ -9,7 +9,7 @@
 
 [**Live Demo**](https://qurnt1.github.io/ContextPacker/) (API File System Access requise, utilisez un navigateur Chromium)
 
-## ✨ Bitneot dans la V3 :
+## ✨ bientot dans la V3 :
 possibilité de coller directement le lien d'un repo github public pour avoir le contenu du projet en un seul prompt  
 
 ## ✨ Fonctionnalités
