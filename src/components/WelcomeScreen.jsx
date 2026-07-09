@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   FolderOpen,
@@ -33,6 +33,7 @@ export default function WelcomeScreen() {
   const [source, setSource] = useState('local');
   const [repoInput, setRepoInput] = useState('');
   const [subPath, setSubPath] = useState('');
+  const dragCounter = useRef(0);
   const [isDragOver, setIsDragOver] = useState(false);
 
   const loadingLabel = useMemo(() => {
@@ -73,16 +74,22 @@ export default function WelcomeScreen() {
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragOver(true);
+    dragCounter.current++;
+    if (dragCounter.current === 1) setIsDragOver(true);
   };
 
   const handleDragLeave = (e) => {
     e.preventDefault();
-    setIsDragOver(false);
+    dragCounter.current--;
+    if (dragCounter.current <= 0) {
+      dragCounter.current = 0;
+      setIsDragOver(false);
+    }
   };
 
   const handleDrop = async (e) => {
     e.preventDefault();
+    dragCounter.current = 0;
     setIsDragOver(false);
     if (!handleOpenLocal) return;
     await handleOpenLocal();
