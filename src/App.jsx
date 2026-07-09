@@ -16,6 +16,8 @@ function AppInner() {
   const loadGithubHistory = useStore((s) => s.loadGithubHistory);
   const sidebarWidth = useStore((s) => s.sidebarWidth);
   const setSidebarWidth = useStore((s) => s.setSidebarWidth);
+  const sidebarCollapsed = useStore((s) => s.sidebarCollapsed);
+  const effectiveSidebarWidth = sidebarCollapsed ? 56 : sidebarWidth;
 
   useEffect(() => {
     loadGithubHistory();
@@ -60,16 +62,18 @@ function AppInner() {
           >
             <Header />
             <div className="flex flex-1 overflow-hidden">
-              <div style={{ width: sidebarWidth }} className="flex-shrink-0 transition-[width] duration-200">
+              <div style={{ width: effectiveSidebarWidth }} className="flex-shrink-0 transition-[width] duration-200">
                 <Sidebar />
               </div>
-              {/* Resize handle */}
-              <div
-                className="w-1.5 flex-shrink-0 cursor-col-resize hover:bg-cyber-accent/30 active:bg-cyber-accent/50 transition-colors relative group"
-                onMouseDown={handleResizeStart}
-              >
-                <div className="absolute inset-y-0 -left-1 -right-1" />
-              </div>
+              {/* Resize handle (hidden when collapsed) */}
+              {!sidebarCollapsed && (
+                <div
+                  className="w-1.5 flex-shrink-0 cursor-col-resize hover:bg-cyber-accent/30 active:bg-cyber-accent/50 transition-colors relative group"
+                  onMouseDown={handleResizeStart}
+                >
+                  <div className="absolute inset-y-0 -left-1 -right-1" />
+                </div>
+              )}
               <MainPanel />
             </div>
             <Dashboard />
