@@ -1,6 +1,6 @@
 export const cyberTheme = {
   plain: {
-    color: '#e5e7eb',
+    color: '#d1d5db',
     backgroundColor: 'transparent',
   },
   styles: [
@@ -14,7 +14,7 @@ export const cyberTheme = {
     },
     {
       types: ['string', 'attr-value', 'char'],
-      style: { color: '#86efac' },
+      style: { color: '#4ade80' },
     },
     {
       types: ['punctuation', 'operator'],
@@ -34,11 +34,11 @@ export const cyberTheme = {
     },
     {
       types: ['selector', 'important', 'builtin', 'changed'],
-      style: { color: '#f3f4f6' },
+      style: { color: '#e5e7eb' },
     },
     {
       types: ['class-name'],
-      style: { color: '#bbf7d0' },
+      style: { color: '#86efac' },
     },
     {
       types: ['property'],
