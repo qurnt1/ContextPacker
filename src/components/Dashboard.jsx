@@ -125,7 +125,7 @@ export default function Dashboard() {
           <span className={`font-mono text-sm font-bold tabular-nums ${isWarning ? 'text-red-400' : 'text-cyber-text'}`}>
             {formatNumber(totalTokens)}
           </span>
-          <span className="text-[10px] text-cyber-text-3 font-medium uppercase tracking-wider">tok</span>
+          <span className="text-[10px] text-cyber-text-3 font-medium uppercase tracking-wider">tokens</span>
         </div>
 
         <div className="w-px h-5 bg-cyber-border/50" />
@@ -135,7 +135,7 @@ export default function Dashboard() {
           <span className="font-mono text-sm font-medium text-cyber-text-2 tabular-nums">
             {fileCount}/{totalFiles}
           </span>
-          <span className="text-[10px] text-cyber-text-3 font-medium uppercase tracking-wider">fic</span>
+          <span className="text-[10px] text-cyber-text-3 font-medium uppercase tracking-wider">fichiers</span>
         </div>
 
         <div className="hidden sm:flex w-px h-5 bg-cyber-border/50" />
@@ -145,7 +145,7 @@ export default function Dashboard() {
           <span className="font-mono text-sm font-medium text-cyber-text-2 tabular-nums">
             {formatNumber(totalLines)}
           </span>
-          <span className="text-[10px] text-cyber-text-3 font-medium uppercase tracking-wider">lig</span>
+          <span className="text-[10px] text-cyber-text-3 font-medium uppercase tracking-wider">lignes</span>
         </div>
       </div>
 
