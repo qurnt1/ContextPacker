@@ -6,7 +6,7 @@ import { countTokens, initEncoding } from './tokenCounter';
 import { MAX_FILE_SIZE } from '../constants';
 
 export async function scanDirectory(dirHandle, onProgress, options = {}) {
-  const { applyGitignore = true } = options;
+  const { applyGitignore = true, onFileStart } = options;
   initEncoding();
 
   const projectName = dirHandle.name;
@@ -65,6 +65,8 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
 
           const content = await file.text();
           if (isBinaryContent(content)) continue;
+
+          if (onFileStart) onFileStart(entry.name);
 
           const ext = getExtension(entry.name);
           const lines = content.split('\n').length;
