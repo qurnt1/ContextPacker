@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { scanDirectory } from './utils/scanner';
 import { scanGitHubRepo, getRecentGitHubRepos } from './utils/githubScanner';
 import { generatePlainOutput } from './utils/outputFormatter';
+import { saveHandle, getHandle } from './utils/handleStorage';
 
 // ── Scan Slice ──────────────────────────────────────────────
 const createScanSlice = (set, get) => ({
@@ -71,10 +72,30 @@ const createScanSlice = (set, get) => ({
   },
 
   // Async orchestrators
-  handleOpenLocal: async () => {
+  handleOpenLocal: async (savedHandleKey) => {
     const { startScan, updateProgress, completeScan, failScan, gitignoreEnabled, addRecentProject } = get();
+    let dirHandle;
     try {
-      const dirHandle = await window.showDirectoryPicker({ mode: 'read' });
+      if (savedHandleKey) {
+        // Try to reuse a previously saved handle
+        dirHandle = await getHandle(savedHandleKey);
+        if (!dirHandle) {
+          // Handle expired — fall back to picker
+          dirHandle = await window.showDirectoryPicker({ mode: 'read' });
+        }
+      } else {
+        dirHandle = await window.showDirectoryPicker({ mode: 'read' });
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        set({ isScanning: false });
+      } else {
+        failScan(err.message || 'Impossible d\'ouvrir ce dossier.');
+      }
+      return;
+    }
+
+    try {
       startScan('local');
 
       const result = await scanDirectory(dirHandle, (count) => updateProgress(count), {
@@ -84,9 +105,13 @@ const createScanSlice = (set, get) => ({
 
       completeScan({ name: result.name, files: result.files, tree: result.tree, source: { type: 'local' } });
 
+      // Persist handle in IndexedDB for future reuse
+      const key = `local:${result.name}`;
+      saveHandle(key, dirHandle);
+
       // Add to unified history
       addRecentProject({
-        key: `local:${result.name}`,
+        key,
         type: 'local',
         name: result.name,
         fileCount: result.files.length,
@@ -270,6 +295,8 @@ const createSettingsSlice = (set, get) => ({
   customThreshold: 0,
   githubToken: '',
   recentProjects: [],
+  sidebarCollapsed: false,
+  sidebarWidth: 340,
 
   setMinifyEnabled: (v) => set({ minifyEnabled: typeof v === 'function' ? v(get().minifyEnabled) : v }),
   setGitignoreEnabled: (v) =>
@@ -281,6 +308,9 @@ const createSettingsSlice = (set, get) => ({
     set({ customThreshold: typeof v === 'function' ? v(get().customThreshold) : v }),
   setGithubToken: (v) =>
     set({ githubToken: typeof v === 'function' ? v(get().githubToken) : v }),
+
+  toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+  setSidebarWidth: (w) => set({ sidebarWidth: Math.max(180, Math.min(600, w)) }),
 
   addRecentProject: (project) =>
     set((state) => {
@@ -337,6 +367,8 @@ export const useStore = create(
         customThreshold: state.customThreshold,
         githubToken: state.githubToken,
         recentProjects: state.recentProjects,
+        sidebarCollapsed: state.sidebarCollapsed,
+        sidebarWidth: state.sidebarWidth,
       }),
     }
   )

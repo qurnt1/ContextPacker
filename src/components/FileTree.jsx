@@ -70,6 +70,7 @@ const FileTree = memo(function FileTree({
     if (isDirectory) {
       onToggleFolder(node.path);
     } else {
+      window.__cpLastClickedPath = node.path;
       onTogglePath(node.path);
     }
   };

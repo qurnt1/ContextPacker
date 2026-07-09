@@ -67,19 +67,27 @@ export default function WelcomeScreen() {
       });
     } else {
       setSource('local');
-      await handleOpenLocal();
+      await handleOpenLocal(item.key);
     }
   };
 
-  const handleDragOver = (e) => {
+  const handleDragEnter = (e) => {
     e.preventDefault();
     e.stopPropagation();
     dragCounter.current++;
     if (dragCounter.current === 1) setIsDragOver(true);
   };
 
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // ne touche pas au counter — dragOver se déclenche en continu
+  };
+
   const handleDragLeave = (e) => {
     e.preventDefault();
+    // ignorer si on entre juste dans un enfant
+    if (e.currentTarget.contains(e.relatedTarget)) return;
     dragCounter.current--;
     if (dragCounter.current <= 0) {
       dragCounter.current = 0;
@@ -89,9 +97,9 @@ export default function WelcomeScreen() {
 
   const handleDrop = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
     dragCounter.current = 0;
     setIsDragOver(false);
-    if (!handleOpenLocal) return;
     await handleOpenLocal();
   };
 
@@ -110,6 +118,7 @@ export default function WelcomeScreen() {
   return (
     <div
       className="flex-1 flex items-center justify-center relative overflow-hidden"
+      onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}

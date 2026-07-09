@@ -10,6 +10,7 @@ import {
   GitBranch,
   Search,
   X,
+  PanelLeftOpen,
 } from 'lucide-react';
 import FileTree from './FileTree';
 import { formatNumber } from '../utils/helpers';
@@ -30,6 +31,8 @@ export default function Sidebar() {
   const deselectAll = useStore((s) => s.deselectAll);
   const setMinifyEnabled = useStore((s) => s.setMinifyEnabled);
   const setGitignoreEnabled = useStore((s) => s.setGitignoreEnabled);
+  const sidebarCollapsed = useStore((s) => s.sidebarCollapsed);
+  const toggleSidebar = useStore((s) => s.toggleSidebar);
 
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef(null);
@@ -74,12 +77,37 @@ export default function Sidebar() {
     return files.filter((f) => f.path.toLowerCase().includes(q)).length;
   }, [files, searchQuery]);
 
+  // Collapsed mode: thin icon strip
+  if (sidebarCollapsed) {
+    return (
+      <motion.aside
+        initial={{ x: -20, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.3 }}
+        className="w-full flex flex-col items-center bg-cyber-surface border-r border-cyber-border overflow-hidden transition-colors duration-300 py-3 gap-3"
+      >
+        <button onClick={toggleSidebar} title="Afficher le panneau" className="p-1.5 rounded-md hover:bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-accent transition-colors">
+          <PanelLeftOpen className="w-4 h-4" />
+        </button>
+        <button onClick={selectAll} title="Tout sélectionner" className="p-1.5 rounded-md hover:bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-accent transition-colors">
+          <CheckSquare className="w-4 h-4" />
+        </button>
+        <button onClick={() => setGitignoreEnabled((v) => !v)} title=".gitignore" className={`p-1.5 rounded-md transition-colors ${gitignoreEnabled ? 'text-cyber-accent bg-cyber-accent/10' : 'text-cyber-text-3 hover:text-cyber-accent hover:bg-cyber-surface-2'}`}>
+          <GitBranch className="w-4 h-4" />
+        </button>
+        <button onClick={() => setMinifyEnabled((v) => !v)} title="Minification" className={`p-1.5 rounded-md transition-colors ${minifyEnabled ? 'text-cyber-accent bg-cyber-accent/10' : 'text-cyber-text-3 hover:text-cyber-accent hover:bg-cyber-surface-2'}`}>
+          <Scissors className="w-4 h-4" />
+        </button>
+      </motion.aside>
+    );
+  }
+
   return (
     <motion.aside
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="w-[340px] min-w-[340px] flex flex-col bg-cyber-surface border-r border-cyber-border overflow-hidden transition-colors duration-300"
+      className="w-full flex flex-col bg-cyber-surface border-r border-cyber-border overflow-hidden transition-colors duration-300"
     >
       {/* Header */}
       <div className="p-4 border-b border-cyber-border">

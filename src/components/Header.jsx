@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Zap, Moon, Sun, Monitor, FolderOpen, Loader2, Home } from 'lucide-react';
+import { Zap, Moon, Sun, Monitor, FolderOpen, Loader2, Home, PanelLeftClose } from 'lucide-react';
 import { useCallback } from 'react';
 import { useTheme } from '../hooks/useTheme';
 import { useStore } from '../store';
@@ -11,6 +11,7 @@ export default function Header() {
   const resetProject = useStore((s) => s.resetProject);
   const isScanning = useStore((s) => s.isScanning);
   const sourceMeta = useStore((s) => s.sourceMeta);
+  const toggleSidebar = useStore((s) => s.toggleSidebar);
 
   const cycleTheme = useCallback(() => {
     const order = ['system', 'dark', 'light'];
@@ -28,7 +29,14 @@ export default function Header() {
       animate={{ y: 0, opacity: 1 }}
       className="h-11 flex items-center justify-between px-4 border-b border-cyber-border bg-cyber-surface flex-shrink-0"
     >
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-2 min-w-0">
+        <button
+          onClick={toggleSidebar}
+          title="Afficher/Masquer le panneau latéral"
+          className="p-1.5 rounded-lg hover:bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-accent transition-colors"
+        >
+          <PanelLeftClose className="w-4 h-4" />
+        </button>
         <button
           onClick={resetProject}
           disabled={isScanning}
