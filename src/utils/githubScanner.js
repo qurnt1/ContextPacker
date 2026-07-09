@@ -78,6 +78,7 @@ export async function scanGitHubRepo({
   maxTotalBytes = DEFAULT_GITHUB_MAX_TOTAL_BYTES,
   onEstimate,
   onProgress,
+  onFileStart,
 } = {}) {
   initEncoding();
 
@@ -211,6 +212,8 @@ export async function scanGitHubRepo({
       if (onProgress) onProgress(processed, candidates.length, 'download');
       return;
     }
+
+    if (onFileStart) onFileStart(entry.path.split('/').pop() || entry.path);
 
     const extension = getExtension(entry.path.split('/').pop() || entry.path);
     const lines = content.split('\n').length;

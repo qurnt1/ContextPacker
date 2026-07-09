@@ -27,7 +27,7 @@ const CodeBlock = memo(function CodeBlock({ code, filePath }) {
             const lineProps = getLineProps({ line });
             return (
               <div key={i} {...lineProps} className="table-row">
-                <span className="table-cell pr-4 text-right text-gray-700 select-none w-10 text-[10px]">
+                <span className="table-cell pr-4 text-right select-none w-10 text-[10px] text-cyber-text-3/60">
                   {i + 1}
                 </span>
                 <span className="table-cell">
