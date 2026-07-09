@@ -31,16 +31,7 @@ export async function getHandle(key) {
     const tx = db.transaction(STORE_NAME, 'readonly');
     const entry = await tx.objectStore(STORE_NAME).get(key);
     await tx.done;
-    // Verify permission by requesting read access
-    if (entry?.handle) {
-      const opts = { mode: 'read' };
-      const ok = await entry.handle.queryPermission(opts);
-      if (ok === 'granted') return entry.handle;
-      // Try to re-request permission
-      const req = await entry.handle.requestPermission(opts);
-      if (req === 'granted') return entry.handle;
-    }
-    return null;
+    return entry?.handle || null;
   } catch {
     return null;
   }

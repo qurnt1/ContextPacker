@@ -84,7 +84,7 @@ export default function Sidebar() {
         initial={{ x: -20, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="w-full flex flex-col items-center bg-cyber-surface border-r border-cyber-border overflow-hidden transition-colors duration-300 py-3 gap-3"
+        className="w-full h-full flex flex-col items-center bg-cyber-surface border-r border-cyber-border overflow-hidden transition-colors duration-300 py-3 gap-3"
       >
         <button onClick={toggleSidebar} title="Afficher le panneau" className="p-1.5 rounded-md hover:bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-accent transition-colors">
           <PanelLeftOpen className="w-4 h-4" />
@@ -107,7 +107,7 @@ export default function Sidebar() {
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="w-full flex flex-col bg-cyber-surface border-r border-cyber-border overflow-hidden transition-colors duration-300"
+      className="w-full h-full flex flex-col bg-cyber-surface border-r border-cyber-border overflow-hidden transition-colors duration-300"
     >
       {/* Header */}
       <div className="p-4 border-b border-cyber-border">

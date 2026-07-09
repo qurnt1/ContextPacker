@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { scanDirectory } from './utils/scanner';
 import { scanGitHubRepo, getRecentGitHubRepos } from './utils/githubScanner';
 import { generatePlainOutput } from './utils/outputFormatter';
-import { saveHandle, getHandle } from './utils/handleStorage';
+import { saveHandle } from './utils/handleStorage';
 
 // ── Scan Slice ──────────────────────────────────────────────
 const createScanSlice = (set, get) => ({
@@ -50,6 +50,35 @@ const createScanSlice = (set, get) => ({
   failScan: (error) =>
     set({ isScanning: false, scanError: error || 'Erreur inconnue.' }),
 
+  scanFromHandle: async (dirHandle) => {
+    const { startScan, updateProgress, completeScan, failScan, gitignoreEnabled, addRecentProject } = get();
+    try {
+      startScan('local');
+      const result = await scanDirectory(dirHandle, (count) => updateProgress(count), {
+        applyGitignore: gitignoreEnabled,
+        onFileStart: (name) => set({ currentFile: name }),
+      });
+      completeScan({ name: result.name, files: result.files, tree: result.tree, source: { type: 'local' } });
+      const key = `local:${result.name}`;
+      saveHandle(key, dirHandle);
+      addRecentProject({
+        key,
+        type: 'local',
+        name: result.name,
+        fileCount: result.files.length,
+        totalTokens: result.files.reduce((sum, f) => sum + (f.tokens || 0), 0),
+        openedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('Scan error:', err);
+        failScan(err.message || 'Impossible de scanner ce dossier.');
+      } else {
+        set({ isScanning: false });
+      }
+    }
+  },
+
   resetProject: () => {
     const { projectName, selectedPaths } = get();
     // Save selection in memory for this project key
@@ -72,58 +101,24 @@ const createScanSlice = (set, get) => ({
   },
 
   // Async orchestrators
-  handleOpenLocal: async (savedHandleKey) => {
-    const { startScan, updateProgress, completeScan, failScan, gitignoreEnabled, addRecentProject } = get();
-    let dirHandle;
+  handleOpenLocal: async (dirHandle) => {
+    const { scanFromHandle, failScan } = get();
+
+    // Si un handle valide est fourni (depuis drag-drop) → scan direct, pas de picker
+    if (dirHandle?.kind === 'directory') {
+      await scanFromHandle(dirHandle);
+      return;
+    }
+
+    // Sinon → picker système
     try {
-      if (savedHandleKey) {
-        // Try to reuse a previously saved handle
-        dirHandle = await getHandle(savedHandleKey);
-        if (!dirHandle) {
-          // Handle expired — fall back to picker
-          dirHandle = await window.showDirectoryPicker({ mode: 'read' });
-        }
-      } else {
-        dirHandle = await window.showDirectoryPicker({ mode: 'read' });
-      }
+      const handle = await window.showDirectoryPicker({ mode: 'read' });
+      await scanFromHandle(handle);
     } catch (err) {
       if (err.name === 'AbortError') {
         set({ isScanning: false });
       } else {
-        failScan(err.message || 'Impossible d\'ouvrir ce dossier.');
-      }
-      return;
-    }
-
-    try {
-      startScan('local');
-
-      const result = await scanDirectory(dirHandle, (count) => updateProgress(count), {
-        applyGitignore: gitignoreEnabled,
-        onFileStart: (name) => set({ currentFile: name }),
-      });
-
-      completeScan({ name: result.name, files: result.files, tree: result.tree, source: { type: 'local' } });
-
-      // Persist handle in IndexedDB for future reuse
-      const key = `local:${result.name}`;
-      saveHandle(key, dirHandle);
-
-      // Add to unified history
-      addRecentProject({
-        key,
-        type: 'local',
-        name: result.name,
-        fileCount: result.files.length,
-        totalTokens: result.files.reduce((sum, f) => sum + (f.tokens || 0), 0),
-        openedAt: new Date().toISOString(),
-      });
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error('Scan error:', err);
-        failScan(err.message || 'Impossible de scanner ce dossier local.');
-      } else {
-        set({ isScanning: false });
+        failScan(err.message || "Impossible d'ouvrir ce dossier.");
       }
     }
   },

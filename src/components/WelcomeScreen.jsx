@@ -13,6 +13,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { useStore } from '../store';
+import { getHandle } from '../utils/handleStorage';
 
 const isSupported = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
 
@@ -25,8 +26,6 @@ export default function WelcomeScreen() {
   const scanMode = useStore((s) => s.scanMode);
   const currentFile = useStore((s) => s.currentFile);
   const scanError = useStore((s) => s.scanError);
-  const githubToken = useStore((s) => s.githubToken);
-  const setGithubToken = useStore((s) => s.setGithubToken);
   const recentProjects = useStore((s) => s.recentProjects);
   const removeRecentProject = useStore((s) => s.removeRecentProject);
 
@@ -67,26 +66,43 @@ export default function WelcomeScreen() {
       });
     } else {
       setSource('local');
-      await handleOpenLocal(item.key);
+
+      // Tenter de réutiliser le handle sauvegardé (IndexedDB)
+      const saved = await getHandle(item.key);
+      if (saved) {
+        const opts = { mode: 'read' };
+        // Fast path : permission déjà accordée (même session ou persistante Chrome 122+)
+        if (await saved.queryPermission(opts) === 'granted') {
+          await handleOpenLocal(saved);
+          return;
+        }
+        // Demander la permission — appelé directement depuis le clic (transient activation OK)
+        if (await saved.requestPermission(opts) === 'granted') {
+          await handleOpenLocal(saved);
+          return;
+        }
+      }
+
+      // Fallback : picker (inévitable sans permission)
+      await handleOpenLocal();
     }
   };
 
   const handleDragEnter = (e) => {
     e.preventDefault();
-    e.stopPropagation();
+    // Ignorer les entrées depuis un enfant (le dragLeave correspondant a été ignoré)
+    if (e.currentTarget.contains(e.relatedTarget)) return;
     dragCounter.current++;
-    if (dragCounter.current === 1) setIsDragOver(true);
+    setIsDragOver(true);
   };
 
   const handleDragOver = (e) => {
     e.preventDefault();
-    e.stopPropagation();
-    // ne touche pas au counter — dragOver se déclenche en continu
   };
 
   const handleDragLeave = (e) => {
     e.preventDefault();
-    // ignorer si on entre juste dans un enfant
+    // Ignorer les sorties vers un enfant
     if (e.currentTarget.contains(e.relatedTarget)) return;
     dragCounter.current--;
     if (dragCounter.current <= 0) {
@@ -100,6 +116,23 @@ export default function WelcomeScreen() {
     e.stopPropagation();
     dragCounter.current = 0;
     setIsDragOver(false);
+
+    // Extraire un dossier du drop (le drop vaut autorisation de lecture)
+    try {
+      const items = [...e.dataTransfer.items];
+      for (const item of items) {
+        if (item.kind !== 'file') continue;
+        const handle = await item.getAsFileSystemHandle();
+        if (handle?.kind === 'directory') {
+          // Scan direct du dossier deposé — pas de picker
+          await handleOpenLocal(handle);
+          return;
+        }
+      }
+    } catch {
+      // getAsFileSystemHandle non supporté ou erreur → fallback
+    }
+    // Fallback : ouvrir le picker classique
     await handleOpenLocal();
   };
 
@@ -302,20 +335,6 @@ export default function WelcomeScreen() {
                   onChange={(event) => setSubPath(event.target.value)}
                   disabled={isScanning}
                   placeholder="ex: src/components"
-                  className="mt-1.5 w-full px-3.5 py-2.5 rounded-lg bg-cyber-surface-2 border border-cyber-border text-cyber-text text-sm focus:outline-none focus:border-cyber-accent/50 focus:ring-1 focus:ring-cyber-accent/20 transition-colors placeholder:text-cyber-text-3/50"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-cyber-text-3 uppercase tracking-wider font-semibold">
-                  Token GitHub (optionnel)
-                </label>
-                <input
-                  type="password"
-                  value={githubToken}
-                  onChange={(event) => setGithubToken(event.target.value)}
-                  disabled={isScanning}
-                  placeholder="ghp_... (améliore le rate limit)"
                   className="mt-1.5 w-full px-3.5 py-2.5 rounded-lg bg-cyber-surface-2 border border-cyber-border text-cyber-text text-sm focus:outline-none focus:border-cyber-accent/50 focus:ring-1 focus:ring-cyber-accent/20 transition-colors placeholder:text-cyber-text-3/50"
                 />
               </div>

@@ -67,6 +67,11 @@ const FileTree = memo(function FileTree({
 
   const handleCheckboxClick = (event) => {
     event.stopPropagation();
+    // Shift+click range selection (fonctionne sur checkbox ET sur la rangée)
+    if (event.shiftKey && window.__cpLastClickedPath && !isDirectory) {
+      selectRange(window.__cpLastClickedPath, node.path);
+      return;
+    }
     if (isDirectory) {
       onToggleFolder(node.path);
     } else {
@@ -129,13 +134,7 @@ const FileTree = memo(function FileTree({
             setExpanded((value) => !value);
             return;
           }
-          // Shift+click range selection
-          if (e.shiftKey && window.__cpLastClickedPath) {
-            selectRange(window.__cpLastClickedPath, node.path);
-            return;
-          }
-          handleCheckboxClick({ stopPropagation: () => {} });
-          window.__cpLastClickedPath = node.path;
+          handleCheckboxClick(e);
         }}
       >
         {isDirectory ? (
