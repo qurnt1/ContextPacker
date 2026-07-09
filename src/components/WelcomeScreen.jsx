@@ -10,6 +10,7 @@ import {
   History,
   Trash2,
   Monitor,
+  Upload,
 } from 'lucide-react';
 import { useStore } from '../store';
 
@@ -176,34 +177,57 @@ export default function WelcomeScreen() {
           className="mx-auto w-full max-w-2xl card p-5 md:p-6 text-left"
         >
           {/* Source tabs */}
-          <div className="flex gap-1.5 mb-5 bg-cyber-surface-2 rounded-lg p-1">
+          <div className="flex gap-3 mb-5">
             <button
               onClick={() => setSource('local')}
               disabled={isScanning}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
                 source === 'local'
-                  ? 'bg-cyber-surface text-cyber-text shadow-sm'
+                  ? 'bg-cyber-accent text-black shadow-sm'
                   : 'text-cyber-text-3 hover:text-cyber-text-2'
               }`}
             >
-              <FolderOpen className="w-4 h-4 inline mr-1.5 -mt-0.5" />
               Projet local
             </button>
             <button
               onClick={() => setSource('github')}
               disabled={isScanning}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
                 source === 'github'
-                  ? 'bg-cyber-surface text-cyber-text shadow-sm'
+                  ? 'bg-cyber-accent text-black shadow-sm'
                   : 'text-cyber-text-3 hover:text-cyber-text-2'
               }`}
             >
-              <Github className="w-4 h-4 inline mr-1.5 -mt-0.5" />
               Projet GitHub
             </button>
           </div>
 
-          {source === 'local' ? (
+          {isScanning ? (
+            <>
+              <div className="space-y-3 animate-pulse mb-4">
+                <div className="h-4 bg-cyber-surface-2 rounded w-1/3" />
+                <div className="h-10 bg-cyber-surface-2 rounded-lg w-full" />
+                <div className="h-4 bg-cyber-surface-2 rounded w-1/4 mt-2" />
+                <div className="h-10 bg-cyber-surface-2 rounded-lg w-full" />
+              </div>
+              <button
+                disabled
+                className="w-full inline-flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-cyber-accent/10 border border-cyber-accent/25 text-cyber-accent font-semibold transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>{loadingLabel}</span>
+                  </div>
+                  {currentFile && (
+                    <p className="text-[10px] text-cyber-text-3 mt-1 truncate max-w-xs mx-auto">
+                      {currentFile}
+                    </p>
+                  )}
+                </div>
+              </button>
+            </>
+          ) : source === 'local' ? (
             <div className="space-y-3">
               {isSupported ? (
                 <button
@@ -211,24 +235,10 @@ export default function WelcomeScreen() {
                   disabled={isScanning}
                   className="w-full inline-flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-cyber-accent/10 border border-cyber-accent/25 text-cyber-accent font-semibold transition-all duration-200 hover:bg-cyber-accent/15 hover:border-cyber-accent/40 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {isScanning && scanMode === 'local' ? (
-                    <div className="text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>{loadingLabel}</span>
-                      </div>
-                      {currentFile && (
-                        <p className="text-[10px] text-cyber-text-3 mt-1 truncate max-w-xs mx-auto">
-                          {currentFile}
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <>
-                      <FolderOpen className="w-5 h-5" />
-                      <span>Ouvrir un dossier local</span>
-                    </>
-                  )}
+                  <>
+                    <FolderOpen className="w-5 h-5" />
+                    <span>Ouvrir un dossier local</span>
+                  </>
                 </button>
               ) : (
                 <div className="flex flex-col items-center gap-3 py-2">
@@ -243,9 +253,12 @@ export default function WelcomeScreen() {
                   </p>
                 </div>
               )}
-              <p className="text-[11px] text-cyber-text-3 text-center">
-                Vous pouvez aussi glisser-déposer un dossier sur cette fenêtre.
-              </p>
+
+              {/* Drag hint */}
+              <div className="border border-dashed border-cyber-border rounded-lg px-3 py-2 text-center">
+                <Upload className="w-4 h-4 inline mr-1.5 -mt-0.5 text-cyber-text-3" />
+                <span className="text-[11px] text-cyber-text-3">Glissez-déposez un dossier ici</span>
+              </div>
             </div>
           ) : (
             <form onSubmit={handleGitHubSubmit} className="space-y-3">
@@ -296,24 +309,10 @@ export default function WelcomeScreen() {
                 disabled={isScanning || !repoInput.trim()}
                 className="w-full inline-flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-cyber-accent/10 border border-cyber-accent/25 text-cyber-accent font-semibold transition-all duration-200 hover:bg-cyber-accent/15 hover:border-cyber-accent/40 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {isScanning && scanMode === 'github' ? (
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>{loadingLabel}</span>
-                    </div>
-                    {currentFile && (
-                      <p className="text-[10px] text-cyber-text-3 mt-1 truncate max-w-xs mx-auto">
-                        {currentFile}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    <Github className="w-5 h-5" />
-                    <span>Charger le projet GitHub</span>
-                  </>
-                )}
+                <>
+                  <Github className="w-5 h-5" />
+                  <span>Charger le projet GitHub</span>
+                </>
               </button>
 
               <p className="text-[11px] text-cyber-text-3 leading-relaxed">

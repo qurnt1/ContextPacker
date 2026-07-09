@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from '../store';
 
 export function useKeyboardShortcuts() {
+  const [showHelp, setShowHelp] = useState(false);
   const hasProject = useStore((s) => s.files.length > 0);
   const selectAll = useStore((s) => s.selectAll);
   const deselectAll = useStore((s) => s.deselectAll);
@@ -22,6 +23,13 @@ export function useKeyboardShortcuts() {
           window.__cpSearchInputRef.current.focus();
           window.__cpSearchInputRef.current.select();
         }
+        return;
+      }
+
+      // ? → toggle shortcut help (works globally)
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey && !isEditable) {
+        e.preventDefault();
+        setShowHelp((v) => !v);
         return;
       }
 
@@ -56,4 +64,6 @@ export function useKeyboardShortcuts() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [hasProject, selectAll, deselectAll, resetProject, cancelWarning, showWarning]);
+
+  return { showHelp, closeHelp: () => setShowHelp(false) };
 }

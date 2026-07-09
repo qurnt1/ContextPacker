@@ -122,6 +122,7 @@ export default function MainPanel() {
               const content = minifyEnabled ? file.minifiedContent : file.content;
               const tokens = minifyEnabled ? file.minifiedTokens : file.tokens;
               const lines = content.split('\n').length;
+              const langColor = getLangColor(file.extension);
 
               return (
                 <motion.div
@@ -130,6 +131,7 @@ export default function MainPanel() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: Math.min(index * 0.02, 0.4) }}
                   className="card overflow-hidden"
+                  style={langColor ? { borderTopColor: langColor, borderTopWidth: '2px' } : undefined}
                 >
                   <div className="flex items-center justify-between px-4 py-2 bg-cyber-surface-2/50 border-b border-cyber-border">
                     <div className="flex items-center gap-2 min-w-0">

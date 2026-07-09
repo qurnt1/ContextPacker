@@ -11,6 +11,7 @@ import {
   Minus,
 } from 'lucide-react';
 import { formatSize } from '../utils/helpers';
+import { getLangColor } from '../utils/languageBadge';
 import { useStore } from '../store';
 
 const CODE_EXTENSIONS = new Set([
@@ -157,6 +158,11 @@ const FileTree = memo(function FileTree({
           {selectionState === 'all' ? <Check className="w-2.5 h-2.5" /> : null}
           {selectionState === 'some' ? <Minus className="w-2.5 h-2.5" /> : null}
         </button>
+
+        {!isDirectory && getLangColor(node.extension) && (
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getLangColor(node.extension) }} />
+        )}
+        {!isDirectory && !getLangColor(node.extension) && <span className="w-2 h-2 flex-shrink-0" />}
 
         <FileIcon className={`w-3.5 h-3.5 flex-shrink-0 ${iconColor}`} />
 

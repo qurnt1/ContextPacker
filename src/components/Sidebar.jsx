@@ -19,6 +19,7 @@ export default function Sidebar() {
   const projectName = useStore((s) => s.projectName);
   const tree = useStore((s) => s.tree);
   const files = useStore((s) => s.files);
+  const isScanning = useStore((s) => s.isScanning);
   const selectedPaths = useStore((s) => s.selectedPaths);
   const minifyEnabled = useStore((s) => s.minifyEnabled);
   const gitignoreEnabled = useStore((s) => s.gitignoreEnabled);
@@ -88,7 +89,15 @@ export default function Sidebar() {
         </div>
         <div className="text-xs text-cyber-text-3 flex items-center gap-2 flex-wrap">
           <span>
-            <span className="text-cyber-text-2 font-medium">{stats.fileCount}</span>/{stats.totalFiles}
+            <motion.span
+              key={stats.fileCount}
+              initial={{ scale: 1.4, color: '#22c55e' }}
+              animate={{ scale: 1, color: 'var(--cp-text-2)' }}
+              transition={{ duration: 0.25 }}
+              className="font-medium tabular-nums"
+            >
+              {stats.fileCount}
+            </motion.span>/{stats.totalFiles}
           </span>
           <span className="text-cyber-border">·</span>
           <span>
@@ -219,9 +228,18 @@ export default function Sidebar() {
         </div>
       )}
 
-      {/* File tree */}
+      {/* File tree / skeleton */}
       <div className="flex-1 overflow-y-auto px-1.5 py-1.5">
-        {tree ? (
+        {isScanning && files.length === 0 ? (
+          <div className="space-y-2 animate-pulse px-1.5">
+            {['70%', '45%', '80%', '55%', '65%', '40%', '75%', '50%', '60%', '85%', '35%', '55%'].map((width, i) => (
+              <div key={i} className="flex items-center gap-2" style={{ paddingLeft: `${(i % 3) * 12}px` }}>
+                <div className="w-3 h-3 rounded bg-cyber-surface-2" />
+                <div className="h-3 rounded bg-cyber-surface-2" style={{ width }} />
+              </div>
+            ))}
+          </div>
+        ) : tree ? (
           <FileTree
             node={tree}
             files={files}

@@ -8,6 +8,7 @@ import Sidebar from './components/Sidebar';
 import MainPanel from './components/MainPanel';
 import Dashboard from './components/Dashboard';
 import WarningPopup from './components/WarningPopup';
+import ShortcutHelp from './components/ShortcutHelp';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 function AppInner() {
@@ -18,7 +19,7 @@ function AppInner() {
     loadGithubHistory();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useKeyboardShortcuts();
+  const { showHelp, closeHelp } = useKeyboardShortcuts();
 
   return (
     <div className="h-screen flex flex-col bg-cyber-bg text-cyber-text font-sans overflow-hidden transition-colors duration-300">
@@ -45,6 +46,7 @@ function AppInner() {
       </AnimatePresence>
 
       <WarningPopup />
+      <ShortcutHelp isOpen={showHelp} onClose={closeHelp} />
     </div>
   );
 }

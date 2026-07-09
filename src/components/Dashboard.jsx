@@ -5,6 +5,8 @@ import { formatNumber } from '../utils/helpers';
 import { useStore } from '../store';
 import { generatePlainOutput } from '../utils/outputFormatter';
 import { generateMarkdownOutput } from '../utils/markdownFormatter';
+import { useToast } from '../hooks/useToast';
+import Toast from './Toast';
 
 export default function Dashboard() {
   const tokenLimit = useStore((s) => s.tokenLimit);
@@ -79,8 +81,9 @@ export default function Dashboard() {
   const { totalTokens, fileCount, totalFiles, totalLines } = stats;
   const usage = totalTokens / tokenLimit;
   const isWarning = totalTokens > tokenLimit;
-  const percentage = Math.min(usage * 100, 100);
+  const percentage = usage * 100;
   const [copied, setCopied] = useState(false);
+  const [toast, showToast] = useToast();
 
   const limitLabel =
     tokenLimit >= 1_000_000
@@ -92,11 +95,12 @@ export default function Dashboard() {
     try {
       await navigator.clipboard.writeText(outputText);
       setCopied(true);
+      showToast('Copié dans le presse-papier', 'success');
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Copy failed:', err);
     }
-  }, [outputText]);
+  }, [outputText, showToast]);
 
   const handleDownload = useCallback(() => {
     if (!outputText) return;
@@ -149,32 +153,35 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Progress bar */}
-      <div className="flex-1 flex flex-col justify-center max-w-lg mx-auto w-full">
-        <div className="flex justify-between items-end mb-1">
-          <span className="text-[10px] font-semibold text-cyber-text-3 uppercase tracking-wider">
-            {limitLabel}
-          </span>
-          {isWarning ? (
-            <div className="flex items-center gap-1 text-red-400">
-              <AlertTriangle className="w-3 h-3" />
-              <span className="text-[10px] font-bold">OVERFLOW</span>
-            </div>
-          ) : null}
-          <span className={`font-mono text-[10px] ${isWarning ? 'text-red-400 font-bold' : 'text-cyber-text-3'}`}>
-            {percentage.toFixed(0)}%
-          </span>
-        </div>
-        <div className="h-1.5 bg-cyber-surface-2 rounded-full overflow-hidden w-full">
-          <motion.div
-            className={`h-full rounded-full transition-colors ${
-              isWarning ? 'bg-red-500' : 'bg-cyber-accent'
-            }`}
-            initial={{ width: 0 }}
-            animate={{ width: `${percentage}%` }}
-            transition={{ duration: 0.35, ease: 'easeOut' }}
+      {/* Arc gauge */}
+      <div className="flex-1 flex items-center justify-center gap-3 max-w-lg mx-auto w-full">
+        <span className="text-[10px] font-semibold text-cyber-text-3 uppercase tracking-wider">
+          {limitLabel}
+        </span>
+        <svg width="40" height="40" viewBox="0 0 40 40" className="flex-shrink-0">
+          {/* Background track */}
+          <circle cx="20" cy="20" r={16} fill="none" stroke="var(--cp-surface-2)" strokeWidth="3" />
+          {/* Filled arc */}
+          <circle
+            cx="20" cy="20" r={16} fill="none"
+            stroke={percentage > 100 ? '#ef4444' : percentage > 80 ? '#f59e0b' : '#22c55e'}
+            strokeWidth="3"
+            strokeDasharray={`${Math.min(percentage, 100) / 100 * (2 * Math.PI * 16)} ${2 * Math.PI * 16 - Math.min(percentage, 100) / 100 * (2 * Math.PI * 16)}`}
+            strokeLinecap="round"
+            transform="rotate(-90 20 20)"
+            style={{ transition: 'stroke-dasharray 0.5s ease, stroke 0.3s' }}
           />
-        </div>
+          {/* Center text */}
+          <text x="20" y="20" textAnchor="middle" dy="0.35em" className="fill-cyber-text" fontSize="8" fontWeight="bold" fontFamily="'JetBrains Mono', monospace">
+            {percentage.toFixed(0)}%
+          </text>
+        </svg>
+        {isWarning && (
+          <div className="flex items-center gap-1 text-red-400">
+            <AlertTriangle className="w-3 h-3" />
+            <span className="text-[10px] font-bold">OVERFLOW</span>
+          </div>
+        )}
       </div>
 
       {/* Actions */}
@@ -213,6 +220,8 @@ export default function Dashboard() {
           <span className="hidden lg:inline">.MD</span>
         </button>
       </div>
+
+      <Toast message={toast.message} visible={toast.visible} type={toast.type} />
     </motion.div>
   );
 }
