@@ -1,8 +1,27 @@
+import { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, X } from 'lucide-react';
 import { formatNumber } from '../utils/helpers';
+import { useStore } from '../store';
 
-export default function WarningPopup({ isOpen, totalTokens, tokenLimit, warningPercent, customThreshold, onConfirm, onCancel }) {
+export default function WarningPopup() {
+  const isOpen = useStore((s) => s.showWarning);
+  const pendingPaths = useStore((s) => s.pendingPaths);
+  const files = useStore((s) => s.files);
+  const minifyEnabled = useStore((s) => s.minifyEnabled);
+  const tokenLimit = useStore((s) => s.tokenLimit);
+  const warningPercent = useStore((s) => s.warningPercent);
+  const customThreshold = useStore((s) => s.customThreshold);
+  const confirmWarning = useStore((s) => s.confirmWarning);
+  const cancelWarning = useStore((s) => s.cancelWarning);
+
+  const totalTokens = useMemo(() => {
+    if (!pendingPaths) return 0;
+    return files
+      .filter((f) => pendingPaths.has(f.path))
+      .reduce((sum, f) => sum + (minifyEnabled ? f.minifiedTokens : f.tokens), 0);
+  }, [pendingPaths, files, minifyEnabled]);
+
   const percentUsed = ((totalTokens / tokenLimit) * 100).toFixed(1);
   const reasons = [];
   if (totalTokens > (tokenLimit * warningPercent) / 100) {
@@ -20,28 +39,28 @@ export default function WarningPopup({ isOpen, totalTokens, tokenLimit, warningP
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200]"
-            onClick={onCancel}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200]"
+            onClick={cancelWarning}
           />
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ type: 'spring', damping: 25, stiffness: 400 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[440px] max-w-[90vw] bg-cyber-surface border border-amber-500/30 rounded-2xl shadow-2xl z-[201] overflow-hidden"
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] max-w-[90vw] bg-cyber-surface border border-cyber-border rounded-2xl shadow-2xl z-[201] overflow-hidden"
           >
             {/* Header */}
-            <div className="flex items-center gap-3 px-5 py-4 bg-amber-500/10 border-b border-amber-500/20">
-              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-500/15">
-                <AlertTriangle className="w-5 h-5 text-amber-400" />
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-cyber-border">
+              <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-amber-500/10">
+                <AlertTriangle className="w-4.5 h-4.5 text-amber-400" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-amber-300">Volume important détecté</h3>
-                <p className="text-[11px] text-amber-400/70">{percentUsed}% de la limite atteint</p>
+                <h3 className="text-sm font-semibold text-cyber-text">Volume important détecté</h3>
+                <p className="text-[11px] text-cyber-text-3">{percentUsed}% de la limite</p>
               </div>
               <button
-                onClick={onCancel}
-                className="ml-auto p-1.5 rounded-lg hover:bg-amber-500/10 text-amber-400/50 hover:text-amber-400 transition-colors"
+                onClick={cancelWarning}
+                className="ml-auto p-1.5 rounded-lg hover:bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-text transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -51,7 +70,7 @@ export default function WarningPopup({ isOpen, totalTokens, tokenLimit, warningP
             <div className="px-5 py-4 space-y-3">
               {reasons.map((r, i) => (
                 <p key={i} className="text-xs text-cyber-text-2 leading-relaxed">
-                  • {r}
+                  {r}
                 </p>
               ))}
               <p className="text-xs text-cyber-text-3 mt-2">
@@ -60,18 +79,18 @@ export default function WarningPopup({ isOpen, totalTokens, tokenLimit, warningP
             </div>
 
             {/* Actions */}
-            <div className="flex gap-2 px-5 py-4 border-t border-cyber-border">
+            <div className="flex gap-2.5 px-5 py-4 border-t border-cyber-border bg-cyber-surface-2/50">
               <button
-                onClick={onCancel}
-                className="flex-1 px-4 py-2.5 rounded-lg text-xs font-medium bg-cyber-surface-2 text-cyber-text-2 hover:text-cyber-text transition-colors"
+                onClick={cancelWarning}
+                className="flex-1 px-4 py-2.5 rounded-lg text-xs font-medium bg-cyber-surface-2 border border-cyber-border text-cyber-text-2 hover:text-cyber-text hover:border-cyber-text-3 transition-colors"
               >
                 Annuler
               </button>
               <button
-                onClick={onConfirm}
-                className="flex-1 px-4 py-2.5 rounded-lg text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 transition-colors"
+                onClick={confirmWarning}
+                className="flex-1 px-4 py-2.5 rounded-lg text-xs font-medium bg-amber-500/15 text-amber-300 border border-amber-500/25 hover:bg-amber-500/25 transition-colors"
               >
-                Continuer quand même
+                Continuer
               </button>
             </div>
           </motion.div>

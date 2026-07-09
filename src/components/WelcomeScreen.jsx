@@ -8,25 +8,31 @@ import {
   Github,
   ShieldCheck,
   History,
+  Trash2,
+  Monitor,
 } from 'lucide-react';
+import { useStore } from '../store';
 
 const isSupported = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
 
-export default function WelcomeScreen({
-  onOpenLocal,
-  onOpenGitHub,
-  isScanning,
-  scanCount,
-  scanTotal,
-  scanMode,
-  scanError,
-  githubToken,
-  onChangeGithubToken,
-  recentGitHubRepos,
-}) {
+export default function WelcomeScreen() {
+  const handleOpenLocal = useStore((s) => s.handleOpenLocal);
+  const handleOpenGitHub = useStore((s) => s.handleOpenGitHub);
+  const isScanning = useStore((s) => s.isScanning);
+  const scanCount = useStore((s) => s.scanCount);
+  const scanTotal = useStore((s) => s.scanTotal);
+  const scanMode = useStore((s) => s.scanMode);
+  const currentFile = useStore((s) => s.currentFile);
+  const scanError = useStore((s) => s.scanError);
+  const githubToken = useStore((s) => s.githubToken);
+  const setGithubToken = useStore((s) => s.setGithubToken);
+  const recentProjects = useStore((s) => s.recentProjects);
+  const removeRecentProject = useStore((s) => s.removeRecentProject);
+
   const [source, setSource] = useState('local');
   const [repoInput, setRepoInput] = useState('');
   const [subPath, setSubPath] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const loadingLabel = useMemo(() => {
     if (!isScanning) return '';
@@ -42,105 +48,157 @@ export default function WelcomeScreen({
   const handleGitHubSubmit = async (event) => {
     event.preventDefault();
     if (!repoInput.trim()) return;
-    await onOpenGitHub({
+    await handleOpenGitHub({
       repoInput: repoInput.trim(),
       subPath: subPath.trim(),
     });
   };
 
   const handleRecentClick = async (item) => {
-    setSource('github');
-    setRepoInput(item.input || `https://github.com/${item.owner}/${item.repo}`);
-    setSubPath(item.subPath || '');
-    await onOpenGitHub({
-      repoInput: item.input || `https://github.com/${item.owner}/${item.repo}`,
-      subPath: item.subPath || '',
-    });
+    if (item.type === 'github') {
+      setSource('github');
+      setRepoInput(item.input || `https://github.com/${item.owner}/${item.repo}`);
+      setSubPath(item.subPath || '');
+      await handleOpenGitHub({
+        repoInput: item.input || `https://github.com/${item.owner}/${item.repo}`,
+        subPath: item.subPath || '',
+      });
+    } else {
+      setSource('local');
+      await handleOpenLocal();
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (!handleOpenLocal) return;
+    await handleOpenLocal();
+  };
+
+  const formatRelative = (iso) => {
+    if (!iso) return '';
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "à l'instant";
+    if (mins < 60) return `il y a ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `il y a ${hours}h`;
+    const days = Math.floor(hours / 24);
+    return `il y a ${days}j`;
   };
 
   return (
-    <motion.div
-      className="flex-1 flex items-center justify-center grid-bg radial-glow relative overflow-hidden"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.5 }}
+    <div
+      className="flex-1 flex items-center justify-center relative overflow-hidden"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyber-accent/20 to-transparent" />
-        <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyber-accent/20 to-transparent" />
-        <div className="absolute top-0 left-0 h-full w-px bg-gradient-to-b from-transparent via-cyber-accent/10 to-transparent" />
-        <div className="absolute top-0 right-0 h-full w-px bg-gradient-to-b from-transparent via-cyber-accent/10 to-transparent" />
-      </div>
+      <motion.div
+        className="flex-1 flex items-center justify-center relative"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.5 }}
+      >
+      {/* Drag overlay */}
+      {isDragOver && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-cyber-accent/[0.04] backdrop-blur-sm">
+          <div className="card px-8 py-6 text-center border-2 border-dashed border-cyber-accent/40">
+            <Monitor className="w-10 h-10 text-cyber-accent mx-auto mb-3" />
+            <p className="text-lg font-semibold text-cyber-text">Déposez le dossier ici</p>
+            <p className="text-sm text-cyber-text-3 mt-1">Le scan démarrera automatiquement</p>
+          </div>
+        </div>
+      )}
 
       <div className="w-full max-w-3xl text-center z-10 px-6">
+        {/* Logo */}
         <motion.div
           initial={{ y: -30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.6 }}
           className="mb-8"
         >
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-cyber-surface neon-border mb-6 animate-pulse-glow">
-            <Zap className="w-10 h-10 text-cyber-accent" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-cyber-surface card mb-5">
+            <Zap className="w-8 h-8 text-cyber-accent" />
           </div>
         </motion.div>
 
+        {/* Title */}
         <motion.h1
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.6 }}
-          className="text-5xl font-bold tracking-tight mb-1"
+          className="text-6xl font-bold tracking-tight mb-2"
         >
           <span className="text-cyber-text">Context</span>
-          <span className="text-cyber-accent text-glow-accent">Packer</span>
+          <span className="text-cyber-accent">Packer</span>
         </motion.h1>
 
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.38, duration: 0.5 }}
-          className="text-xs font-mono text-cyber-text-2 mb-5"
+          className="text-xs font-mono text-cyber-text-3 mb-6"
         >
-          v3.0
+          v4.0
         </motion.p>
 
+        {/* Description */}
         <motion.p
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.45, duration: 0.6 }}
-          className="text-cyber-text-2 text-lg mb-8 max-w-xl mx-auto leading-relaxed"
+          className="text-cyber-text-2 text-lg mb-10 max-w-xl mx-auto leading-relaxed"
         >
-          Chargez un projet local ou un repository GitHub public, puis assemblez un contexte propre
+          Chargez un projet local ou un repository GitHub, puis assemblez un contexte propre
           pour vos LLM en quelques secondes.
         </motion.p>
 
+        {/* Main card */}
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.55, duration: 0.6 }}
-          className="mx-auto w-full max-w-2xl rounded-2xl bg-cyber-surface/85 border border-cyber-border p-4 md:p-5 text-left"
+          className="mx-auto w-full max-w-2xl card p-5 md:p-6 text-left"
         >
-          <div className="flex gap-2 mb-4">
+          {/* Source tabs */}
+          <div className="flex gap-1.5 mb-5 bg-cyber-surface-2 rounded-lg p-1">
             <button
               onClick={() => setSource('local')}
               disabled={isScanning}
-              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
                 source === 'local'
-                  ? 'bg-cyber-accent/15 text-cyber-accent border border-cyber-accent/30'
-                  : 'bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-text-2'
+                  ? 'bg-cyber-surface text-cyber-text shadow-sm'
+                  : 'text-cyber-text-3 hover:text-cyber-text-2'
               }`}
             >
+              <FolderOpen className="w-4 h-4 inline mr-1.5 -mt-0.5" />
               Projet local
             </button>
             <button
               onClick={() => setSource('github')}
               disabled={isScanning}
-              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
                 source === 'github'
-                  ? 'bg-cyber-accent/15 text-cyber-accent border border-cyber-accent/30'
-                  : 'bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-text-2'
+                  ? 'bg-cyber-surface text-cyber-text shadow-sm'
+                  : 'text-cyber-text-3 hover:text-cyber-text-2'
               }`}
             >
+              <Github className="w-4 h-4 inline mr-1.5 -mt-0.5" />
               Projet GitHub
             </button>
           </div>
@@ -149,25 +207,32 @@ export default function WelcomeScreen({
             <div className="space-y-3">
               {isSupported ? (
                 <button
-                  onClick={onOpenLocal}
+                  onClick={handleOpenLocal}
                   disabled={isScanning}
-                  className="w-full inline-flex items-center justify-center gap-3 px-6 py-3 rounded-xl bg-cyber-surface neon-border-bright text-cyber-accent font-semibold transition-all duration-300 hover:bg-cyber-surface-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full inline-flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-cyber-accent/10 border border-cyber-accent/25 text-cyber-accent font-semibold transition-all duration-200 hover:bg-cyber-accent/15 hover:border-cyber-accent/40 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {isScanning && scanMode === 'local' ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>{loadingLabel}</span>
-                    </>
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>{loadingLabel}</span>
+                      </div>
+                      {currentFile && (
+                        <p className="text-[10px] text-cyber-text-3 mt-1 truncate max-w-xs mx-auto">
+                          {currentFile}
+                        </p>
+                      )}
+                    </div>
                   ) : (
                     <>
                       <FolderOpen className="w-5 h-5" />
-                      <span>Ouvrir un nouveau projet ou dossier</span>
+                      <span>Ouvrir un dossier local</span>
                     </>
                   )}
                 </button>
               ) : (
                 <div className="flex flex-col items-center gap-3 py-2">
-                  <div className="flex items-center gap-2 text-amber-400 bg-amber-400/10 px-5 py-3 rounded-lg">
+                  <div className="flex items-center gap-2 text-amber-500 bg-amber-500/10 px-5 py-3 rounded-lg border border-amber-500/20">
                     <AlertTriangle className="w-5 h-5" />
                     <span className="text-sm font-medium">
                       File System Access API non supportée par ce navigateur.
@@ -178,6 +243,9 @@ export default function WelcomeScreen({
                   </p>
                 </div>
               )}
+              <p className="text-[11px] text-cyber-text-3 text-center">
+                Vous pouvez aussi glisser-déposer un dossier sur cette fenêtre.
+              </p>
             </div>
           ) : (
             <form onSubmit={handleGitHubSubmit} className="space-y-3">
@@ -191,7 +259,7 @@ export default function WelcomeScreen({
                   onChange={(event) => setRepoInput(event.target.value)}
                   disabled={isScanning}
                   placeholder="https://github.com/owner/repo"
-                  className="mt-1 w-full px-3 py-2 rounded-lg bg-cyber-surface-2 border border-cyber-border text-cyber-text text-sm focus:outline-none focus:border-cyber-accent/50"
+                  className="mt-1.5 w-full px-3.5 py-2.5 rounded-lg bg-cyber-surface-2 border border-cyber-border text-cyber-text text-sm focus:outline-none focus:border-cyber-accent/50 focus:ring-1 focus:ring-cyber-accent/20 transition-colors placeholder:text-cyber-text-3/50"
                 />
               </div>
 
@@ -205,7 +273,7 @@ export default function WelcomeScreen({
                   onChange={(event) => setSubPath(event.target.value)}
                   disabled={isScanning}
                   placeholder="ex: src/components"
-                  className="mt-1 w-full px-3 py-2 rounded-lg bg-cyber-surface-2 border border-cyber-border text-cyber-text text-sm focus:outline-none focus:border-cyber-accent/50"
+                  className="mt-1.5 w-full px-3.5 py-2.5 rounded-lg bg-cyber-surface-2 border border-cyber-border text-cyber-text text-sm focus:outline-none focus:border-cyber-accent/50 focus:ring-1 focus:ring-cyber-accent/20 transition-colors placeholder:text-cyber-text-3/50"
                 />
               </div>
 
@@ -216,23 +284,30 @@ export default function WelcomeScreen({
                 <input
                   type="password"
                   value={githubToken}
-                  onChange={(event) => onChangeGithubToken(event.target.value)}
+                  onChange={(event) => setGithubToken(event.target.value)}
                   disabled={isScanning}
                   placeholder="ghp_... (améliore le rate limit)"
-                  className="mt-1 w-full px-3 py-2 rounded-lg bg-cyber-surface-2 border border-cyber-border text-cyber-text text-sm focus:outline-none focus:border-cyber-accent/50"
+                  className="mt-1.5 w-full px-3.5 py-2.5 rounded-lg bg-cyber-surface-2 border border-cyber-border text-cyber-text text-sm focus:outline-none focus:border-cyber-accent/50 focus:ring-1 focus:ring-cyber-accent/20 transition-colors placeholder:text-cyber-text-3/50"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isScanning || !repoInput.trim()}
-                className="w-full inline-flex items-center justify-center gap-3 px-6 py-3 rounded-xl bg-cyber-surface neon-border-bright text-cyber-accent font-semibold transition-all duration-300 hover:bg-cyber-surface-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full inline-flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-cyber-accent/10 border border-cyber-accent/25 text-cyber-accent font-semibold transition-all duration-200 hover:bg-cyber-accent/15 hover:border-cyber-accent/40 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isScanning && scanMode === 'github' ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>{loadingLabel}</span>
-                  </>
+                  <div className="text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>{loadingLabel}</span>
+                    </div>
+                    {currentFile && (
+                      <p className="text-[10px] text-cyber-text-3 mt-1 truncate max-w-xs mx-auto">
+                        {currentFile}
+                      </p>
+                    )}
+                  </div>
                 ) : (
                   <>
                     <Github className="w-5 h-5" />
@@ -242,57 +317,89 @@ export default function WelcomeScreen({
               </button>
 
               <p className="text-[11px] text-cyber-text-3 leading-relaxed">
-                Version v3: repositories publics uniquement. Les repos récents sont mémorisés pour
-                accélérer vos imports.
+                Repositories publics uniquement. Les projets récents sont mémorisés.
               </p>
             </form>
           )}
 
           {scanError ? (
-            <div className="mt-3 text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+            <div className="mt-4 text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3.5 py-2.5">
               {scanError}
-            </div>
-          ) : null}
-
-          {recentGitHubRepos?.length > 0 ? (
-            <div className="mt-4 border-t border-cyber-border pt-3">
-              <p className="text-[10px] uppercase tracking-wider text-cyber-text-3 mb-2 font-semibold flex items-center gap-1.5">
-                <History className="w-3 h-3" />
-                Repositories récents
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {recentGitHubRepos.slice(0, 6).map((item) => (
-                  <button
-                    key={`${item.owner}/${item.repo}@${item.ref}:${item.subPath || ''}`}
-                    onClick={() => handleRecentClick(item)}
-                    disabled={isScanning}
-                    className="px-2.5 py-1 rounded text-[11px] font-mono bg-cyber-surface-2 hover:bg-cyber-accent/10 text-cyber-text-2 hover:text-cyber-accent border border-transparent hover:border-cyber-accent/20 transition-colors"
-                    title={item.subPath ? `${item.owner}/${item.repo} (${item.subPath})` : `${item.owner}/${item.repo}`}
-                  >
-                    {item.owner}/{item.repo}
-                  </button>
-                ))}
-              </div>
             </div>
           ) : null}
         </motion.div>
 
+        {/* Recent projects */}
+        {recentProjects.length > 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.65, duration: 0.5 }}
+            className="mx-auto w-full max-w-2xl mt-5"
+          >
+            <p className="text-[10px] uppercase tracking-wider text-cyber-text-3 mb-3 font-semibold flex items-center gap-1.5">
+              <History className="w-3 h-3" />
+              Projets récents
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {recentProjects.slice(0, 8).map((item) => (
+                <div
+                  key={item.key}
+                  onClick={() => !isScanning && handleRecentClick(item)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !isScanning) handleRecentClick(item); }}
+                  className={`group flex items-center justify-between px-3.5 py-2.5 rounded-lg text-left bg-cyber-surface/80 border border-cyber-border hover:border-cyber-accent/30 hover:bg-cyber-surface transition-all cursor-pointer ${isScanning ? 'opacity-50 pointer-events-none' : ''}`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {item.type === 'github' ? (
+                      <Github className="w-4 h-4 text-cyber-text-3 flex-shrink-0" />
+                    ) : (
+                      <FolderOpen className="w-4 h-4 text-cyber-text-3 flex-shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-[12px] font-medium text-cyber-text-2 truncate group-hover:text-cyber-accent transition-colors">
+                        {item.name}
+                      </p>
+                      <p className="text-[10px] text-cyber-text-3">
+                        {item.fileCount ? `${item.fileCount} fichiers · ` : ''}{formatRelative(item.openedAt)}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeRecentProject(item.key);
+                    }}
+                    className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-cyber-surface-2 text-cyber-text-3 hover:text-red-400 transition-all flex-shrink-0 ml-1"
+                    title="Retirer de l'historique"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        ) : null}
+
+        {/* Footer badges */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.9, duration: 0.8 }}
-          className="mt-8 flex items-center justify-center gap-6 text-xs text-cyber-text-2 font-medium"
+          className="mt-10 flex items-center justify-center gap-6 text-xs text-cyber-text-3 font-medium"
         >
           <span className="inline-flex items-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-cyber-accent/80" />
+            <ShieldCheck className="w-3.5 h-3.5 text-cyber-accent/60" />
             100% côté client
           </span>
-          <span className="w-1 h-1 rounded-full bg-cyber-accent/30" />
+          <span className="w-1 h-1 rounded-full bg-cyber-border" />
           <span>Aucun fichier envoyé</span>
-          <span className="w-1 h-1 rounded-full bg-cyber-accent/30" />
+          <span className="w-1 h-1 rounded-full bg-cyber-border" />
           <span>Tiktoken o200k_base</span>
         </motion.div>
       </div>
-    </motion.div>
+      </motion.div>
+    </div>
   );
 }
