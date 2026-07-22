@@ -69,6 +69,34 @@ export function parseGitHubRepoInput(input, manualSubPath = '') {
   };
 }
 
+/**
+ * Resolve the current tree SHA for a branch reference.
+ * Returns the tree SHA of the latest commit on the branch.
+ */
+async function resolveTreeSha(owner, repo, ref, authToken) {
+  try {
+    // Get the ref data to find the commit SHA
+    const refData = await fetchGitHubJson(
+      `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/ref/heads/${encodeURIComponent(ref)}`,
+      authToken
+    );
+    if (refData?.object?.sha) {
+      // Get the commit to find the tree SHA
+      const commitData = await fetchGitHubJson(
+        `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/commits/${refData.object.sha}`,
+        authToken
+      );
+      if (commitData?.tree?.sha) {
+        return { treeSha: commitData.tree.sha, commitSha: refData.object.sha };
+      }
+    }
+  } catch {
+    // If ref resolution fails (e.g., the ref is already a SHA), fall back
+  }
+  // Fallback: use the ref directly (might be a SHA already)
+  return { treeSha: ref, commitSha: ref };
+}
+
 export async function scanGitHubRepo({
   repoInput,
   token = '',
@@ -95,7 +123,18 @@ export async function scanGitHubRepo({
   }
 
   const resolvedRef = parsed.ref || repoInfo.default_branch;
-  const cacheKey = `${parsed.owner}/${parsed.repo}@${resolvedRef}::${parsed.subPath || ''}::${applyGitignore ? '1' : '0'}`;
+  const followDefaultBranch = !parsed.ref;
+
+  // Resolve the current tree SHA for the branch
+  const { treeSha, commitSha } = await resolveTreeSha(
+    parsed.owner,
+    parsed.repo,
+    resolvedRef,
+    authToken
+  );
+
+  // Cache key is based on immutable tree SHA — stale cache when content changes
+  const cacheKey = `${parsed.owner}/${parsed.repo}@${treeSha}::${parsed.subPath || ''}::${applyGitignore ? '1' : '0'}`;
   const cached = githubScanCache.get(cacheKey);
   if (cached) {
     if (onProgress) {
@@ -106,18 +145,18 @@ export async function scanGitHubRepo({
 
   const treeData = await fetchGitHubJson(
     `${GITHUB_API_BASE}/repos/${parsed.owner}/${parsed.repo}/git/trees/${encodeURIComponent(
-      resolvedRef
+      treeSha
     )}?recursive=1`,
     authToken
   );
 
   if (!Array.isArray(treeData.tree)) {
-    throw new Error('Impossible de lire l arborescence du repository.');
+    throw new Error('Impossible de lire l\'arborescence du repository.');
   }
 
   if (treeData.truncated) {
     throw new Error(
-      'Repository trop volumineux pour l API GitHub recursive tree (résultat tronqué).'
+      'Repository trop volumineux pour l\'API GitHub recursive tree (résultat tronqué).'
     );
   }
 
@@ -251,9 +290,14 @@ export async function scanGitHubRepo({
       owner: parsed.owner,
       repo: parsed.repo,
       ref: resolvedRef,
+      requestedRef: parsed.ref || '',
+      followDefaultBranch,
       subPath: parsed.subPath,
       input: parsed.normalizedInput,
     },
+    resolvedRef,
+    resolvedSha: commitSha,
+    treeSha,
     estimate,
   };
 
@@ -262,10 +306,13 @@ export async function scanGitHubRepo({
     owner: parsed.owner,
     repo: parsed.repo,
     ref: resolvedRef,
+    requestedRef: parsed.ref || '',
+    followDefaultBranch,
     subPath: parsed.subPath,
     input: parsed.normalizedInput,
     scannedAt: new Date().toISOString(),
     fileCount: files.length,
+    resolvedSha: commitSha,
   });
 
   return result;
@@ -287,10 +334,12 @@ function pushRecentGitHubRepo(repoMeta) {
   if (typeof window === 'undefined') return;
   try {
     const current = getRecentGitHubRepos();
-    const key = `${repoMeta.owner}/${repoMeta.repo}@${repoMeta.ref}::${repoMeta.subPath || ''}`;
-    const deduped = current.filter(
-      (item) => `${item.owner}/${item.repo}@${item.ref}::${item.subPath || ''}` !== key
-    );
+    // Match existing entry by logical identity: owner/repo + requestedRef + subPath
+    const matchKey = `${repoMeta.owner}/${repoMeta.repo}:${repoMeta.requestedRef || 'default'}:${repoMeta.subPath || ''}`;
+    const deduped = current.filter((item) => {
+      const itemKey = `${item.owner}/${item.repo}:${item.requestedRef || item.ref || 'default'}:${item.subPath || ''}`;
+      return itemKey !== matchKey;
+    });
     const next = [repoMeta, ...deduped].slice(0, RECENT_REPOS_MAX);
     window.localStorage.setItem(RECENT_REPOS_KEY, JSON.stringify(next));
   } catch {

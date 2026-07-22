@@ -3,7 +3,24 @@ import { persist } from 'zustand/middleware';
 import { scanDirectory } from './utils/scanner';
 import { scanGitHubRepo, getRecentGitHubRepos } from './utils/githubScanner';
 import { generatePlainOutput } from './utils/outputFormatter';
-import { saveHandle } from './utils/handleStorage';
+import {
+  saveHandle,
+  getHandle,
+  deleteHandle,
+  findMatchingHandle,
+  migrateOldHandle,
+} from './utils/handleStorage';
+
+// ── Helpers ──────────────────────────────────────────────────
+
+/**
+ * Build the logical identity key for a GitHub project.
+ * Uses owner/repo + requested ref (or 'default') + subpath.
+ */
+function githubLogicalKey(owner, repo, requestedRef, followDefault, subPath) {
+  const refPart = followDefault ? 'default' : (requestedRef || 'default');
+  return `github:${owner}/${repo}:${refPart}:${subPath || ''}`;
+}
 
 // ── Scan Slice ──────────────────────────────────────────────
 const createScanSlice = (set, get) => ({
@@ -51,17 +68,59 @@ const createScanSlice = (set, get) => ({
     set({ isScanning: false, scanError: error || 'Erreur inconnue.' }),
 
   scanFromHandle: async (dirHandle) => {
-    const { startScan, updateProgress, completeScan, failScan, gitignoreEnabled, addRecentProject } = get();
+    const { startScan, updateProgress, completeScan, failScan, gitignoreEnabled, addRecentProject, recentProjects } = get();
     try {
       startScan('local');
+
+      // Check if this handle matches an existing project via isSameEntry()
+      let projectId = await findMatchingHandle(dirHandle);
+
+      if (!projectId) {
+        // Check recentProjects for an existing entry with same name and type 'local'
+        const existingEntry = recentProjects.find(
+          (p) => p.type === 'local' && p.name === dirHandle.name && p.id
+        );
+        if (existingEntry) {
+          // Reuse the existing UUID — the user opened the same folder
+          projectId = existingEntry.id;
+        }
+      }
+
+      if (!projectId) {
+        // Attempt migration: look for an old entry keyed by folder name (pre-UUID format)
+        const oldEntry = recentProjects.find(
+          (p) => p.type === 'local' && p.name === dirHandle.name && /^local:[^a-f0-9-]/.test(p.key)
+        );
+        if (oldEntry) {
+          projectId = crypto.randomUUID();
+          const migratedHandle = await migrateOldHandle(dirHandle.name, projectId);
+          if (migratedHandle) {
+            set((state) => ({
+              recentProjects: state.recentProjects.map((p) =>
+                p.key === oldEntry.key
+                  ? { ...p, key: `local:${projectId}`, id: projectId }
+                  : p
+              ),
+            }));
+          }
+        }
+      }
+
+      if (!projectId) {
+        projectId = crypto.randomUUID();
+      }
+
       const result = await scanDirectory(dirHandle, (count) => updateProgress(count), {
         applyGitignore: gitignoreEnabled,
         onFileStart: (name) => set({ currentFile: name }),
       });
       completeScan({ name: result.name, files: result.files, tree: result.tree, source: { type: 'local' } });
-      const key = `local:${result.name}`;
-      saveHandle(key, dirHandle);
+
+      saveHandle(projectId, dirHandle);
+
+      const key = `local:${projectId}`;
       addRecentProject({
+        id: projectId,
         key,
         type: 'local',
         name: result.name,
@@ -81,7 +140,6 @@ const createScanSlice = (set, get) => ({
 
   resetProject: () => {
     const { projectName, selectedPaths } = get();
-    // Save selection in memory for this project key
     if (projectName && selectedPaths.size > 0) {
       set({ savedSelection: { projectKey: projectName, paths: [...selectedPaths] } });
     }
@@ -104,13 +162,11 @@ const createScanSlice = (set, get) => ({
   handleOpenLocal: async (dirHandle) => {
     const { scanFromHandle, failScan } = get();
 
-    // Si un handle valide est fourni (depuis drag-drop) → scan direct, pas de picker
     if (dirHandle?.kind === 'directory') {
       await scanFromHandle(dirHandle);
       return;
     }
 
-    // Sinon → picker système
     try {
       const handle = await window.showDirectoryPicker({ mode: 'read' });
       await scanFromHandle(handle);
@@ -120,6 +176,76 @@ const createScanSlice = (set, get) => ({
       } else {
         failScan(err.message || "Impossible d'ouvrir ce dossier.");
       }
+    }
+  },
+
+  /**
+   * Re-open a local project from history.
+   * Retrieves the stored handle, checks permission, rescans.
+   */
+  handleReopenLocal: async (project) => {
+    const { scanFromHandle, failScan } = get();
+    const projectId = project.id || project.key?.replace(/^local:/, '');
+
+    if (!projectId || projectId === project.name) {
+      // Old-style key without UUID — can't reliably recover the handle.
+      // The caller (WelcomeScreen) will show a "Relocate" flow.
+      throw new Error('MISSING_HANDLE');
+    }
+
+    const saved = await getHandle(projectId);
+    if (!saved) {
+      throw new Error('MISSING_HANDLE');
+    }
+
+    const opts = { mode: 'read' };
+    let permission = await saved.queryPermission(opts);
+    if (permission !== 'granted') {
+      permission = await saved.requestPermission(opts);
+    }
+
+    if (permission !== 'granted') {
+      throw new Error('PERMISSION_DENIED');
+    }
+
+    await scanFromHandle(saved);
+  },
+
+  /**
+   * Refresh the currently open project without returning to the welcome screen.
+   */
+  handleRefresh: async () => {
+    const { sourceMeta, scanMode, scanFromHandle, handleOpenGitHub } = get();
+    if (!sourceMeta) return;
+
+    if (sourceMeta.type === 'github') {
+      const src = sourceMeta;
+      await handleOpenGitHub({
+        repoInput: src.input || `https://github.com/${src.owner}/${src.repo}`,
+        subPath: src.subPath || '',
+      });
+    } else {
+      // Local: re-scan current handle from IndexedDB
+      const { recentProjects } = get();
+      const currentProject = recentProjects.find(
+        (p) => p.type === 'local' && p.name === get().projectName
+      );
+      if (currentProject?.id) {
+        const { getHandle: getH } = await import('./utils/handleStorage');
+        const handle = await getH(currentProject.id);
+        if (handle) {
+          const opts = { mode: 'read' };
+          let perm = await handle.queryPermission(opts);
+          if (perm !== 'granted') {
+            perm = await handle.requestPermission(opts);
+          }
+          if (perm === 'granted') {
+            await scanFromHandle(handle);
+            return;
+          }
+        }
+      }
+      throw new Error('Impossible d\'accéder au dossier. Réessayez depuis l\'écran d\'accueil.');
     }
   },
 
@@ -170,16 +296,23 @@ const createScanSlice = (set, get) => ({
         source: result.source || { type: 'github' },
       });
 
-      // Add to unified history
+      const src = result.source || {};
+      const logicalKey = githubLogicalKey(
+        src.owner, src.repo, src.requestedRef, src.followDefaultBranch, src.subPath
+      );
+
       addRecentProject({
-        key: `github:${result.source?.owner}/${result.source?.repo}@${result.source?.ref}:${result.source?.subPath || ''}`,
+        key: logicalKey,
         type: 'github',
         name: result.name,
-        owner: result.source?.owner,
-        repo: result.source?.repo,
-        ref: result.source?.ref,
-        subPath: result.source?.subPath || '',
-        input: result.source?.input,
+        owner: src.owner,
+        repo: src.repo,
+        ref: result.resolvedRef || src.ref,
+        requestedRef: src.requestedRef,
+        followDefaultBranch: src.followDefaultBranch,
+        subPath: src.subPath || '',
+        input: src.input,
+        resolvedSha: result.resolvedSha,
         fileCount: result.files.length,
         totalTokens: result.files.reduce((sum, f) => sum + (f.tokens || 0), 0),
         openedAt: new Date().toISOString(),
@@ -292,6 +425,8 @@ const createSettingsSlice = (set, get) => ({
   recentProjects: [],
   sidebarCollapsed: false,
   sidebarWidth: 340,
+  favoriteProjects: [],
+  onboardingDone: false,
 
   setMinifyEnabled: (v) => set({ minifyEnabled: typeof v === 'function' ? v(get().minifyEnabled) : v }),
   setGitignoreEnabled: (v) =>
@@ -307,6 +442,18 @@ const createSettingsSlice = (set, get) => ({
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   setSidebarWidth: (w) => set({ sidebarWidth: Math.max(180, Math.min(600, w)) }),
 
+  // Favorites
+  toggleFavorite: (key) =>
+    set((state) => {
+      const favs = state.favoriteProjects || [];
+      const exists = favs.includes(key);
+      return {
+        favoriteProjects: exists ? favs.filter((k) => k !== key) : [...favs, key],
+      };
+    }),
+
+  setOnboardingDone: () => set({ onboardingDone: true }),
+
   addRecentProject: (project) =>
     set((state) => {
       const key = project.key || `${project.type}:${project.name}:${project.openedAt}`;
@@ -315,27 +462,45 @@ const createSettingsSlice = (set, get) => ({
     }),
 
   removeRecentProject: (key) =>
-    set((state) => ({
-      recentProjects: state.recentProjects.filter((p) => p.key !== key),
-    })),
+    set((state) => {
+      // Also clean up IndexedDB handle for local projects
+      const project = state.recentProjects.find((p) => p.key === key);
+      if (project?.type === 'local' && project.id) {
+        deleteHandle(project.id).catch(() => {});
+      }
+      return { recentProjects: state.recentProjects.filter((p) => p.key !== key) };
+    }),
 
   loadGithubHistory: () => {
     try {
       const githubRepos = getRecentGitHubRepos();
-      const entries = githubRepos.map((item) => ({
-        key: `github:${item.owner}/${item.repo}@${item.ref}:${item.subPath || ''}`,
-        type: 'github',
-        name: `${item.owner}/${item.repo}${item.subPath ? `/${item.subPath}` : ''}`,
-        owner: item.owner,
-        repo: item.repo,
-        ref: item.ref,
-        subPath: item.subPath || '',
-        input: item.input || `https://github.com/${item.owner}/${item.repo}`,
-        fileCount: item.fileCount,
-        openedAt: item.scannedAt || new Date().toISOString(),
-      }));
+      const seen = new Set();
+      const entries = [];
+      for (const item of githubRepos) {
+        const key = githubLogicalKey(item.owner, item.repo, item.ref, !item.ref, item.subPath);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        entries.push({
+          key,
+          type: 'github',
+          name: `${item.owner}/${item.repo}${item.subPath ? `/${item.subPath}` : ''}`,
+          owner: item.owner,
+          repo: item.repo,
+          ref: item.ref,
+          requestedRef: item.ref || '',
+          followDefaultBranch: !item.ref,
+          subPath: item.subPath || '',
+          input: item.input || `https://github.com/${item.owner}/${item.repo}`,
+          fileCount: item.fileCount,
+          resolvedSha: item.resolvedSha,
+          openedAt: item.scannedAt || new Date().toISOString(),
+        });
+      }
       set((state) => {
-        const existing = state.recentProjects.filter((p) => p.type !== 'github');
+        const existingKeys = new Set(entries.map((e) => e.key));
+        const existing = state.recentProjects.filter(
+          (p) => p.type !== 'github' || !existingKeys.has(p.key)
+        );
         return { recentProjects: [...entries, ...existing].slice(0, 10) };
       });
     } catch {
@@ -362,6 +527,8 @@ export const useStore = create(
         customThreshold: state.customThreshold,
         githubToken: state.githubToken,
         recentProjects: state.recentProjects,
+        favoriteProjects: state.favoriteProjects,
+        onboardingDone: state.onboardingDone,
         sidebarCollapsed: state.sidebarCollapsed,
         sidebarWidth: state.sidebarWidth,
       }),
