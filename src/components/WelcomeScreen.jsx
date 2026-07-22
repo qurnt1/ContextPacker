@@ -180,7 +180,7 @@ export default function WelcomeScreen({ onShowOnboarding }) {
           </motion.p>
 
           {/* Main card */}
-          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55, duration: 0.6 }} className="mx-auto w-full max-w-2xl card p-5 md:p-6 text-left">
+          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55, duration: 0.6 }} className="mx-auto w-full max-w-3xl card p-5 md:p-6 text-left">
             <div className="flex gap-3 mb-5">
               <button onClick={() => setSource('local')} disabled={isScanning} className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${source === 'local' ? 'bg-cyber-accent text-black shadow-sm' : 'text-cyber-text-3 hover:text-cyber-text-2'}`}>Projet local</button>
               <button onClick={() => setSource('github')} disabled={isScanning} className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${source === 'github' ? 'bg-cyber-accent text-black shadow-sm' : 'text-cyber-text-3 hover:text-cyber-text-2'}`}>Projet GitHub</button>
@@ -244,7 +244,7 @@ export default function WelcomeScreen({ onShowOnboarding }) {
 
           {/* Error on specific item */}
           {errorItem && (
-            <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="mx-auto w-full max-w-2xl mt-3 text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3.5 py-2.5 text-center">
+            <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="mx-auto w-full max-w-3xl mt-3 text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3.5 py-2.5 text-center">
               Impossible d'ouvrir ce projet. Vérifiez les permissions ou relocalisez le dossier.
             </motion.div>
           )}

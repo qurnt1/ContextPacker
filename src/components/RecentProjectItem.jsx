@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { FolderOpen, Github, AlertTriangle, Trash2, ExternalLink, Star } from 'lucide-react';
+import { FolderOpen, Github, AlertTriangle, Trash2, Star } from 'lucide-react';
 
 function formatRelative(iso) {
   if (!iso) return '';
@@ -32,7 +32,11 @@ export default function RecentProjectItem({
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`group flex items-center gap-2 px-3 py-2 rounded-xl border transition-all ${
+      onClick={() => { if (disabled) return; needsPermission ? onRelocate?.(item) : onOpen(item); }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' && !disabled) { needsPermission ? onRelocate?.(item) : onOpen(item); } }}
+      className={`group flex items-center gap-2 px-3 py-2 rounded-xl border transition-all cursor-pointer ${
         isOpening
           ? 'border-cyber-accent/40 bg-cyber-accent/5'
           : 'border-cyber-border bg-cyber-surface/60 hover:border-cyber-accent/25 hover:bg-cyber-surface'
@@ -87,26 +91,6 @@ export default function RecentProjectItem({
 
       {/* Actions */}
       <div className="flex items-center gap-1 flex-shrink-0">
-        {needsPermission ? (
-          <button
-            onClick={(e) => { e.stopPropagation(); onRelocate?.(item); }}
-            disabled={disabled}
-            className="px-2.5 py-1.5 text-[10px] font-medium rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-colors"
-            title="Relocaliser le dossier"
-          >
-            <ExternalLink className="w-3 h-3" />
-          </button>
-        ) : (
-          <button
-            onClick={(e) => { e.stopPropagation(); onOpen(item); }}
-            disabled={disabled}
-            className="px-2.5 py-1.5 text-[10px] font-medium rounded-lg bg-cyber-accent/10 text-cyber-accent border border-cyber-accent/25 hover:bg-cyber-accent/15 transition-colors"
-            title="Ouvrir ce projet"
-          >
-            Ouvrir
-          </button>
-        )}
-
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(item.key); }}
           disabled={disabled}
