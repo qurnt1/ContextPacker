@@ -529,7 +529,6 @@ export const useStore = create(
         recentProjects: state.recentProjects,
         favoriteProjects: state.favoriteProjects,
         onboardingDone: state.onboardingDone,
-        sidebarCollapsed: state.sidebarCollapsed,
         sidebarWidth: state.sidebarWidth,
       }),
     }
