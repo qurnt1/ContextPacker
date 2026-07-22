@@ -10,6 +10,7 @@ import {
   GitBranch,
   Search,
   X,
+  PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
 import FileTree from './FileTree';
@@ -37,12 +38,10 @@ export default function Sidebar() {
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef(null);
 
-  // Expose searchInputRef globally for keyboard shortcut (Ctrl+F)
   if (typeof window !== 'undefined') {
     window.__cpSearchInputRef = searchInputRef;
   }
 
-  // Compute derived data with useMemo to avoid new references on every render
   const extensions = useMemo(() => {
     const countMap = {};
     files.forEach((file) => {
@@ -57,18 +56,11 @@ export default function Sidebar() {
   const stats = useMemo(() => {
     const selected = files.filter((file) => selectedPaths.has(file.path));
     const totalTokens = selected.reduce(
-      (sum, file) => sum + (minifyEnabled ? file.minifiedTokens : file.tokens),
-      0
+      (sum, file) => sum + (minifyEnabled ? file.minifiedTokens : file.tokens), 0
     );
     const totalSize = selected.reduce((sum, file) => sum + file.size, 0);
     const totalLines = selected.reduce((sum, file) => sum + (file.lines || 0), 0);
-    return {
-      totalTokens,
-      totalSize,
-      totalLines,
-      fileCount: selected.length,
-      totalFiles: files.length,
-    };
+    return { totalTokens, totalSize, totalLines, fileCount: selected.length, totalFiles: files.length };
   }, [files, selectedPaths, minifyEnabled]);
 
   const visibleCount = useMemo(() => {
@@ -77,24 +69,42 @@ export default function Sidebar() {
     return files.filter((f) => f.path.toLowerCase().includes(q)).length;
   }, [files, searchQuery]);
 
-  // Collapsed mode: thin icon strip
+  // ── Collapsed: thin strip — toggle at top, actions below, no bottom button ──
   if (sidebarCollapsed) {
     return (
       <motion.aside
         initial={{ x: -20, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
-        transition={{ duration: 0.3 }}
-        className="w-full h-full flex flex-col items-center bg-cyber-surface border-r border-cyber-border overflow-hidden transition-colors duration-300 py-3 gap-3"
+        className="w-full h-full flex flex-col items-center bg-cyber-surface border-r border-cyber-border overflow-hidden transition-colors duration-300 py-3 gap-2.5"
       >
-        <button onClick={toggleSidebar} title="Afficher le panneau" className="p-1.5 rounded-md hover:bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-accent transition-colors">
+        {/* Toggle button at top — same position as in expanded header */}
+        <button
+          onClick={toggleSidebar}
+          title="Afficher le panneau latéral"
+          aria-label="Afficher le panneau latéral"
+          aria-expanded={false}
+          aria-controls="sidebar"
+          className="p-1.5 rounded-md hover:bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-accent transition-colors"
+        >
           <PanelLeftOpen className="w-4 h-4" />
         </button>
+
+        {/* Select all */}
         <button onClick={selectAll} title="Tout sélectionner" className="p-1.5 rounded-md hover:bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-accent transition-colors">
           <CheckSquare className="w-4 h-4" />
         </button>
+
+        {/* Deselect all */}
+        <button onClick={deselectAll} title="Tout désélectionner" className="p-1.5 rounded-md hover:bg-cyber-surface-2 text-cyber-text-3 hover:text-red-400 transition-colors">
+          <Square className="w-4 h-4" />
+        </button>
+
+        {/* .gitignore toggle */}
         <button onClick={() => setGitignoreEnabled((v) => !v)} title=".gitignore" className={`p-1.5 rounded-md transition-colors ${gitignoreEnabled ? 'text-cyber-accent bg-cyber-accent/10' : 'text-cyber-text-3 hover:text-cyber-accent hover:bg-cyber-surface-2'}`}>
           <GitBranch className="w-4 h-4" />
         </button>
+
+        {/* Minification toggle */}
         <button onClick={() => setMinifyEnabled((v) => !v)} title="Minification" className={`p-1.5 rounded-md transition-colors ${minifyEnabled ? 'text-cyber-accent bg-cyber-accent/10' : 'text-cyber-text-3 hover:text-cyber-accent hover:bg-cyber-surface-2'}`}>
           <Scissors className="w-4 h-4" />
         </button>
@@ -109,7 +119,25 @@ export default function Sidebar() {
       transition={{ duration: 0.3 }}
       className="w-full h-full flex flex-col bg-cyber-surface border-r border-cyber-border overflow-hidden transition-colors duration-300"
     >
-      {/* Header */}
+      {/* Sidebar header: name + toggle on the right */}
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-cyber-border">
+        <span className="text-sm font-bold tracking-tight whitespace-nowrap flex-1 min-w-0">
+          <span className="text-cyber-text">Context</span>
+          <span className="text-cyber-accent">Packer</span>
+        </span>
+        <button
+          onClick={toggleSidebar}
+          title="Masquer le panneau latéral"
+          aria-label="Masquer le panneau latéral"
+          aria-expanded={true}
+          aria-controls="sidebar"
+          className="p-1 rounded-md hover:bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-accent transition-colors"
+        >
+          <PanelLeftClose className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Project info */}
       <div className="p-4 border-b border-cyber-border">
         <div className="flex items-center gap-2 min-w-0 mb-2">
           <Package className="w-4 h-4 text-cyber-accent flex-shrink-0" />
@@ -151,10 +179,7 @@ export default function Sidebar() {
             className="w-full pl-8 pr-8 py-1.5 text-xs rounded-md bg-cyber-surface-2 border border-cyber-border text-cyber-text placeholder:text-cyber-text-3/50 focus:outline-none focus:border-cyber-accent/40 transition-colors"
           />
           {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-cyber-text-3 hover:text-cyber-text"
-            >
+            <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-cyber-text-3 hover:text-cyber-text">
               <X className="w-3 h-3" />
             </button>
           )}
@@ -169,56 +194,21 @@ export default function Sidebar() {
       {/* Controls */}
       <div className="p-3 border-b border-cyber-border space-y-2">
         <div className="flex gap-1.5">
-          <button
-            onClick={selectAll}
-            className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded-md bg-cyber-surface-2 hover:bg-cyber-accent/10 text-cyber-text-2 hover:text-cyber-accent border border-transparent hover:border-cyber-accent/20 transition-all"
-          >
-            <CheckSquare className="w-3 h-3" />
-            Tout sélectionner
+          <button onClick={selectAll} className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded-md bg-cyber-surface-2 hover:bg-cyber-accent/10 text-cyber-text-2 hover:text-cyber-accent border border-transparent hover:border-cyber-accent/20 transition-all">
+            <CheckSquare className="w-3 h-3" />Tout sélectionner
           </button>
-          <button
-            onClick={deselectAll}
-            className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded-md bg-cyber-surface-2 hover:bg-red-500/8 text-cyber-text-2 hover:text-red-400 border border-transparent hover:border-red-500/20 transition-all"
-          >
-            <Square className="w-3 h-3" />
-            Désélectionner
+          <button onClick={deselectAll} className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded-md bg-cyber-surface-2 hover:bg-red-500/8 text-cyber-text-2 hover:text-red-400 border border-transparent hover:border-red-500/20 transition-all">
+            <Square className="w-3 h-3" />Désélectionner
           </button>
         </div>
-
         <div className="flex gap-1.5">
-          <button
-            onClick={() => setGitignoreEnabled((v) => !v)}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded-md transition-all ${
-              gitignoreEnabled
-                ? 'bg-cyber-accent/10 text-cyber-accent border border-cyber-accent/20'
-                : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:text-cyber-text-2'
-            }`}
-          >
-            <GitBranch className="w-3 h-3" />
-            .gitignore
-            {gitignoreEnabled ? (
-              <ToggleRight className="w-4 h-4 text-cyber-accent" />
-            ) : (
-              <ToggleLeft className="w-4 h-4" />
-            )}
+          <button onClick={() => setGitignoreEnabled((v) => !v)} className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded-md transition-all ${gitignoreEnabled ? 'bg-cyber-accent/10 text-cyber-accent border border-cyber-accent/20' : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:text-cyber-text-2'}`}>
+            <GitBranch className="w-3 h-3" />.gitignore
+            {gitignoreEnabled ? <ToggleRight className="w-4 h-4 text-cyber-accent" /> : <ToggleLeft className="w-4 h-4" />}
           </button>
-
-          <button
-            onClick={() => setMinifyEnabled((v) => !v)}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded-md transition-all ${
-              minifyEnabled
-                ? 'bg-cyber-accent/10 text-cyber-accent border border-cyber-accent/20'
-                : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:text-cyber-text-2'
-            }`}
-            title="Optimise le contexte en réduisant le nombre de tokens sans altérer la logique du code."
-          >
-            <Scissors className="w-3 h-3" />
-            Minifier
-            {minifyEnabled ? (
-              <ToggleRight className="w-4 h-4 text-cyber-accent" />
-            ) : (
-              <ToggleLeft className="w-4 h-4" />
-            )}
+          <button onClick={() => setMinifyEnabled((v) => !v)} className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded-md transition-all ${minifyEnabled ? 'bg-cyber-accent/10 text-cyber-accent border border-cyber-accent/20' : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:text-cyber-text-2'}`} title="Optimise le contexte en réduisant le nombre de tokens sans altérer la logique du code.">
+            <Scissors className="w-3 h-3" />Minifier
+            {minifyEnabled ? <ToggleRight className="w-4 h-4 text-cyber-accent" /> : <ToggleLeft className="w-4 h-4" />}
           </button>
         </div>
       </div>
@@ -226,27 +216,14 @@ export default function Sidebar() {
       {/* Extensions */}
       {extensions.length > 0 && (
         <div className="px-3 py-2.5 border-b border-cyber-border">
-          <p className="text-[10px] uppercase tracking-wider text-cyber-text-3 mb-2 font-semibold">
-            Extensions
-          </p>
+          <p className="text-[10px] uppercase tracking-wider text-cyber-text-3 mb-2 font-semibold">Extensions</p>
           <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
             {extensions.map((ext) => {
               const total = files.filter((file) => file.extension === ext).length;
               const selected = files.filter((file) => file.extension === ext && selectedPaths.has(file.path)).length;
               const allSelected = selected === total;
-
               return (
-                <button
-                  key={ext}
-                  onClick={() => toggleExtension(ext)}
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono transition-all ${
-                    allSelected
-                      ? 'bg-cyber-accent/15 text-cyber-accent border border-cyber-accent/25'
-                      : selected > 0
-                        ? 'bg-cyber-accent/8 text-cyber-accent/70 border border-cyber-accent/15'
-                        : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:border-cyber-border'
-                  }`}
-                >
+                <button key={ext} onClick={() => toggleExtension(ext)} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono transition-all ${allSelected ? 'bg-cyber-accent/15 text-cyber-accent border border-cyber-accent/25' : selected > 0 ? 'bg-cyber-accent/8 text-cyber-accent/70 border border-cyber-accent/15' : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:border-cyber-border'}`}>
                   <span>{ext || '(aucune)'}</span>
                   <span className="text-[9px] opacity-50">{selected}/{total}</span>
                 </button>
@@ -256,7 +233,7 @@ export default function Sidebar() {
         </div>
       )}
 
-      {/* File tree / skeleton */}
+      {/* File tree */}
       <div className="flex-1 overflow-y-auto px-1.5 py-1.5">
         {isScanning && files.length === 0 ? (
           <div className="space-y-2 animate-pulse px-1.5">
@@ -268,17 +245,7 @@ export default function Sidebar() {
             ))}
           </div>
         ) : tree ? (
-          <FileTree
-            node={tree}
-            files={files}
-            selectedPaths={selectedPaths}
-            onTogglePath={togglePath}
-            onToggleFolder={toggleFolder}
-            minifyEnabled={minifyEnabled}
-            depth={0}
-            isRoot
-            searchQuery={searchQuery}
-          />
+          <FileTree node={tree} files={files} selectedPaths={selectedPaths} onTogglePath={togglePath} onToggleFolder={toggleFolder} minifyEnabled={minifyEnabled} depth={0} isRoot searchQuery={searchQuery} />
         ) : null}
       </div>
     </motion.aside>

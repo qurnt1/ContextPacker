@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ThemeProvider } from './hooks/useTheme';
 import { useStore, selectHasProject } from './store';
@@ -9,6 +9,7 @@ import MainPanel from './components/MainPanel';
 import Dashboard from './components/Dashboard';
 import WarningPopup from './components/WarningPopup';
 import ShortcutHelp from './components/ShortcutHelp';
+import OnboardingWizard from './components/OnboardingWizard';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 function AppInner() {
@@ -17,13 +18,29 @@ function AppInner() {
   const sidebarWidth = useStore((s) => s.sidebarWidth);
   const setSidebarWidth = useStore((s) => s.setSidebarWidth);
   const sidebarCollapsed = useStore((s) => s.sidebarCollapsed);
-  const effectiveSidebarWidth = sidebarCollapsed ? 56 : sidebarWidth;
+  const onboardingDone = useStore((s) => s.onboardingDone);
+  const setOnboardingDone = useStore((s) => s.setOnboardingDone);
+  const effectiveSidebarWidth = sidebarCollapsed ? 52 : sidebarWidth;
+
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     loadGithubHistory();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { showHelp, closeHelp } = useKeyboardShortcuts();
+  const { showHelp, openHelp, closeHelp } = useKeyboardShortcuts();
+
+  // Auto-show onboarding only on first launch
+  useEffect(() => {
+    if (!onboardingDone && !hasProject) {
+      const timer = setTimeout(() => setShowOnboarding(true), 400);
+      return () => clearTimeout(timer);
+    }
+  }, [onboardingDone, hasProject]);
+
+  const handleOnboardingComplete = useCallback(() => {
+    setOnboardingDone();
+  }, [setOnboardingDone]);
 
   const handleResizeStart = useCallback((e) => {
     e.preventDefault();
@@ -31,7 +48,6 @@ function AppInner() {
     const startWidth = useStore.getState().sidebarWidth;
     document.body.style.userSelect = 'none';
     document.body.style.cursor = 'col-resize';
-
     const onMove = (ev) => {
       const delta = ev.clientX - startX;
       setSidebarWidth(startWidth + delta);
@@ -50,7 +66,7 @@ function AppInner() {
     <div className="h-screen flex flex-col bg-cyber-bg text-cyber-text font-sans overflow-hidden transition-colors duration-300">
       <AnimatePresence mode="wait">
         {!hasProject ? (
-          <WelcomeScreen key="welcome" />
+          <WelcomeScreen key="welcome" onShowOnboarding={() => setShowOnboarding(true)} />
         ) : (
           <motion.div
             key="main"
@@ -60,17 +76,13 @@ function AppInner() {
             exit={{ opacity: 0, x: -40 }}
             transition={{ duration: 0.35, ease: 'easeInOut' }}
           >
-            <Header />
+            <Header onShowHelp={openHelp} />
             <div className="flex flex-1 overflow-hidden">
-              <div style={{ width: effectiveSidebarWidth }} className="flex-shrink-0 transition-[width] duration-200">
+              <div id="sidebar" style={{ width: effectiveSidebarWidth }} className="flex-shrink-0 transition-[width] duration-200 overflow-hidden">
                 <Sidebar />
               </div>
-              {/* Resize handle (hidden when collapsed) */}
               {!sidebarCollapsed && (
-                <div
-                  className="w-1.5 flex-shrink-0 cursor-col-resize hover:bg-cyber-accent/30 active:bg-cyber-accent/50 transition-colors relative group"
-                  onMouseDown={handleResizeStart}
-                >
+                <div className="w-1.5 flex-shrink-0 cursor-col-resize hover:bg-cyber-accent/30 active:bg-cyber-accent/50 transition-colors relative group" onMouseDown={handleResizeStart}>
                   <div className="absolute inset-y-0 -left-1 -right-1" />
                 </div>
               )}
@@ -83,6 +95,11 @@ function AppInner() {
 
       <WarningPopup />
       <ShortcutHelp isOpen={showHelp} onClose={closeHelp} />
+      <OnboardingWizard
+        isOpen={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+        onComplete={handleOnboardingComplete}
+      />
     </div>
   );
 }

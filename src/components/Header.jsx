@@ -1,17 +1,17 @@
 import { motion } from 'framer-motion';
-import { Zap, Moon, Sun, Monitor, FolderOpen, Loader2, Home, PanelLeftClose } from 'lucide-react';
-import { useCallback } from 'react';
+import { Zap, Moon, Sun, Monitor, FolderOpen, Loader2, Home, Keyboard, RefreshCw } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import { useTheme } from '../hooks/useTheme';
 import { useStore } from '../store';
 import SettingsPanel from './SettingsPanel';
 
-export default function Header() {
+export default function Header({ onShowHelp }) {
   const { theme, setTheme, resolved } = useTheme();
   const handleOpenLocal = useStore((s) => s.handleOpenLocal);
   const resetProject = useStore((s) => s.resetProject);
   const isScanning = useStore((s) => s.isScanning);
-  const sourceMeta = useStore((s) => s.sourceMeta);
-  const toggleSidebar = useStore((s) => s.toggleSidebar);
+  const handleRefresh = useStore((s) => s.handleRefresh);
+  const [refreshing, setRefreshing] = useState(false);
 
   const cycleTheme = useCallback(() => {
     const order = ['system', 'dark', 'light'];
@@ -21,7 +21,18 @@ export default function Header() {
 
   const ThemeIcon = theme === 'system' ? Monitor : resolved === 'dark' ? Moon : Sun;
   const themeLabel = theme === 'system' ? 'Système' : resolved === 'dark' ? 'Sombre' : 'Clair';
-  const sourceLabel = sourceMeta?.type === 'github' ? 'GitHub' : 'Local';
+
+  const doRefresh = async () => {
+    if (refreshing || isScanning) return;
+    setRefreshing(true);
+    try {
+      await handleRefresh();
+    } catch {
+      // Error already handled by store
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   return (
     <motion.header
@@ -29,14 +40,8 @@ export default function Header() {
       animate={{ y: 0, opacity: 1 }}
       className="h-11 flex items-center justify-between px-4 border-b border-cyber-border bg-cyber-surface flex-shrink-0"
     >
+      {/* Left: logo + name only */}
       <div className="flex items-center gap-2 min-w-0">
-        <button
-          onClick={toggleSidebar}
-          title="Afficher/Masquer le panneau latéral"
-          className="p-1.5 rounded-lg hover:bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-accent transition-colors"
-        >
-          <PanelLeftClose className="w-4 h-4" />
-        </button>
         <button
           onClick={resetProject}
           disabled={isScanning}
@@ -51,17 +56,35 @@ export default function Header() {
             <span className="text-cyber-accent">Packer</span>
           </span>
         </button>
-        <span className="text-[10px] font-mono text-cyber-text-3 bg-cyber-surface-2 px-1.5 py-0.5 rounded">
-          v4.0
-        </span>
-        {sourceMeta ? (
-          <span className="hidden md:inline text-[10px] font-mono text-cyber-text-3 bg-cyber-surface-2 px-1.5 py-0.5 rounded">
-            {sourceLabel}
-          </span>
-        ) : null}
       </div>
 
+      {/* Right: actions */}
       <div className="flex items-center gap-1">
+        {/* Refresh */}
+        <button
+          onClick={doRefresh}
+          disabled={isScanning || refreshing}
+          title="Actualiser le projet"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg text-cyber-text-2 hover:text-cyber-accent hover:bg-cyber-surface-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {refreshing ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="w-3.5 h-3.5" />
+          )}
+          <span className="hidden sm:inline">Actualiser</span>
+        </button>
+
+        {/* Keyboard help */}
+        <button
+          onClick={onShowHelp}
+          title="Raccourcis clavier (?)"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg text-cyber-text-2 hover:text-cyber-accent hover:bg-cyber-surface-2 transition-colors"
+        >
+          <Keyboard className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Raccourcis</span>
+        </button>
+
         <button
           onClick={resetProject}
           disabled={isScanning}
@@ -78,11 +101,7 @@ export default function Header() {
           title="Ouvrir un dossier local"
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg text-cyber-accent hover:bg-cyber-accent/10 border border-cyber-accent/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isScanning ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <FolderOpen className="w-3.5 h-3.5" />
-          )}
+          {isScanning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FolderOpen className="w-3.5 h-3.5" />}
           <span className="hidden sm:inline">Ouvrir local</span>
         </button>
 
