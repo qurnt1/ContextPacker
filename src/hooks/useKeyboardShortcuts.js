@@ -22,10 +22,7 @@ export function useKeyboardShortcuts() {
       // Ctrl+F → focus search input (when project is loaded, not in editable field)
       if ((e.ctrlKey || e.metaKey) && e.key === 'f' && hasProject && !isEditable) {
         e.preventDefault();
-        if (window.__cpSearchInputRef?.current) {
-          window.__cpSearchInputRef.current.focus();
-          window.__cpSearchInputRef.current.select();
-        }
+        window.dispatchEvent(new CustomEvent('contextpacker:focus-search'));
         return;
       }
 

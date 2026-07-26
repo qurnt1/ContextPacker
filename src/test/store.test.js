@@ -75,25 +75,104 @@ describe('Store — local project identity', () => {
 
   it('handleReopenLocal retrieves correct handle', async () => {
     getHandle.mockResolvedValueOnce(mockDirHandle('test-dir'));
-    await expect(useStore.getState().handleReopenLocal({ id: 'uuid-test', key: 'local:uuid-test', name: 'test-dir' })).resolves.toBeUndefined();
+    const result = await useStore.getState().handleReopenLocal({ id: 'uuid-test', key: 'local:uuid-test', name: 'test-dir' });
+    expect(result.ok).toBe(true);
     expect(getHandle).toHaveBeenCalledWith('uuid-test');
   });
 
-  it('handleReopenLocal throws MISSING_HANDLE for old-style keys', async () => {
-    await expect(useStore.getState().handleReopenLocal({ key: 'local:src', name: 'src' })).rejects.toThrow('MISSING_HANDLE');
+  it('handleReopenLocal returns error for old-style keys', async () => {
+    const result = await useStore.getState().handleReopenLocal({ key: 'local:src', name: 'src' });
+    expect(result.ok).toBe(false);
+    expect(result.error.message).toBe('MISSING_HANDLE');
   });
 
-  it('handleReopenLocal throws MISSING_HANDLE when no handle stored', async () => {
+  it('handleReopenLocal returns error when no handle stored', async () => {
     getHandle.mockResolvedValueOnce(null);
-    await expect(useStore.getState().handleReopenLocal({ id: 'uuid-ghost', key: 'local:uuid-ghost', name: 'ghost' })).rejects.toThrow('MISSING_HANDLE');
+    const result = await useStore.getState().handleReopenLocal({ id: 'uuid-ghost', key: 'local:uuid-ghost', name: 'ghost' });
+    expect(result.ok).toBe(false);
+    expect(result.error.message).toBe('MISSING_HANDLE');
   });
 
-  it('handleReopenLocal throws PERMISSION_DENIED', async () => {
+  it('handleReopenLocal returns PERMISSION_DENIED', async () => {
     const denied = mockDirHandle('nope');
     denied.queryPermission.mockResolvedValue('denied');
     denied.requestPermission.mockResolvedValue('denied');
     getHandle.mockResolvedValueOnce(denied);
-    await expect(useStore.getState().handleReopenLocal({ id: 'uuid-denied', key: 'local:uuid-denied', name: 'denied' })).rejects.toThrow('PERMISSION_DENIED');
+    const result = await useStore.getState().handleReopenLocal({ id: 'uuid-denied', key: 'local:uuid-denied', name: 'denied' });
+    expect(result.ok).toBe(false);
+    expect(result.error.message).toBe('PERMISSION_DENIED');
+  });
+
+  it('handleReopenLocal converts permission API rejections into an error result', async () => {
+    const failing = mockDirHandle('broken');
+    failing.queryPermission.mockRejectedValueOnce(new Error('permission failure'));
+    getHandle.mockResolvedValueOnce(failing);
+
+    const result = await useStore.getState().handleReopenLocal({ id: 'uuid-broken', key: 'local:uuid-broken', name: 'broken' });
+
+    expect(result).toMatchObject({ ok: false, aborted: false });
+    expect(result.error).toHaveProperty('message', 'permission failure');
+  });
+
+  it('handleRefresh converts local permission API rejections into an error result', async () => {
+    const failing = mockDirHandle('broken-refresh');
+    failing.queryPermission.mockRejectedValueOnce(new Error('refresh permission failure'));
+    getHandle.mockResolvedValueOnce(failing);
+    useStore.setState({ sourceMeta: { type: 'local', projectId: 'uuid-refresh' } });
+
+    const result = await useStore.getState().handleRefresh();
+
+    expect(result).toMatchObject({ ok: false, aborted: false });
+    expect(result.error).toHaveProperty('message', 'refresh permission failure');
+  });
+});
+
+describe('Store — visible selection behavior', () => {
+  beforeEach(() => {
+    useStore.setState({
+      files: [
+        { path: 'a.js', tokens: 40, minifiedTokens: 20 },
+        { path: 'b.js', tokens: 40, minifiedTokens: 20 },
+        { path: 'c.js', tokens: 40, minifiedTokens: 20 },
+      ],
+      selectedPaths: new Set(['a.js']),
+      minifyEnabled: false,
+      tokenLimit: 1000,
+      warningPercent: 80,
+      customThreshold: 0,
+      showWarning: false,
+      pendingPaths: null,
+    });
+  });
+
+  it('selectRange uses the supplied visible order', () => {
+    useStore.getState().selectRange('a.js', 'c.js', ['a.js', 'c.js']);
+    expect([...useStore.getState().selectedPaths]).toEqual(['a.js', 'c.js']);
+  });
+
+  it('selection over the threshold is deferred for confirmation', () => {
+    useStore.setState({ tokenLimit: 100, warningPercent: 50 });
+    useStore.getState().selectRange('a.js', 'c.js', ['a.js', 'b.js', 'c.js']);
+
+    expect(useStore.getState().showWarning).toBe(true);
+    expect(useStore.getState().selectedPaths).toEqual(new Set(['a.js']));
+    expect(useStore.getState().pendingPaths).toEqual(new Set(['a.js', 'b.js', 'c.js']));
+  });
+
+  it('does not warn when minification reduces an already selected context', () => {
+    useStore.setState({
+      selectedPaths: new Set(['a.js']),
+      tokenLimit: 100,
+      warningPercent: 30,
+      showWarning: false,
+      pendingPaths: null,
+      minifyEnabled: false,
+    });
+
+    useStore.getState().setMinifyEnabled(true);
+
+    expect(useStore.getState().showWarning).toBe(false);
+    expect(useStore.getState().pendingPaths).toBeNull();
   });
 });
 

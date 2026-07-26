@@ -3,8 +3,6 @@ import { motion } from 'framer-motion';
 import { Hash, FileStack, AlignLeft, AlertTriangle } from 'lucide-react';
 import { formatNumber } from '../utils/helpers';
 import { useStore } from '../store';
-import { generatePlainOutput } from '../utils/outputFormatter';
-import { generateMarkdownOutput } from '../utils/markdownFormatter';
 import ExportMenu from './ExportMenu';
 import LinearTokenProgress from './LinearTokenProgress';
 
@@ -40,30 +38,6 @@ export default function Dashboard() {
     };
   }, [selectedFiles, minifyEnabled, files.length]);
 
-  const outputText = useMemo(() => {
-    if (selectedFiles.length === 0) return '';
-    return generatePlainOutput(
-      projectName,
-      selectedFiles,
-      stats.totalTokens,
-      minifyEnabled,
-      tree,
-      selectedPaths
-    );
-  }, [projectName, selectedFiles, stats.totalTokens, minifyEnabled, tree, selectedPaths]);
-
-  const markdownOutput = useMemo(() => {
-    if (selectedFiles.length === 0) return '';
-    return generateMarkdownOutput(
-      projectName,
-      selectedFiles,
-      stats.totalTokens,
-      minifyEnabled,
-      tree,
-      selectedPaths
-    );
-  }, [projectName, selectedFiles, stats.totalTokens, minifyEnabled, tree, selectedPaths]);
-
   const { totalTokens, fileCount, totalFiles, totalLines } = stats;
   const isWarning = totalTokens > tokenLimit;
   const percentage = tokenLimit > 0 ? (totalTokens / tokenLimit) * 100 : 0;
@@ -82,12 +56,12 @@ export default function Dashboard() {
     >
       {/* Stats */}
       <div className="flex items-center gap-4 flex-shrink-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" title="Tokens de contenu (hors structure et métadonnées)">
           <Hash className={`w-3.5 h-3.5 ${isWarning ? 'text-red-400' : 'text-cyber-accent'}`} />
           <span className={`font-mono text-sm font-bold tabular-nums ${isWarning ? 'text-red-400' : 'text-cyber-text'}`}>
             {formatNumber(totalTokens)}
           </span>
-          <span className="text-[10px] text-cyber-text-3 font-medium uppercase tracking-wider">tokens</span>
+          <span className="text-[10px] text-cyber-text-3 font-medium uppercase tracking-wider">tokens contenu</span>
         </div>
 
         <div className="w-px h-5 bg-cyber-border/50" />
@@ -128,12 +102,16 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Export menu */}
+      {/* Export menu — generates output lazily on user action */}
       <ExportMenu
-        outputText={outputText}
-        markdownOutput={markdownOutput}
         projectName={projectName}
-        disabled={!outputText}
+        selectedFiles={selectedFiles}
+        tree={tree}
+        selectedPaths={selectedPaths}
+        minifyEnabled={minifyEnabled}
+        contentTokens={totalTokens}
+        tokenLimit={tokenLimit}
+        disabled={selectedFiles.length === 0}
       />
     </motion.div>
   );

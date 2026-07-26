@@ -29,9 +29,12 @@ export default function Header({ onShowHelp }) {
     if (refreshing || isScanning) return;
     setRefreshing(true);
     try {
-      await handleRefresh();
+      const result = await handleRefresh();
+      if (!result.ok && !result.aborted) {
+        showToast(result.error?.message || "Échec de l'actualisation.", 'error');
+      }
     } catch (err) {
-      showToast(err?.message || 'Échec de l\'actualisation.', 'error');
+      showToast(err?.message || "Échec de l'actualisation.", 'error');
     } finally {
       setRefreshing(false);
     }
@@ -80,6 +83,8 @@ export default function Header({ onShowHelp }) {
 
         {/* Keyboard help */}
         <button
+          type="button"
+          data-testid="shortcut-help-button"
           onClick={onShowHelp}
           title="Raccourcis clavier (?)"
           className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg text-cyber-text-2 hover:text-cyber-accent hover:bg-cyber-surface-2 transition-colors"

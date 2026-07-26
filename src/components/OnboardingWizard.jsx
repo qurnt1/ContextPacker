@@ -107,26 +107,26 @@ export default function OnboardingWizard({ isOpen, onClose, onComplete }) {
 
   const CurrentIcon = STEPS[step].icon;
 
-  return (
+  return createPortal(
     <AnimatePresence>
-      {isOpen &&
-        createPortal(
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-              style={{ zIndex: 250 }}
-              onClick={() => { onClose(); onComplete?.(); }}
-            />
-            <motion.div
+      {isOpen && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            style={{ zIndex: 250 }}
+            onClick={() => { onClose(); onComplete?.(); }}
+          />
+          <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.2 }}
               className="fixed inset-0 flex items-center justify-center"
               style={{ zIndex: 251 }}
+              data-testid="onboarding-dialog"
               role="dialog"
               aria-modal="true"
               aria-label="Présentation de ContextPacker"
@@ -205,9 +205,9 @@ export default function OnboardingWizard({ isOpen, onClose, onComplete }) {
                 </div>
               </div>
             </motion.div>
-          </>,
-          document.body
-        )}
-    </AnimatePresence>
+        </>
+      )}
+    </AnimatePresence>,
+    document.body
   );
 }

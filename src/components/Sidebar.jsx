@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   CheckSquare,
@@ -17,6 +17,42 @@ import FileTree from './FileTree';
 import { formatNumber } from '../utils/helpers';
 import { useStore } from '../store';
 
+function sortNodes(nodes) {
+  return [...nodes].sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+function getDefaultExpandedPaths(node, depth = 0, paths = new Set()) {
+  if (node.type !== 'directory') return paths;
+  if (node.path && depth < 3) paths.add(node.path);
+  (node.children || []).forEach((child) => getDefaultExpandedPaths(child, depth + 1, paths));
+  return paths;
+}
+
+function collectVisibleFilePaths(node, expandedPaths, searchQuery = '') {
+  const paths = [];
+  const visit = (current, isRoot = false) => {
+    for (const child of sortNodes(current.children || [])) {
+      if (searchQuery && !matchesSearch(child, searchQuery)) continue;
+      if (child.type === 'file') {
+        paths.push(child.path);
+      } else if (isRoot || expandedPaths.has(child.path)) {
+        visit(child);
+      }
+    }
+  };
+  visit(node, true);
+  return paths;
+}
+
+function matchesSearch(node, query) {
+  const normalized = query.toLowerCase();
+  return node.name.toLowerCase().includes(normalized)
+    || (node.children || []).some((child) => matchesSearch(child, query));
+}
+
 export default function Sidebar() {
   const projectName = useStore((s) => s.projectName);
   const tree = useStore((s) => s.tree);
@@ -27,6 +63,7 @@ export default function Sidebar() {
   const gitignoreEnabled = useStore((s) => s.gitignoreEnabled);
   const togglePath = useStore((s) => s.togglePath);
   const toggleFolder = useStore((s) => s.toggleFolder);
+  const selectRange = useStore((s) => s.selectRange);
   const toggleExtension = useStore((s) => s.toggleExtension);
   const selectAll = useStore((s) => s.selectAll);
   const deselectAll = useStore((s) => s.deselectAll);
@@ -37,10 +74,45 @@ export default function Sidebar() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef(null);
+  const [expandedPaths, setExpandedPaths] = useState(new Set());
+  const [lastClickedPath, setLastClickedPath] = useState(null);
 
-  if (typeof window !== 'undefined') {
-    window.__cpSearchInputRef = searchInputRef;
-  }
+  useEffect(() => {
+    setExpandedPaths(tree ? getDefaultExpandedPaths(tree) : new Set());
+    setLastClickedPath(null);
+  }, [tree]);
+
+  useEffect(() => {
+    const focusSearch = () => {
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    };
+    window.addEventListener('contextpacker:focus-search', focusSearch);
+    return () => window.removeEventListener('contextpacker:focus-search', focusSearch);
+  }, []);
+
+  const visibleFilePaths = useMemo(
+    () => (tree ? collectVisibleFilePaths(tree, expandedPaths, searchQuery) : []),
+    [tree, expandedPaths, searchQuery]
+  );
+
+  const handleToggleExpanded = (path) => {
+    setExpandedPaths((current) => {
+      const next = new Set(current);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  };
+
+  const handleFileClick = (path, event) => {
+    if (event.shiftKey && lastClickedPath) {
+      selectRange(lastClickedPath, path, visibleFilePaths);
+    } else {
+      togglePath(path);
+    }
+    setLastClickedPath(path);
+  };
 
   const extensions = useMemo(() => {
     const countMap = {};
@@ -245,7 +317,7 @@ export default function Sidebar() {
             ))}
           </div>
         ) : tree ? (
-          <FileTree node={tree} files={files} selectedPaths={selectedPaths} onTogglePath={togglePath} onToggleFolder={toggleFolder} minifyEnabled={minifyEnabled} depth={0} isRoot searchQuery={searchQuery} />
+          <FileTree node={tree} files={files} selectedPaths={selectedPaths} onTogglePath={togglePath} onToggleFolder={toggleFolder} minifyEnabled={minifyEnabled} depth={0} isRoot searchQuery={searchQuery} expandedPaths={expandedPaths} onToggleExpanded={handleToggleExpanded} visibleFilePaths={visibleFilePaths} onFileClick={handleFileClick} />
         ) : null}
       </div>
     </motion.aside>

@@ -9,10 +9,13 @@ import {
 } from 'lucide-react';
 import { copyToClipboard } from '../utils/clipboard';
 import { useToast } from '../hooks/useToast';
+import { generatePlainOutput } from '../utils/outputFormatter';
+import { generateMarkdownOutput } from '../utils/markdownFormatter';
+import { countTokens } from '../utils/tokenCounter';
+import { formatNumber } from '../utils/helpers';
 import Toast from './Toast';
 
 // ── Official brand SVG paths (source: simple-icons v16.27.0, CC0) ──
-// OpenAI path from simple-icons database (pub.dev)
 const BRAND_PATHS = {
   openai: 'M22.282 9.821a5.985 5.985 0 00-.516-4.91 6.046 6.046 0 00-6.51-2.9A6.065 6.065 0 004.981 4.18a5.985 5.985 0 00-3.998 2.9 6.046 6.046 0 00.743 7.097 5.98 5.98 0 00.51 4.911 6.051 6.051 0 006.515 2.9A5.985 5.985 0 0013.26 24a6.056 6.056 0 005.772-4.206 5.99 5.99 0 003.997-2.9 6.056 6.056 0 00-.747-7.073zM13.26 22.43a4.476 4.476 0 01-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 00.392-.681v-6.737l2.02 1.168a.071.071 0 01.038.052v5.583a4.504 4.504 0 01-4.494 4.494zM3.6 18.304a4.47 4.47 0 01-.535-3.014l.142.085 4.783 2.759a.771.771 0 00.78 0l5.843-3.369v2.332a.08.08 0 01-.033.062L9.74 19.95a4.5 4.5 0 01-6.14-1.646zM2.34 7.896a4.485 4.485 0 012.366-1.973V11.6a.766.766 0 00.388.676l5.815 3.355-2.02 1.168a.076.076 0 01-.071 0l-4.83-2.786A4.504 4.504 0 012.34 7.872zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 01.071 0l4.83 2.791a4.494 4.494 0 01-.676 8.105v-5.678a.79.79 0 00-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 00-.785 0L9.409 9.23V6.897a.066.066 0 01.028-.061l4.83-2.787a4.5 4.5 0 016.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 01-.038-.057V6.075a4.5 4.5 0 017.375-3.453l-.142.08L8.704 5.46a.795.795 0 00-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5Z',
   anthropic: 'M17.3041 3.541h-3.6718l6.696 16.918H24Zm-10.6082 0L0 20.459h3.7442l1.3693-3.5527h7.0052l1.3693 3.5528h3.7442L10.5363 3.5409Zm-.3712 10.2232 2.2914-5.9456 2.2914 5.9456Z',
@@ -36,11 +39,43 @@ const LLM_TARGETS = [
 ];
 
 // ── Component ───────────────────────────────────────────────
-export default function ExportMenu({ outputText, markdownOutput, projectName, disabled }) {
+export default function ExportMenu({
+  projectName,
+  selectedFiles,
+  tree,
+  selectedPaths,
+  minifyEnabled,
+  contentTokens,
+  tokenLimit,
+  disabled,
+}) {
   const [open, setOpen] = useState(false);
   const [toast, showToast] = useToast();
   const menuRef = useRef(null);
   const triggerRef = useRef(null);
+
+  // Lazy generation — only build the output when the user asks for it
+  const buildOutput = useCallback((format) => {
+    if (selectedFiles.length === 0) return '';
+    if (format === 'md') {
+      return generateMarkdownOutput(
+        projectName,
+        selectedFiles,
+        contentTokens,
+        minifyEnabled,
+        tree,
+        selectedPaths
+      );
+    }
+    return generatePlainOutput(
+      projectName,
+      selectedFiles,
+      contentTokens,
+      minifyEnabled,
+      tree,
+      selectedPaths
+    );
+  }, [projectName, selectedFiles, contentTokens, minifyEnabled, tree, selectedPaths]);
 
   useEffect(() => {
     if (!open) return;
@@ -60,19 +95,40 @@ export default function ExportMenu({ outputText, markdownOutput, projectName, di
     return () => document.removeEventListener('keydown', handler);
   }, [open]);
 
+  const prepareOutput = useCallback((format) => {
+    const output = buildOutput(format);
+    if (!output) return '';
+
+    const exportTokens = countTokens(output);
+    if (tokenLimit > 0 && exportTokens > tokenLimit) {
+      const shouldContinue = window.confirm(
+        `L'export contient environ ${formatNumber(exportTokens)} tokens, au-dessus de votre limite de ${formatNumber(tokenLimit)}. Continuer ?`
+      );
+      if (!shouldContinue) return '';
+    }
+    return output;
+  }, [buildOutput, tokenLimit]);
+
   const handleCopy = useCallback(async () => {
-    if (!outputText) return;
-    const ok = await copyToClipboard(outputText);
-    showToast(ok ? 'Contexte copié dans le presse-papier' : 'Échec de la copie.', ok ? 'success' : 'error');
+    const output = prepareOutput('txt');
+    if (!output) return;
+    const ok = await copyToClipboard(output);
+    const exportTokens = countTokens(output);
+    showToast(
+      ok
+        ? `Contexte copié — ${formatNumber(exportTokens)} tokens`
+        : 'Échec de la copie.',
+      ok ? 'success' : 'error'
+    );
     setOpen(false);
-  }, [outputText, showToast]);
+  }, [prepareOutput, showToast]);
 
   const handleDownload = useCallback((format) => {
-    const content = format === 'md' ? markdownOutput : outputText;
-    if (!content) return;
+    const output = prepareOutput(format);
+    if (!output) return;
     const ext = format === 'md' ? 'md' : 'txt';
     const mime = format === 'md' ? 'text/markdown;charset=utf-8' : 'text/plain;charset=utf-8';
-    const blob = new Blob([content], { type: mime });
+    const blob = new Blob([output], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -81,25 +137,28 @@ export default function ExportMenu({ outputText, markdownOutput, projectName, di
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    const exportTokens = countTokens(output);
+    showToast(
+      `Fichier .${ext} généré — ${formatNumber(exportTokens)} tokens`,
+      'success'
+    );
     setOpen(false);
-  }, [outputText, markdownOutput, projectName]);
+  }, [prepareOutput, projectName, showToast]);
 
   const handleLLM = useCallback((target) => {
-    // window.open() must be called synchronously from the user gesture,
-    // otherwise the browser blocks the popup.
+    const output = prepareOutput('txt');
+    if (!output) return;
+    // window.open() must be called synchronously from the user gesture
     const newWindow = window.open(target.url, '_blank', 'noopener,noreferrer');
 
-    if (!outputText) {
-      setOpen(false);
-      return;
-    }
-
-    copyToClipboard(outputText).then((ok) => {
+    copyToClipboard(output).then((ok) => {
+      const exportTokens = countTokens(output);
       showToast(
-        ok ? `Contexte copié. Collez-le dans ${target.label} avec Ctrl+V.` : 'Échec de la copie.',
+        ok
+          ? `Contexte copié (${formatNumber(exportTokens)} tokens). Collez dans ${target.label}.`
+          : 'Échec de la copie.',
         ok ? 'success' : 'error'
       );
-      // If popup was blocked, let the user know they can navigate manually
       if (!newWindow || newWindow.closed) {
         showToast(
           `Popup bloquée. Ouvrez ${target.label} manuellement.`,
@@ -108,7 +167,7 @@ export default function ExportMenu({ outputText, markdownOutput, projectName, di
       }
     });
     setOpen(false);
-  }, [outputText, showToast]);
+  }, [prepareOutput, showToast]);
 
   return (
     <>
@@ -140,13 +199,13 @@ export default function ExportMenu({ outputText, markdownOutput, projectName, di
             >
               <div className="px-1.5 pt-1.5 pb-0.5">
                 <p className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-cyber-text-3">Enregistrer</p>
-                <button onClick={handleCopy} disabled={!outputText} className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-cyber-text-2 hover:bg-cyber-surface-2 hover:text-cyber-accent transition-colors disabled:opacity-40" role="menuitem">
+                <button onClick={handleCopy} disabled={disabled} className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-cyber-text-2 hover:bg-cyber-surface-2 hover:text-cyber-accent transition-colors disabled:opacity-40" role="menuitem">
                   <Clipboard className="w-3.5 h-3.5" />Copier le contexte
                 </button>
-                <button onClick={() => handleDownload('txt')} disabled={!outputText} className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-cyber-text-2 hover:bg-cyber-surface-2 hover:text-cyber-accent transition-colors disabled:opacity-40" role="menuitem">
+                <button onClick={() => handleDownload('txt')} disabled={disabled} className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-cyber-text-2 hover:bg-cyber-surface-2 hover:text-cyber-accent transition-colors disabled:opacity-40" role="menuitem">
                   <FileText className="w-3.5 h-3.5" />Télécharger .txt
                 </button>
-                <button onClick={() => handleDownload('md')} disabled={!markdownOutput} className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-cyber-text-2 hover:bg-cyber-surface-2 hover:text-cyber-accent transition-colors disabled:opacity-40" role="menuitem">
+                <button onClick={() => handleDownload('md')} disabled={disabled} className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-cyber-text-2 hover:bg-cyber-surface-2 hover:text-cyber-accent transition-colors disabled:opacity-40" role="menuitem">
                   <FileCode className="w-3.5 h-3.5" />Télécharger .md
                 </button>
               </div>
@@ -154,7 +213,7 @@ export default function ExportMenu({ outputText, markdownOutput, projectName, di
               <div className="px-1.5 pt-1 pb-1.5">
                 <p className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-cyber-text-3">Ouvrir dans</p>
                 {LLM_TARGETS.map((t) => (
-                  <button key={t.key} onClick={() => handleLLM(t)} disabled={!outputText} className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-cyber-text-2 hover:bg-cyber-surface-2 hover:text-cyber-accent transition-colors disabled:opacity-40" role="menuitem">
+                  <button key={t.key} onClick={() => handleLLM(t)} disabled={disabled} className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-cyber-text-2 hover:bg-cyber-surface-2 hover:text-cyber-accent transition-colors disabled:opacity-40" role="menuitem">
                     <span className="flex items-center justify-center w-5 h-5" style={{ color: 'var(--cp-text-2)' }}>
                       <BrandIcon d={t.path} />
                     </span>

@@ -14,6 +14,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 function AppInner() {
   const hasProject = useStore(selectHasProject);
+  const isScanning = useStore((s) => s.isScanning);
   const loadGithubHistory = useStore((s) => s.loadGithubHistory);
   const sidebarWidth = useStore((s) => s.sidebarWidth);
   const setSidebarWidth = useStore((s) => s.setSidebarWidth);
@@ -30,13 +31,13 @@ function AppInner() {
 
   const { showHelp, openHelp, closeHelp } = useKeyboardShortcuts();
 
-  // Auto-show onboarding only on first launch
+  // Auto-show onboarding only on first launch, and NOT during a scan
   useEffect(() => {
-    if (!onboardingDone && !hasProject) {
+    if (!onboardingDone && !hasProject && !isScanning) {
       const timer = setTimeout(() => setShowOnboarding(true), 400);
       return () => clearTimeout(timer);
     }
-  }, [onboardingDone, hasProject]);
+  }, [onboardingDone, hasProject, isScanning]);
 
   const handleOnboardingComplete = useCallback(() => {
     setOnboardingDone();

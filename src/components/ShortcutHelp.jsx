@@ -27,34 +27,34 @@ export default function ShortcutHelp({ isOpen, onClose }) {
     }
   }, [isOpen]);
 
-  return (
+  return createPortal(
     <AnimatePresence>
-      {isOpen &&
-        createPortal(
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-              style={{ zIndex: 200 }}
-              onClick={onClose}
-              aria-hidden="true"
-            />
-            <motion.div
+      {isOpen && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            style={{ zIndex: 200 }}
+            onClick={onClose}
+            aria-hidden="true"
+          />
+          <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ type: 'spring', damping: 25, stiffness: 400 }}
               className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] max-w-[90vw] bg-cyber-surface border border-cyber-border rounded-2xl shadow-2xl overflow-hidden"
               style={{ zIndex: 201 }}
+              data-testid="shortcut-dialog"
               role="dialog"
               aria-modal="true"
               aria-label="Raccourcis clavier"
             >
               <div className="flex items-center gap-3 px-5 py-4 border-b border-cyber-border">
                 <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-cyber-accent/10">
-                  <Keyboard className="w-4.5 h-4.5 text-cyber-accent" />
+                  <Keyboard className="w-[18px] h-[18px] text-cyber-accent" />
                 </div>
                 <h3 className="text-sm font-semibold text-cyber-text">Raccourcis clavier</h3>
                 <button
@@ -93,9 +93,9 @@ export default function ShortcutHelp({ isOpen, onClose }) {
                 </p>
               </div>
             </motion.div>
-          </>,
-          document.body
-        )}
-    </AnimatePresence>
+        </>
+      )}
+    </AnimatePresence>,
+    document.body
   );
 }

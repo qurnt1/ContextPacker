@@ -14,7 +14,9 @@ import {
 } from 'lucide-react';
 import { useStore } from '../store';
 import { getHandle } from '../utils/handleStorage';
+import { listGitHubBranches } from '../utils/githubScanner';
 import RecentProjectItem from './RecentProjectItem';
+import BranchSelector from './BranchSelector';
 
 const isSupported = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
 const MAX_VISIBLE = 6;
@@ -29,6 +31,7 @@ export default function WelcomeScreen({ onShowOnboarding }) {
   const scanMode = useStore((s) => s.scanMode);
   const currentFile = useStore((s) => s.currentFile);
   const scanError = useStore((s) => s.scanError);
+  const githubToken = useStore((s) => s.githubToken);
   const recentProjects = useStore((s) => s.recentProjects);
   const removeRecentProject = useStore((s) => s.removeRecentProject);
   const favoriteProjects = useStore((s) => s.favoriteProjects || []);
@@ -37,11 +40,79 @@ export default function WelcomeScreen({ onShowOnboarding }) {
   const [source, setSource] = useState('local');
   const [repoInput, setRepoInput] = useState('');
   const [subPath, setSubPath] = useState('');
+  const subPathRef = useRef('');
+  const [branches, setBranches] = useState([]);
+  const [branchesLoading, setBranchesLoading] = useState(false);
+  const [branchError, setBranchError] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState('');
+  const [defaultBranch, setDefaultBranch] = useState('');
+  const branchAbortRef = useRef(null);
   const dragCounter = useRef(0);
   const [isDragOver, setIsDragOver] = useState(false);
   const [openingKey, setOpeningKey] = useState(null);
   const [permissionItems, setPermissionItems] = useState(new Set());
   const [errorItem, setErrorItem] = useState(null);
+
+  // Debounced branch loading when repoInput changes
+  useEffect(() => {
+    // Abort previous request
+    if (branchAbortRef.current) {
+      branchAbortRef.current.abort();
+      branchAbortRef.current = null;
+    }
+
+    if (!repoInput.trim() || source !== 'github') {
+      setBranches([]);
+      setBranchError('');
+      setSelectedBranch('');
+      setDefaultBranch('');
+      return;
+    }
+
+    // Basic validation: need at least owner/repo
+    const trimmed = repoInput.trim();
+    const hasSep = trimmed.includes('/') || trimmed.includes('github.com');
+    if (!hasSep) {
+      setBranches([]);
+      setBranchError('');
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      const controller = new AbortController();
+      branchAbortRef.current = controller;
+      setBranchesLoading(true);
+      setBranchError('');
+      try {
+        const data = await listGitHubBranches({
+          repoInput: trimmed,
+          token: githubToken,
+          signal: controller.signal,
+        });
+        // Check we weren't aborted or superseded
+        if (controller.signal.aborted) return;
+        setBranches(data.branches);
+        setDefaultBranch(data.defaultBranch);
+        setSelectedBranch(data.inputRef || '');
+        if (data.inputSubPath && !subPathRef.current.trim()) {
+          setSubPath(data.inputSubPath);
+          subPathRef.current = data.inputSubPath;
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        setBranchError(err.message || 'Erreur lors du chargement des branches.');
+        setBranches([]);
+      } finally {
+        if (!controller.signal.aborted) {
+          setBranchesLoading(false);
+        }
+      }
+    }, 400);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [repoInput, source, githubToken]);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,8 +148,8 @@ export default function WelcomeScreen({ onShowOnboarding }) {
 
   const handleGitHubSubmit = async (event) => {
     event.preventDefault();
-    if (!repoInput.trim()) return;
-    await handleOpenGitHub({ repoInput: repoInput.trim(), subPath: subPath.trim() });
+    if (!repoInput.trim() || branchesLoading) return;
+    await handleOpenGitHub({ repoInput: repoInput.trim(), ref: selectedBranch, subPath: subPath.trim() });
   };
 
   const handleRecentOpen = useCallback(async (item) => {
@@ -89,21 +160,30 @@ export default function WelcomeScreen({ onShowOnboarding }) {
       setSource('github');
       setRepoInput(item.input || `https://github.com/${item.owner}/${item.repo}`);
       setSubPath(item.subPath || '');
-      try { await handleOpenGitHub({ repoInput: item.input || `https://github.com/${item.owner}/${item.repo}`, subPath: item.subPath || '' }); }
-      catch (err) { if (err.name !== 'AbortError') setErrorItem(item.key); }
-      finally { setOpeningKey(null); }
+      subPathRef.current = item.subPath || '';
+      const result = await handleOpenGitHub({
+        repoInput: item.input || `https://github.com/${item.owner}/${item.repo}`,
+        ref: item.followDefaultBranch ? '' : item.requestedRef,
+        subPath: item.subPath || '',
+      });
+      if (!result.ok && !result.aborted) {
+        setErrorItem(item.key);
+      }
+      setOpeningKey(null);
       return;
     }
     setSource('local');
     setOpeningKey(item.key);
-    try { await handleReopenLocal(item); }
-    catch (err) {
-      if (err.message === 'MISSING_HANDLE' || err.message === 'PERMISSION_DENIED') {
+    const result = await handleReopenLocal(item);
+    if (!result.ok) {
+      if (result.error?.message === 'MISSING_HANDLE' || result.error?.message === 'PERMISSION_DENIED') {
         setPermissionItems((prev) => new Set([...prev, item.key]));
         setErrorItem(item.key);
-      } else if (err.name !== 'AbortError') { setErrorItem(item.key); }
+      } else if (!result.aborted) {
+        setErrorItem(item.key);
+      }
     }
-    finally { setOpeningKey(null); }
+    setOpeningKey(null);
   }, [isScanning, handleOpenGitHub, handleReopenLocal]);
 
   const handleRelocate = useCallback(async (item) => {
@@ -112,7 +192,12 @@ export default function WelcomeScreen({ onShowOnboarding }) {
     try {
       const handle = await window.showDirectoryPicker({ mode: 'read' });
       setOpeningKey(item.key);
-      await handleOpenLocal(handle);
+      const result = await handleOpenLocal(handle);
+      if (!result.ok) {
+        if (!result.aborted) setErrorItem(item.key);
+        return;
+      }
+      // Only remove the old entry after a successful re-scan
       removeRecentProject(item.key);
     } catch (err) { if (err.name !== 'AbortError') setErrorItem(item.key); }
     finally { setOpeningKey(null); }
@@ -149,12 +234,14 @@ export default function WelcomeScreen({ onShowOnboarding }) {
   }, [recentProjects, favoriteProjects]);
 
   // Limit to MAX_VISIBLE, favorites first
-  const visibleProjects = useMemo(() => {
-    const combined = [...favorites, ...recents];
-    return combined.slice(0, MAX_VISIBLE);
+  const { visibleFavorites, visibleRecents } = useMemo(() => {
+    const visibleFavs = favorites.slice(0, MAX_VISIBLE);
+    const remainingSlots = Math.max(0, MAX_VISIBLE - visibleFavs.length);
+    const visibleRects = recents.slice(0, remainingSlots);
+    return { visibleFavorites: visibleFavs, visibleRecents: visibleRects };
   }, [favorites, recents]);
 
-  const hasHistory = visibleProjects.length > 0;
+  const hasHistory = visibleFavorites.length > 0 || visibleRecents.length > 0;
 
   return (
     <div className="flex-1 flex items-center justify-center relative overflow-hidden" onDragEnter={handleDragEnter} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
@@ -236,10 +323,21 @@ export default function WelcomeScreen({ onShowOnboarding }) {
                   <input type="text" value={repoInput} onChange={(e) => setRepoInput(e.target.value)} disabled={isScanning} placeholder="https://github.com/owner/repo" className="mt-1.5 w-full px-3.5 py-2.5 rounded-lg bg-cyber-surface-2 border border-cyber-border text-cyber-text text-sm focus:outline-none focus:border-cyber-accent/50 focus:ring-1 focus:ring-cyber-accent/20 transition-colors placeholder:text-cyber-text-3/50" />
                 </div>
                 <div>
-                  <label className="text-xs text-cyber-text-3 uppercase tracking-wider font-semibold">Sous-dossier (optionnel)</label>
-                  <input type="text" value={subPath} onChange={(e) => setSubPath(e.target.value)} disabled={isScanning} placeholder="ex: src/components" className="mt-1.5 w-full px-3.5 py-2.5 rounded-lg bg-cyber-surface-2 border border-cyber-border text-cyber-text text-sm focus:outline-none focus:border-cyber-accent/50 focus:ring-1 focus:ring-cyber-accent/20 transition-colors placeholder:text-cyber-text-3/50" />
+                  <label className="text-xs text-cyber-text-3 uppercase tracking-wider font-semibold">Branche</label>
+                  <BranchSelector
+                    branches={branches}
+                    defaultBranch={defaultBranch}
+                    selectedBranch={selectedBranch}
+                    onChange={setSelectedBranch}
+                    loading={branchesLoading}
+                    error={branchError}
+                  />
                 </div>
-                <button type="submit" disabled={isScanning || !repoInput.trim()} className="w-full inline-flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-cyber-accent/10 border border-cyber-accent/25 text-cyber-accent font-semibold transition-all duration-200 hover:bg-cyber-accent/15 hover:border-cyber-accent/40 disabled:opacity-60 disabled:cursor-not-allowed">
+                <div>
+                  <label className="text-xs text-cyber-text-3 uppercase tracking-wider font-semibold">Sous-dossier (optionnel)</label>
+                  <input type="text" value={subPath} onChange={(e) => { setSubPath(e.target.value); subPathRef.current = e.target.value; }} disabled={isScanning} placeholder="ex: src/components" className="mt-1.5 w-full px-3.5 py-2.5 rounded-lg bg-cyber-surface-2 border border-cyber-border text-cyber-text text-sm focus:outline-none focus:border-cyber-accent/50 focus:ring-1 focus:ring-cyber-accent/20 transition-colors placeholder:text-cyber-text-3/50" />
+                </div>
+                <button type="submit" disabled={isScanning || !repoInput.trim() || branchesLoading} className="w-full inline-flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-cyber-accent/10 border border-cyber-accent/25 text-cyber-accent font-semibold transition-all duration-200 hover:bg-cyber-accent/15 hover:border-cyber-accent/40 disabled:opacity-60 disabled:cursor-not-allowed">
                   <Github className="w-5 h-5" /><span>Charger le projet GitHub</span>
                 </button>
                 <p className="text-[11px] text-cyber-text-3 leading-relaxed">Repositories publics uniquement. Les projets récents sont mémorisés.</p>
@@ -262,13 +360,13 @@ export default function WelcomeScreen({ onShowOnboarding }) {
           {hasHistory && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.65, duration: 0.5 }} className="mx-auto w-full max-w-3xl mt-5">
               {/* Favorites section */}
-              {favorites.length > 0 && (
+              {visibleFavorites.length > 0 && (
                 <>
                   <p className="text-[10px] uppercase tracking-wider text-cyber-text-3 mb-2 font-semibold flex items-center gap-1.5">
-                    <Star className="w-3 h-3 text-amber-400" />Favoris
+                    <Star className="w-3 h-3 text-amber-400" />Favoris{favorites.length > MAX_VISIBLE ? ` (${visibleFavorites.length}/${favorites.length})` : ''}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
-                    {favorites.slice(0, MAX_VISIBLE).map((item) => (
+                    {visibleFavorites.map((item) => (
                       <RecentProjectItem
                         key={item.key}
                         item={item}
@@ -287,13 +385,13 @@ export default function WelcomeScreen({ onShowOnboarding }) {
               )}
 
               {/* Recents section */}
-              {recents.length > 0 && (
+              {visibleRecents.length > 0 && (
                 <>
                   <p className="text-[10px] uppercase tracking-wider text-cyber-text-3 mb-2 font-semibold flex items-center gap-1.5">
-                    <History className="w-3 h-3" />{favorites.length > 0 ? 'Récents' : 'Projets récents'}
+                    <History className="w-3 h-3" />{visibleFavorites.length > 0 ? 'Récents' : 'Projets récents'}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto">
-                    {recents.slice(0, MAX_VISIBLE - favorites.length).map((item) => (
+                    {visibleRecents.map((item) => (
                       <RecentProjectItem
                         key={item.key}
                         item={item}
@@ -319,7 +417,7 @@ export default function WelcomeScreen({ onShowOnboarding }) {
             <span className="w-1 h-1 rounded-full bg-cyber-border" />
             <span>Aucun fichier envoyé</span>
             <span className="w-1 h-1 rounded-full bg-cyber-border" />
-            <button onClick={onShowOnboarding} className="hover:text-cyber-accent transition-colors">Guide de démarrage</button>
+            <button type="button" data-testid="welcome-guide-button" onClick={onShowOnboarding} className="hover:text-cyber-accent transition-colors">Guide de démarrage</button>
           </motion.div>
         </div>
       </motion.div>
