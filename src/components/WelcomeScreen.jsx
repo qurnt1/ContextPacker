@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   FolderOpen,
-  Loader2,
   Zap,
   AlertTriangle,
   Github,
@@ -146,6 +145,10 @@ export default function WelcomeScreen({ onShowOnboarding }) {
     return `Analyse locale... ${scanCount} fichiers`;
   }, [isScanning, scanMode, scanCount, scanTotal]);
 
+  const scanPercent = scanTotal > 0
+    ? Math.min(100, Math.round((scanCount / scanTotal) * 100))
+    : 0;
+
   const handleGitHubSubmit = async (event) => {
     event.preventDefault();
     if (!repoInput.trim() || branchesLoading) return;
@@ -284,18 +287,41 @@ export default function WelcomeScreen({ onShowOnboarding }) {
 
             {isScanning ? (
               <>
-                <div className="space-y-3 animate-pulse mb-4">
-                  <div className="h-4 bg-cyber-surface-2 rounded w-1/3" />
-                  <div className="h-10 bg-cyber-surface-2 rounded-lg w-full" />
-                  <div className="h-4 bg-cyber-surface-2 rounded w-1/4 mt-2" />
-                  <div className="h-10 bg-cyber-surface-2 rounded-lg w-full" />
-                </div>
-                <button disabled className="w-full inline-flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-cyber-accent/10 border border-cyber-accent/25 text-cyber-accent font-semibold transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed">
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-2"><Loader2 className="w-5 h-5 animate-spin" /><span>{loadingLabel}</span></div>
-                    {currentFile && <p className="text-[10px] text-cyber-text-3 mt-1 truncate max-w-xs mx-auto">{currentFile}</p>}
+                <div className="space-y-3 mb-4">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-cyber-text-2">
+                      {scanMode === 'github'
+                        ? loadingLabel
+                        : scanTotal > 0 ? 'Analyse locale...' : 'Préparation du scan...'}
+                    </span>
+                    <span className="font-mono text-cyber-accent tabular-nums">
+                      {scanTotal > 0 ? `${scanCount}/${scanTotal} fichiers` : 'Comptage...'}
+                    </span>
                   </div>
-                </button>
+                  <div
+                    role="progressbar"
+                    aria-label="Progression de l’analyse"
+                    aria-valuemin={0}
+                    aria-valuemax={scanTotal || undefined}
+                    aria-valuenow={scanTotal > 0 ? scanCount : undefined}
+                    className="h-2.5 w-full overflow-hidden rounded-full bg-cyber-surface-2 border border-cyber-border"
+                  >
+                    <motion.div
+                      className="h-full rounded-full bg-cyber-accent"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${scanPercent}%` }}
+                      transition={{ duration: 0.25, ease: 'easeOut' }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-cyber-text-3">
+                    <span className="truncate pr-3">
+                      {currentFile
+                        ? `Lecture de ${currentFile}`
+                        : scanTotal > 0 ? 'Analyse des fichiers...' : 'Exploration du dossier...'}
+                    </span>
+                    <span className="font-mono tabular-nums flex-shrink-0">{scanPercent}%</span>
+                  </div>
+                </div>
               </>
             ) : source === 'local' ? (
               <div className="space-y-3">

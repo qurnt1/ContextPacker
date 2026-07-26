@@ -26,7 +26,7 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
   });
   const files = [];
   const tree = { name: projectName, path: '', type: 'directory', children: [] };
-  let count = 0;
+  const candidates = [];
 
   async function scan(handle, basePath, parentNode) {
     const entries = [];
@@ -52,53 +52,13 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
         const dirNode = { name: entry.name, path: entryPath, type: 'directory', children: [] };
         parentNode.children.push(dirNode);
         await scan(entry, entryPath, dirNode);
-
-        if (dirNode.children.length === 0) {
-          parentNode.children.pop();
-        }
       } else {
         if (isBinaryExtension(entry.name)) continue;
 
         try {
           const file = await entry.getFile();
           if (file.size > MAX_FILE_SIZE || file.size === 0) continue;
-
-          const content = await file.text();
-          if (isBinaryContent(content)) continue;
-
-          if (onFileStart) onFileStart(entry.name);
-
-          const ext = getExtension(entry.name);
-          const lines = content.split('\n').length;
-          const tokens = countTokens(content);
-          const minified = minifyCode(content, ext);
-          const minifiedTokens = minified !== content ? countTokens(minified) : tokens;
-
-          files.push({
-            name: entry.name,
-            path: entryPath,
-            extension: ext,
-            content,
-            minifiedContent: minified,
-            size: file.size,
-            lines,
-            tokens,
-            minifiedTokens,
-          });
-
-          parentNode.children.push({
-            name: entry.name,
-            path: entryPath,
-            type: 'file',
-            extension: ext,
-            size: file.size,
-            lines,
-            tokens,
-            minifiedTokens,
-          });
-
-          count++;
-          if (onProgress) onProgress(count);
+          candidates.push({ entry, entryPath, parentNode, file });
         } catch (e) {
           console.warn(`Skipped ${entryPath}:`, e.message);
         }
@@ -108,5 +68,62 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
 
   await scan(dirHandle, '', tree);
 
+  const total = candidates.length;
+  if (onProgress) onProgress(0, total);
+
+  let count = 0;
+  for (const candidate of candidates) {
+    try {
+      if (onFileStart) onFileStart(candidate.entry.name);
+
+      const content = await candidate.file.text();
+      if (!content || isBinaryContent(content)) continue;
+
+      const extension = getExtension(candidate.entry.name);
+      const lines = content.split('\n').length;
+      const tokens = countTokens(content);
+      const minified = minifyCode(content, extension);
+      const minifiedTokens = minified !== content ? countTokens(minified) : tokens;
+
+      files.push({
+        name: candidate.entry.name,
+        path: candidate.entryPath,
+        extension,
+        content,
+        minifiedContent: minified,
+        size: candidate.file.size,
+        lines,
+        tokens,
+        minifiedTokens,
+      });
+
+      candidate.parentNode.children.push({
+        name: candidate.entry.name,
+        path: candidate.entryPath,
+        type: 'file',
+        extension,
+        size: candidate.file.size,
+        lines,
+        tokens,
+        minifiedTokens,
+      });
+    } catch (e) {
+      console.warn(`Skipped ${candidate.entryPath}:`, e.message);
+    } finally {
+      count += 1;
+      if (onProgress) onProgress(count, total);
+    }
+  }
+
+  pruneEmptyDirectories(tree);
+
   return { name: projectName, files, tree };
+}
+
+function pruneEmptyDirectories(node) {
+  node.children = node.children.filter((child) => {
+    if (child.type !== 'directory') return true;
+    pruneEmptyDirectories(child);
+    return child.children.length > 0;
+  });
 }

@@ -129,7 +129,7 @@ const createScanSlice = (set, get) => ({
         projectId = crypto.randomUUID();
       }
 
-      const result = await scanDirectory(dirHandle, (count) => updateProgress(count), {
+      const result = await scanDirectory(dirHandle, (count, total) => updateProgress(count, total), {
         applyGitignore: gitignoreEnabled,
         onFileStart: (name) => set({ currentFile: name }),
       });
