@@ -147,7 +147,7 @@ export default function Sidebar() {
       <motion.aside
         initial={{ x: -20, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
-        className="w-full h-full flex flex-col items-center bg-cyber-surface border-r border-cyber-border overflow-hidden transition-colors duration-300 py-3 gap-2.5"
+        className="app-sidebar w-full h-full flex flex-col items-center border-r border-cyber-border overflow-hidden transition-colors duration-300 py-3 gap-2.5"
       >
         {/* Toggle button at top — same position as in expanded header */}
         <button
@@ -189,7 +189,7 @@ export default function Sidebar() {
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="w-full h-full flex flex-col bg-cyber-surface border-r border-cyber-border overflow-hidden transition-colors duration-300"
+      className="app-sidebar w-full h-full flex flex-col border-r border-cyber-border overflow-hidden transition-colors duration-300"
     >
       {/* Sidebar header: name + toggle on the right */}
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-cyber-border">

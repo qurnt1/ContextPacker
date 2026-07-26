@@ -64,7 +64,7 @@ function AppInner() {
   }, [setSidebarWidth]);
 
   return (
-    <div className="h-screen flex flex-col bg-cyber-bg text-cyber-text font-sans overflow-hidden transition-colors duration-300">
+    <div className="app-shell h-screen flex flex-col bg-cyber-bg text-cyber-text font-sans overflow-hidden transition-colors duration-300">
       <AnimatePresence mode="wait">
         {!hasProject ? (
           <WelcomeScreen key="welcome" onShowOnboarding={() => setShowOnboarding(true)} />

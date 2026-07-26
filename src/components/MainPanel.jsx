@@ -52,9 +52,9 @@ export default function MainPanel() {
   const isEmpty = selectedFiles.length === 0;
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-cyber-bg transition-colors duration-300">
+    <div className="workspace-panel flex-1 flex flex-col overflow-hidden transition-colors duration-300">
       {/* Preview header */}
-      <div className="flex items-center gap-2 px-5 py-2.5 border-b border-cyber-border bg-cyber-surface/40">
+      <div className="panel-toolbar flex items-center gap-2 px-5 py-3 border-b border-cyber-border">
         <Eye className="w-4 h-4 text-cyber-accent" />
         <span className="text-sm font-medium text-cyber-text-2">Prévisualisation</span>
         {!isEmpty ? (

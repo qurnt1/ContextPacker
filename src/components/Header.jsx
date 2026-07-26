@@ -44,7 +44,7 @@ export default function Header({ onShowHelp }) {
     <motion.header
       initial={{ y: -10, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="h-11 flex items-center justify-between px-4 border-b border-cyber-border bg-cyber-surface flex-shrink-0"
+      className="app-header h-14 flex items-center justify-between px-4 md:px-5 border-b border-cyber-border flex-shrink-0"
     >
       {/* Left: logo + name only */}
       <div className="flex items-center gap-2 min-w-0">

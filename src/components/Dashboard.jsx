@@ -52,7 +52,7 @@ export default function Dashboard() {
       initial={{ y: 12, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ delay: 0.15 }}
-      className="h-[52px] border-t border-cyber-border bg-cyber-surface flex items-center px-4 md:px-5 gap-4 transition-colors duration-300 z-20 flex-shrink-0"
+      className="status-bar h-[58px] border-t border-cyber-border flex items-center px-4 md:px-5 gap-4 transition-colors duration-300 z-20 flex-shrink-0"
     >
       {/* Stats */}
       <div className="flex items-center gap-4 flex-shrink-0">

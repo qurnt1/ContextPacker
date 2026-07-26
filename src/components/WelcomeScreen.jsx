@@ -247,7 +247,7 @@ export default function WelcomeScreen({ onShowOnboarding }) {
   const hasHistory = visibleFavorites.length > 0 || visibleRecents.length > 0;
 
   return (
-    <div className="flex-1 flex items-center justify-center relative overflow-hidden" onDragEnter={handleDragEnter} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+    <div className="welcome-shell flex-1 flex items-center justify-center relative overflow-hidden" onDragEnter={handleDragEnter} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
       <motion.div className="flex-1 flex items-center justify-center relative" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.5 }}>
         {isDragOver && (
           <div className="absolute inset-0 z-30 flex items-center justify-center bg-cyber-accent/[0.04] backdrop-blur-sm">
@@ -259,30 +259,30 @@ export default function WelcomeScreen({ onShowOnboarding }) {
           </div>
         )}
 
-        <div className="w-full max-w-3xl text-center z-10 px-6 py-8">
+        <div className="welcome-content w-full max-w-4xl text-center z-10 px-6 py-8 md:py-12">
           {/* Logo */}
           <motion.div initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2, duration: 0.6 }} className="mb-6">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-cyber-surface card mb-5">
+            <div className="welcome-mark inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-cyber-surface card mb-5">
               <Zap className="w-8 h-8 text-cyber-accent" />
             </div>
           </motion.div>
 
           {/* Title */}
-          <motion.h1 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3, duration: 0.6 }} className="text-5xl sm:text-6xl font-bold tracking-tight mb-3">
+          <motion.h1 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3, duration: 0.6 }} className="welcome-title text-5xl sm:text-6xl font-bold mb-4">
             <span className="text-cyber-text">Context</span>
             <span className="text-cyber-accent">Packer</span>
           </motion.h1>
 
           {/* New explicit description */}
-          <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.42, duration: 0.6 }} className="text-cyber-text-2 text-base sm:text-lg mb-10 max-w-xl mx-auto leading-relaxed">
+          <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.42, duration: 0.6 }} className="text-cyber-text-2 text-base sm:text-lg mb-10 max-w-2xl mx-auto leading-relaxed">
             Transformez un dossier local ou un dépôt GitHub en un contexte structuré prêt pour votre IA.
           </motion.p>
 
           {/* Main card */}
-          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55, duration: 0.6 }} className="mx-auto w-full max-w-3xl card p-5 md:p-6 text-left">
-            <div className="flex gap-3 mb-5">
-              <button onClick={() => setSource('local')} disabled={isScanning} className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${source === 'local' ? 'bg-cyber-accent text-black shadow-sm' : 'text-cyber-text-3 hover:text-cyber-text-2'}`}>Projet local</button>
-              <button onClick={() => setSource('github')} disabled={isScanning} className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${source === 'github' ? 'bg-cyber-accent text-black shadow-sm' : 'text-cyber-text-3 hover:text-cyber-text-2'}`}>Projet GitHub</button>
+          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55, duration: 0.6 }} className="welcome-card mx-auto w-full max-w-3xl card p-5 md:p-7 text-left">
+            <div className="welcome-tabs flex gap-2 mb-6 pb-3">
+              <button onClick={() => setSource('local')} disabled={isScanning} className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${source === 'local' ? 'bg-cyber-accent text-black shadow-sm' : 'text-cyber-text-3 hover:text-cyber-text-2 hover:bg-cyber-surface-2'}`}>Projet local</button>
+              <button onClick={() => setSource('github')} disabled={isScanning} className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${source === 'github' ? 'bg-cyber-accent text-black shadow-sm' : 'text-cyber-text-3 hover:text-cyber-text-2 hover:bg-cyber-surface-2'}`}>Projet GitHub</button>
             </div>
 
             {isScanning ? (
@@ -326,7 +326,7 @@ export default function WelcomeScreen({ onShowOnboarding }) {
             ) : source === 'local' ? (
               <div className="space-y-3">
                 {isSupported ? (
-                  <button onClick={handleOpenLocal} disabled={isScanning} className="w-full inline-flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-cyber-accent/10 border border-cyber-accent/25 text-cyber-accent font-semibold transition-all duration-200 hover:bg-cyber-accent/15 hover:border-cyber-accent/40 disabled:opacity-60 disabled:cursor-not-allowed">
+                  <button onClick={handleOpenLocal} disabled={isScanning} className="welcome-action w-full inline-flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-cyber-accent/10 border border-cyber-accent/25 text-cyber-accent font-semibold transition-all duration-200 hover:bg-cyber-accent/15 hover:border-cyber-accent/40 disabled:opacity-60 disabled:cursor-not-allowed">
                     <FolderOpen className="w-5 h-5" /><span>Ouvrir un dossier local</span>
                   </button>
                 ) : (
@@ -337,7 +337,7 @@ export default function WelcomeScreen({ onShowOnboarding }) {
                     <p className="text-cyber-text-3 text-sm">Utilisez Chrome, Edge ou un navigateur basé sur Chromium.</p>
                   </div>
                 )}
-                <div className="border border-dashed border-cyber-border rounded-lg px-3 py-2 text-center">
+                <div className="welcome-dropzone border border-dashed rounded-lg px-3 py-3 text-center">
                   <Upload className="w-4 h-4 inline mr-1.5 -mt-0.5 text-cyber-text-3" />
                   <span className="text-[11px] text-cyber-text-3">Glissez-déposez un dossier ici</span>
                 </div>
