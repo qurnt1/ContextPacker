@@ -72,7 +72,7 @@ const STEPS = [
           </li>
           <li className="flex items-start gap-2">
             <span className="text-cyber-accent mt-0.5">•</span>
-            <span>Ouvrez directement dans <strong className="text-cyber-text">ChatGPT, Claude, Gemini ou Perplexity</strong></span>
+            <span>Copiez le contexte, puis ouvrez <strong className="text-cyber-text">ChatGPT, Claude, Gemini ou Perplexity</strong> pour le coller</span>
           </li>
         </ul>
         <p className="text-xs text-cyber-text-3 mt-4">Tout le traitement reste dans votre navigateur. Aucun fichier n&apos;est envoyé à un serveur.</p>

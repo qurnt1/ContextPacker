@@ -6,8 +6,7 @@ import {
   FileCode,
   ExternalLink,
   ChevronDown,
-  Check,
-  LockKeyhole,
+  Loader2,
 } from 'lucide-react';
 import { copyToClipboard } from '../utils/clipboard';
 import { useToast } from '../hooks/useToast';
@@ -63,7 +62,7 @@ export default function ExportMenu({
   disabled,
 }) {
   const [open, setOpen] = useState(false);
-  const [exportReady, setExportReady] = useState(false);
+  const [activeTargetKey, setActiveTargetKey] = useState(null);
   const [toast, showToast] = useToast();
   const menuRef = useRef(null);
   const triggerRef = useRef(null);
@@ -134,8 +133,7 @@ export default function ExportMenu({
         : 'Échec de la copie.',
       ok ? 'success' : 'error'
     );
-    if (ok) setExportReady(true);
-    setOpen(true);
+    setOpen(false);
   }, [prepareOutput, showToast]);
 
   const handleDownload = useCallback((format) => {
@@ -157,19 +155,20 @@ export default function ExportMenu({
       `Fichier .${ext} généré — ${formatNumber(exportTokens)} tokens`,
       'success'
     );
-    setExportReady(true);
-    setOpen(true);
+    setOpen(false);
   }, [prepareOutput, projectName, showToast]);
 
   const handleLLM = useCallback((target) => {
-    if (!exportReady) return;
     const output = prepareOutput('txt');
     if (!output) return;
-    // window.open() must be called synchronously from the user gesture
-    const newWindow = window.open(target.url, '_blank', 'noopener,noreferrer');
+    setActiveTargetKey(target.key);
+    // Reserve the popup during the user gesture, then navigate after copying.
+    const newWindow = window.open('about:blank', '_blank', 'noopener,noreferrer');
 
     copyToClipboard(output).then((ok) => {
       const exportTokens = countTokens(output);
+      if (!ok && newWindow && !newWindow.closed) newWindow.close();
+      if (ok && newWindow && !newWindow.closed) newWindow.location.href = target.url;
       showToast(
         ok
           ? `Contexte copié (${formatNumber(exportTokens)} tokens). Collez dans ${target.label}.`
@@ -182,9 +181,10 @@ export default function ExportMenu({
           'error'
         );
       }
+      setActiveTargetKey(null);
     });
     setOpen(false);
-  }, [exportReady, prepareOutput, showToast]);
+  }, [prepareOutput, showToast]);
 
   return (
     <>
@@ -228,27 +228,19 @@ export default function ExportMenu({
               </div>
               <div className="mx-3 h-px bg-cyber-border" />
               <div className="px-1.5 pt-1 pb-1.5">
-                <div className="flex items-center justify-between gap-2 px-2.5 py-1">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-cyber-text-3">Continuer avec</p>
-                  {exportReady ? (
-                    <span className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wide text-cyber-accent">
-                      <Check className="w-3 h-3" /> Prêt
-                    </span>
-                  ) : null}
-                </div>
-                {!exportReady ? (
-                  <div className="mx-2.5 mb-1.5 flex items-start gap-1.5 rounded-lg border border-cyber-border bg-cyber-surface-2/60 px-2 py-2 text-[10px] leading-relaxed text-cyber-text-3">
-                    <LockKeyhole className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-cyber-text-3" />
-                    <span>Copiez ou téléchargez d’abord votre contexte.</span>
-                  </div>
-                ) : null}
+                <p className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-cyber-text-3">Copier puis ouvrir</p>
+                <p className="px-2.5 pb-1.5 text-[10px] leading-relaxed text-cyber-text-3">Le contexte est copié automatiquement avant l’ouverture.</p>
                 {LLM_TARGETS.map((t) => (
-                  <button key={t.key} onClick={() => handleLLM(t)} disabled={disabled || !exportReady} aria-disabled={!exportReady} title={!exportReady ? 'Disponible après copie ou téléchargement' : `Ouvrir ${t.label}`} className="group w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-cyber-text-2 hover:bg-cyber-surface-2 hover:text-cyber-text transition-colors disabled:opacity-45 disabled:cursor-not-allowed" role="menuitem">
+                  <button key={t.key} onClick={() => handleLLM(t)} disabled={disabled || activeTargetKey !== null} aria-busy={activeTargetKey === t.key} aria-label={`Copier puis ouvrir dans ${t.label}`} title={`Copier puis ouvrir dans ${t.label}`} className="group w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-cyber-text-2 hover:bg-cyber-surface-2 hover:text-cyber-text transition-colors disabled:opacity-45 disabled:cursor-not-allowed" role="menuitem">
                     <span className="flex items-center justify-center w-6 h-6 rounded-md" style={{ color: t.color, background: t.surface }}>
                       <BrandIcon d={t.path} brandKey={t.key} color={t.color} />
                     </span>
                     <span>{t.label}</span>
-                    <ExternalLink className="w-3 h-3 ml-auto text-cyber-text-3 group-hover:text-cyber-text-2" />
+                    {activeTargetKey === t.key ? (
+                      <Loader2 className="w-3 h-3 ml-auto animate-spin text-cyber-text-3" />
+                    ) : (
+                      <ExternalLink className="w-3 h-3 ml-auto text-cyber-text-3 group-hover:text-cyber-text-2" />
+                    )}
                   </button>
                 ))}
               </div>

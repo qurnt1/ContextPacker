@@ -78,8 +78,9 @@ describe('ExportMenu behavior', () => {
     expect(copyToClipboard).not.toHaveBeenCalled();
   });
 
-  it('keeps AI destinations locked until an export succeeds', async () => {
-    const open = vi.spyOn(window, 'open').mockReturnValue({ closed: false });
+  it('copies the context before navigating to an AI destination', async () => {
+    const pendingWindow = { closed: false, location: { href: 'about:blank' } };
+    const open = vi.spyOn(window, 'open').mockReturnValue(pendingWindow);
     render(
       <ExportMenu
         projectName="demo"
@@ -95,12 +96,37 @@ describe('ExportMenu behavior', () => {
 
     fireEvent.click(screen.getByTitle(/exporter/i));
     const chatgpt = screen.getByRole('menuitem', { name: /ChatGPT/i });
-    expect(chatgpt).toBeDisabled();
-
-    fireEvent.click(screen.getByRole('menuitem', { name: /copier le contexte/i }));
-    await waitFor(() => expect(chatgpt).toBeEnabled());
+    expect(chatgpt).toBeEnabled();
 
     fireEvent.click(chatgpt);
-    expect(open).toHaveBeenCalledWith('https://chatgpt.com/', '_blank', 'noopener,noreferrer');
+    expect(open).toHaveBeenCalledWith('about:blank', '_blank', 'noopener,noreferrer');
+    await waitFor(() => expect(copyToClipboard).toHaveBeenCalledWith('generated context'));
+    await waitFor(() => expect(pendingWindow.location.href).toBe('https://chatgpt.com/'));
+  });
+
+  it('closes the reserved window when copying fails', async () => {
+    const pendingWindow = { closed: false, location: { href: 'about:blank' }, close: vi.fn() };
+    vi.spyOn(window, 'open').mockReturnValue(pendingWindow);
+    copyToClipboard.mockResolvedValueOnce(false);
+
+    render(
+      <ExportMenu
+        projectName="demo"
+        selectedFiles={selectedFiles}
+        tree={{ name: 'demo', children: [] }}
+        selectedPaths={new Set(['src/index.js'])}
+        minifyEnabled={false}
+        contentTokens={2}
+        tokenLimit={128}
+        disabled={false}
+      />
+    );
+
+    fireEvent.click(screen.getByTitle(/exporter/i));
+    fireEvent.click(screen.getByRole('menuitem', { name: /ChatGPT/i }));
+
+    await waitFor(() => expect(copyToClipboard).toHaveBeenCalledWith('generated context'));
+    expect(pendingWindow.close).toHaveBeenCalledOnce();
+    expect(pendingWindow.location.href).toBe('about:blank');
   });
 });
