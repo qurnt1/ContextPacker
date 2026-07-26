@@ -162,20 +162,20 @@ export default function ExportMenu({
     const output = prepareOutput('txt');
     if (!output) return;
     setActiveTargetKey(target.key);
-    // Reserve the popup during the user gesture, then navigate after copying.
-    const newWindow = window.open('about:blank', '_blank', 'noopener,noreferrer');
+    const copyPromise = copyToClipboard(output);
+    // Open directly during the user gesture. Some browsers return null for a
+    // successful noopener window, so the return value cannot identify blocking.
+    const newWindow = window.open(target.url, '_blank', 'noopener,noreferrer');
 
-    copyToClipboard(output).then((ok) => {
+    copyPromise.then((ok) => {
       const exportTokens = countTokens(output);
-      if (!ok && newWindow && !newWindow.closed) newWindow.close();
-      if (ok && newWindow && !newWindow.closed) newWindow.location.href = target.url;
       showToast(
         ok
           ? `Contexte copié (${formatNumber(exportTokens)} tokens). Collez dans ${target.label}.`
           : 'Échec de la copie.',
         ok ? 'success' : 'error'
       );
-      if (!newWindow || newWindow.closed) {
+      if (newWindow && newWindow.closed) {
         showToast(
           `Popup bloquée. Ouvrez ${target.label} manuellement.`,
           'error'

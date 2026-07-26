@@ -79,8 +79,7 @@ describe('ExportMenu behavior', () => {
   });
 
   it('copies the context before navigating to an AI destination', async () => {
-    const pendingWindow = { closed: false, location: { href: 'about:blank' } };
-    const open = vi.spyOn(window, 'open').mockReturnValue(pendingWindow);
+    const open = vi.spyOn(window, 'open').mockReturnValue({ closed: false });
     render(
       <ExportMenu
         projectName="demo"
@@ -99,14 +98,12 @@ describe('ExportMenu behavior', () => {
     expect(chatgpt).toBeEnabled();
 
     fireEvent.click(chatgpt);
-    expect(open).toHaveBeenCalledWith('about:blank', '_blank', 'noopener,noreferrer');
+    expect(open).toHaveBeenCalledWith('https://chatgpt.com/', '_blank', 'noopener,noreferrer');
     await waitFor(() => expect(copyToClipboard).toHaveBeenCalledWith('generated context'));
-    await waitFor(() => expect(pendingWindow.location.href).toBe('https://chatgpt.com/'));
   });
 
-  it('closes the reserved window when copying fails', async () => {
-    const pendingWindow = { closed: false, location: { href: 'about:blank' }, close: vi.fn() };
-    vi.spyOn(window, 'open').mockReturnValue(pendingWindow);
+  it('reports a copy failure after attempting the AI handoff', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue({ closed: false });
     copyToClipboard.mockResolvedValueOnce(false);
 
     render(
@@ -126,7 +123,6 @@ describe('ExportMenu behavior', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: /ChatGPT/i }));
 
     await waitFor(() => expect(copyToClipboard).toHaveBeenCalledWith('generated context'));
-    expect(pendingWindow.close).toHaveBeenCalledOnce();
-    expect(pendingWindow.location.href).toBe('about:blank');
+    expect(open).toHaveBeenCalledWith('https://chatgpt.com/', '_blank', 'noopener,noreferrer');
   });
 });
