@@ -22,6 +22,19 @@ function githubLogicalKey(owner, repo, requestedRef, followDefault, subPath) {
   return `github:${owner}/${repo}:${refPart}:${subPath || ''}`;
 }
 
+/**
+ * Build a stable project key for savedSelection.
+ * Local:  local:<uuid>
+ * GitHub: github:<owner>/<repo>:<requestedRef-or-default>:<subPath>
+ */
+function stableProjectKey(sourceMeta, projectId) {
+  if (sourceMeta.type === 'github') {
+    const s = sourceMeta;
+    return githubLogicalKey(s.owner, s.repo, s.requestedRef, s.followDefaultBranch, s.subPath);
+  }
+  return `local:${projectId || ''}`;
+}
+
 // ── Scan Slice ──────────────────────────────────────────────
 const createScanSlice = (set, get) => ({
   projectName: '',
@@ -43,9 +56,10 @@ const createScanSlice = (set, get) => ({
 
   setCurrentFile: (name) => set({ currentFile: name }),
 
-  completeScan: ({ name, files, tree, source }) => {
+  completeScan: ({ name, files, tree, source, projectId }) => {
     const saved = get().savedSelection;
-    const restorePaths = saved && saved.projectKey === name
+    const pKey = stableProjectKey(source || { type: get().scanMode }, projectId);
+    const restorePaths = saved && saved.projectKey === pKey
       ? new Set(saved.paths.filter(p => files.some(f => f.path === p)))
       : new Set();
 
@@ -53,7 +67,7 @@ const createScanSlice = (set, get) => ({
       projectName: name,
       files,
       tree,
-      sourceMeta: source || { type: get().scanMode },
+      sourceMeta: { ...(source || { type: get().scanMode }), projectId },
       isScanning: false,
       selectedPaths: restorePaths,
       scanError: '',
@@ -68,7 +82,7 @@ const createScanSlice = (set, get) => ({
     set({ isScanning: false, scanError: error || 'Erreur inconnue.' }),
 
   scanFromHandle: async (dirHandle) => {
-    const { startScan, updateProgress, completeScan, failScan, gitignoreEnabled, addRecentProject, recentProjects } = get();
+    const { startScan, updateProgress, completeScan, failScan, gitignoreEnabled, addRecentProject } = get();
     try {
       startScan('local');
 
@@ -76,19 +90,8 @@ const createScanSlice = (set, get) => ({
       let projectId = await findMatchingHandle(dirHandle);
 
       if (!projectId) {
-        // Check recentProjects for an existing entry with same name and type 'local'
-        const existingEntry = recentProjects.find(
-          (p) => p.type === 'local' && p.name === dirHandle.name && p.id
-        );
-        if (existingEntry) {
-          // Reuse the existing UUID — the user opened the same folder
-          projectId = existingEntry.id;
-        }
-      }
-
-      if (!projectId) {
         // Attempt migration: look for an old entry keyed by folder name (pre-UUID format)
-        const oldEntry = recentProjects.find(
+        const oldEntry = get().recentProjects.find(
           (p) => p.type === 'local' && p.name === dirHandle.name && /^local:[^a-f0-9-]/.test(p.key)
         );
         if (oldEntry) {
@@ -114,7 +117,7 @@ const createScanSlice = (set, get) => ({
         applyGitignore: gitignoreEnabled,
         onFileStart: (name) => set({ currentFile: name }),
       });
-      completeScan({ name: result.name, files: result.files, tree: result.tree, source: { type: 'local' } });
+      completeScan({ name: result.name, files: result.files, tree: result.tree, source: { type: 'local' }, projectId });
 
       saveHandle(projectId, dirHandle);
 
@@ -139,9 +142,10 @@ const createScanSlice = (set, get) => ({
   },
 
   resetProject: () => {
-    const { projectName, selectedPaths } = get();
-    if (projectName && selectedPaths.size > 0) {
-      set({ savedSelection: { projectKey: projectName, paths: [...selectedPaths] } });
+    const { sourceMeta, selectedPaths } = get();
+    if (sourceMeta && selectedPaths.size > 0) {
+      const pKey = stableProjectKey(sourceMeta, sourceMeta.projectId);
+      set({ savedSelection: { projectKey: pKey, paths: [...selectedPaths] } });
     }
     set({
       projectName: '',
@@ -215,7 +219,7 @@ const createScanSlice = (set, get) => ({
    * Refresh the currently open project without returning to the welcome screen.
    */
   handleRefresh: async () => {
-    const { sourceMeta, scanMode, scanFromHandle, handleOpenGitHub } = get();
+    const { sourceMeta, scanFromHandle, handleOpenGitHub } = get();
     if (!sourceMeta) return;
 
     if (sourceMeta.type === 'github') {
@@ -225,14 +229,11 @@ const createScanSlice = (set, get) => ({
         subPath: src.subPath || '',
       });
     } else {
-      // Local: re-scan current handle from IndexedDB
-      const { recentProjects } = get();
-      const currentProject = recentProjects.find(
-        (p) => p.type === 'local' && p.name === get().projectName
-      );
-      if (currentProject?.id) {
+      // Local: re-scan using stored projectId from sourceMeta
+      const projectId = sourceMeta.projectId;
+      if (projectId) {
         const { getHandle: getH } = await import('./utils/handleStorage');
-        const handle = await getH(currentProject.id);
+        const handle = await getH(projectId);
         if (handle) {
           const opts = { mode: 'read' };
           let perm = await handle.queryPermission(opts);
@@ -245,7 +246,7 @@ const createScanSlice = (set, get) => ({
           }
         }
       }
-      throw new Error('Impossible d\'accéder au dossier. Réessayez depuis l\'écran d\'accueil.');
+      throw new Error("Impossible d'accéder au dossier. Réessayez depuis l'écran d'accueil.");
     }
   },
 
@@ -335,6 +336,30 @@ const createSelectionSlice = (set, get) => ({
   showWarning: false,
   pendingPaths: null,
 
+  /**
+   * Centralized selection request — all selection mutations that increase
+   * the token count should go through this function so the volume-warning
+   * threshold is applied uniformly.
+   */
+  requestSelection: (nextPaths) => {
+    const { files, minifyEnabled, tokenLimit, warningPercent, customThreshold } = get();
+    const paths = nextPaths instanceof Set ? nextPaths : new Set(nextPaths);
+
+    const newTokens = files
+      .filter((f) => paths.has(f.path))
+      .reduce((sum, f) => sum + (minifyEnabled ? f.minifiedTokens : f.tokens), 0);
+
+    const overPercent = newTokens > (tokenLimit * warningPercent) / 100;
+    const overCustom = customThreshold > 0 && newTokens > customThreshold;
+
+    if (overPercent || overCustom) {
+      set({ pendingPaths: paths, showWarning: true });
+      return;
+    }
+
+    set({ selectedPaths: paths });
+  },
+
   togglePath: (path) =>
     set((state) => {
       const next = new Set(state.selectedPaths);
@@ -370,22 +395,9 @@ const createSelectionSlice = (set, get) => ({
     }),
 
   selectAll: () => {
-    const { files, minifyEnabled, tokenLimit, warningPercent, customThreshold } = get();
+    const { files } = get();
     const allPaths = new Set(files.map((f) => f.path));
-
-    const newTokens = files.reduce(
-      (sum, f) => sum + (minifyEnabled ? f.minifiedTokens : f.tokens),
-      0
-    );
-    const overPercent = newTokens > (tokenLimit * warningPercent) / 100;
-    const overCustom = customThreshold > 0 && newTokens > customThreshold;
-
-    if (overPercent || overCustom) {
-      set({ pendingPaths: allPaths, showWarning: true });
-      return;
-    }
-
-    set({ selectedPaths: allPaths });
+    get().requestSelection(allPaths);
   },
 
   deselectAll: () => set({ selectedPaths: new Set() }),
@@ -399,19 +411,21 @@ const createSelectionSlice = (set, get) => ({
 
   cancelWarning: () => set({ pendingPaths: null, showWarning: false }),
 
-  selectRange: (fromPath, toPath) =>
-    set((state) => {
-      const idxA = state.files.findIndex((f) => f.path === fromPath);
-      const idxB = state.files.findIndex((f) => f.path === toPath);
-      if (idxA === -1 || idxB === -1) return state;
-      const start = Math.min(idxA, idxB);
-      const end = Math.max(idxA, idxB);
-      const next = new Set(state.selectedPaths);
-      for (let i = start; i <= end; i++) {
-        next.add(state.files[i].path);
-      }
-      return { selectedPaths: next };
-    }),
+  selectRange: (fromPath, toPath, visiblePaths) => {
+    // visiblePaths: ordered list as displayed in the tree (respects search & collapse).
+    // Falls back to state.files flat list when not provided.
+    const paths = visiblePaths || get().files.map((f) => f.path);
+    const idxA = paths.indexOf(fromPath);
+    const idxB = paths.indexOf(toPath);
+    if (idxA === -1 || idxB === -1) return;
+    const start = Math.min(idxA, idxB);
+    const end = Math.max(idxA, idxB);
+    const next = new Set(get().selectedPaths);
+    for (let i = start; i <= end; i++) {
+      next.add(paths[i]);
+    }
+    set({ selectedPaths: next });
+  },
 });
 
 // ── Settings Slice (persisted) ──────────────────────────────
@@ -477,7 +491,18 @@ const createSettingsSlice = (set, get) => ({
       const seen = new Set();
       const entries = [];
       for (const item of githubRepos) {
-        const key = githubLogicalKey(item.owner, item.repo, item.ref, !item.ref, item.subPath);
+        // Preserve the stored followDefaultBranch and requestedRef — do NOT
+        // recompute from item.ref (which is the resolved branch, not the
+        // user's original intent).
+        const followDefault = item.followDefaultBranch !== undefined
+          ? item.followDefaultBranch
+          : !item.ref;
+        const requestedRef = item.requestedRef !== undefined
+          ? item.requestedRef
+          : (item.ref || '');
+        const key = githubLogicalKey(
+          item.owner, item.repo, requestedRef, followDefault, item.subPath
+        );
         if (seen.has(key)) continue;
         seen.add(key);
         entries.push({
@@ -487,8 +512,8 @@ const createSettingsSlice = (set, get) => ({
           owner: item.owner,
           repo: item.repo,
           ref: item.ref,
-          requestedRef: item.ref || '',
-          followDefaultBranch: !item.ref,
+          requestedRef,
+          followDefaultBranch: followDefault,
           subPath: item.subPath || '',
           input: item.input || `https://github.com/${item.owner}/${item.repo}`,
           fileCount: item.fileCount,

@@ -3,7 +3,9 @@ import { Zap, Moon, Sun, Monitor, FolderOpen, Loader2, Home, Keyboard, RefreshCw
 import { useCallback, useState } from 'react';
 import { useTheme } from '../hooks/useTheme';
 import { useStore } from '../store';
+import { useToast } from '../hooks/useToast';
 import SettingsPanel from './SettingsPanel';
+import Toast from './Toast';
 
 export default function Header({ onShowHelp }) {
   const { theme, setTheme, resolved } = useTheme();
@@ -12,6 +14,7 @@ export default function Header({ onShowHelp }) {
   const isScanning = useStore((s) => s.isScanning);
   const handleRefresh = useStore((s) => s.handleRefresh);
   const [refreshing, setRefreshing] = useState(false);
+  const [toast, showToast] = useToast();
 
   const cycleTheme = useCallback(() => {
     const order = ['system', 'dark', 'light'];
@@ -27,8 +30,8 @@ export default function Header({ onShowHelp }) {
     setRefreshing(true);
     try {
       await handleRefresh();
-    } catch {
-      // Error already handled by store
+    } catch (err) {
+      showToast(err?.message || 'Échec de l\'actualisation.', 'error');
     } finally {
       setRefreshing(false);
     }
@@ -116,6 +119,7 @@ export default function Header({ onShowHelp }) {
 
         <SettingsPanel />
       </div>
+      <Toast message={toast.message} visible={toast.visible} type={toast.type} />
     </motion.header>
   );
 }

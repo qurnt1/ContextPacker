@@ -67,9 +67,9 @@ const FileTree = memo(function FileTree({
 
   const handleCheckboxClick = (event) => {
     event.stopPropagation();
-    // Shift+click range selection (fonctionne sur checkbox ET sur la rangée)
+    // Shift+click range selection (works on checkbox AND row)
     if (event.shiftKey && window.__cpLastClickedPath && !isDirectory) {
-      selectRange(window.__cpLastClickedPath, node.path);
+      selectRange(window.__cpLastClickedPath, node.path, window.__cpVisiblePaths);
       return;
     }
     if (isDirectory) {
@@ -84,6 +84,26 @@ const FileTree = memo(function FileTree({
 
   if (isRoot) {
     const visible = sortedChildren.filter((child) => matchesSearch(child, searchQuery));
+
+    // Build flat ordered list of visible file paths (respects search + tree order).
+    // Used by Shift+click range selection.
+    const collectVisiblePaths = (children) => {
+      const paths = [];
+      for (const c of children) {
+        if (c.type === 'file') {
+          paths.push(c.path);
+        } else if (c.children) {
+          const sorted = [...c.children].sort((a, b) => {
+            if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
+            return a.name.localeCompare(b.name);
+          });
+          paths.push(...collectVisiblePaths(sorted));
+        }
+      }
+      return paths;
+    };
+    window.__cpVisiblePaths = collectVisiblePaths(visible);
+
     if (visible.length === 0) {
       return (
         <div className="px-3 py-6 text-center text-[11px] text-cyber-text-3">

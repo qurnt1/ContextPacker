@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useCallback } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   FolderOpen,
@@ -43,21 +43,30 @@ export default function WelcomeScreen({ onShowOnboarding }) {
   const [permissionItems, setPermissionItems] = useState(new Set());
   const [errorItem, setErrorItem] = useState(null);
 
-  useMemo(() => {
+  useEffect(() => {
+    let cancelled = false;
     const checkPermissions = async () => {
       const needsPerm = new Set();
       for (const item of recentProjects) {
+        if (cancelled) return;
         if (item.type !== 'local') continue;
         const projectId = item.id || item.key?.replace(/^local:/, '');
         if (!projectId || projectId === item.name) { needsPerm.add(item.key); continue; }
-        const saved = await getHandle(projectId);
-        if (!saved) { needsPerm.add(item.key); continue; }
-        try { if (await saved.queryPermission({ mode: 'read' }) !== 'granted') needsPerm.add(item.key); }
-        catch { needsPerm.add(item.key); }
+        try {
+          const saved = await getHandle(projectId);
+          if (cancelled) return;
+          if (!saved) { needsPerm.add(item.key); continue; }
+          try {
+            if ((await saved.queryPermission({ mode: 'read' })) !== 'granted') {
+              needsPerm.add(item.key);
+            }
+          } catch { needsPerm.add(item.key); }
+        } catch { needsPerm.add(item.key); }
       }
-      setPermissionItems(needsPerm);
+      if (!cancelled) setPermissionItems(needsPerm);
     };
     checkPermissions();
+    return () => { cancelled = true; };
   }, [recentProjects]);
 
   const loadingLabel = useMemo(() => {

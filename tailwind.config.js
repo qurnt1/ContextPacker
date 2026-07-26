@@ -22,6 +22,9 @@ export default {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
+      spacing: {
+        '4.5': '1.125rem',
+      },
       borderRadius: {
         DEFAULT: 'var(--cp-radius)',
         lg: 'var(--cp-radius-lg)',

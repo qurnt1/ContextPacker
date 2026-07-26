@@ -84,15 +84,29 @@ export default function ExportMenu({ outputText, markdownOutput, projectName, di
     setOpen(false);
   }, [outputText, markdownOutput, projectName]);
 
-  const handleLLM = useCallback(async (target) => {
-    if (outputText) {
-      const ok = await copyToClipboard(outputText);
+  const handleLLM = useCallback((target) => {
+    // window.open() must be called synchronously from the user gesture,
+    // otherwise the browser blocks the popup.
+    const newWindow = window.open(target.url, '_blank', 'noopener,noreferrer');
+
+    if (!outputText) {
+      setOpen(false);
+      return;
+    }
+
+    copyToClipboard(outputText).then((ok) => {
       showToast(
         ok ? `Contexte copié. Collez-le dans ${target.label} avec Ctrl+V.` : 'Échec de la copie.',
         ok ? 'success' : 'error'
       );
-    }
-    window.open(target.url, '_blank', 'noopener,noreferrer');
+      // If popup was blocked, let the user know they can navigate manually
+      if (!newWindow || newWindow.closed) {
+        showToast(
+          `Popup bloquée. Ouvrez ${target.label} manuellement.`,
+          'error'
+        );
+      }
+    });
     setOpen(false);
   }, [outputText, showToast]);
 
