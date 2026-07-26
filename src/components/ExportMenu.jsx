@@ -6,6 +6,8 @@ import {
   FileCode,
   ExternalLink,
   ChevronDown,
+  Check,
+  LockKeyhole,
 } from 'lucide-react';
 import { copyToClipboard } from '../utils/clipboard';
 import { useToast } from '../hooks/useToast';
@@ -23,19 +25,30 @@ const BRAND_PATHS = {
   perplexity: 'M22.3977 7.0896h-2.3106V.0676l-7.5094 6.3542V.1577h-1.1554v6.1966L4.4904 0v7.0896H1.6023v10.3976h2.8882V24l6.932-6.3591v6.2005h1.1554v-6.0469l6.9318 6.1807v-6.4879h2.8882V7.0896zm-3.4657-4.531v4.531h-5.355l5.355-4.531zm-13.2862.0676 4.8691 4.4634H5.6458V2.6262zM2.7576 16.332V8.245h7.8476l-6.1149 6.1147v1.9723H2.7576zm2.8882 5.0404v-3.8852h.0001v-2.6488l5.7763-5.7764v7.0111l-5.7764 5.2993zm12.7086.0248-5.7766-5.1509V9.0618l5.7766 5.7766v6.5588zm2.8882-5.0652h-1.733v-1.9723L13.3948 8.245h7.8478v8.087z',
 };
 
-function BrandIcon({ d }) {
+function BrandIcon({ d, brandKey, color }) {
+  const gradientId = `brand-gradient-${brandKey}`;
+
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d={d} />
+      {brandKey === 'gemini' ? (
+        <defs>
+          <linearGradient id={gradientId} x1="4" y1="20" x2="20" y2="4" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#4285F4" />
+            <stop offset="0.5" stopColor="#9B72CB" />
+            <stop offset="1" stopColor="#D96570" />
+          </linearGradient>
+        </defs>
+      ) : null}
+      <path d={d} fill={brandKey === 'gemini' ? `url(#${gradientId})` : color} />
     </svg>
   );
 }
 
 const LLM_TARGETS = [
-  { key: 'chatgpt', label: 'ChatGPT', url: 'https://chatgpt.com/', path: BRAND_PATHS.openai },
-  { key: 'claude', label: 'Claude', url: 'https://claude.ai/new', path: BRAND_PATHS.anthropic },
-  { key: 'gemini', label: 'Gemini', url: 'https://gemini.google.com/app', path: BRAND_PATHS.gemini },
-  { key: 'perplexity', label: 'Perplexity', url: 'https://www.perplexity.ai/', path: BRAND_PATHS.perplexity },
+  { key: 'chatgpt', label: 'ChatGPT', url: 'https://chatgpt.com/', path: BRAND_PATHS.openai, color: '#10a37f', surface: 'rgba(16, 163, 127, 0.13)' },
+  { key: 'claude', label: 'Claude', url: 'https://claude.ai/new', path: BRAND_PATHS.anthropic, color: '#d97757', surface: 'rgba(217, 119, 87, 0.14)' },
+  { key: 'gemini', label: 'Gemini', url: 'https://gemini.google.com/app', path: BRAND_PATHS.gemini, color: '#8b78d8', surface: 'rgba(139, 120, 216, 0.14)' },
+  { key: 'perplexity', label: 'Perplexity', url: 'https://www.perplexity.ai/', path: BRAND_PATHS.perplexity, color: '#20b8cd', surface: 'rgba(32, 184, 205, 0.14)' },
 ];
 
 // ── Component ───────────────────────────────────────────────
@@ -50,6 +63,7 @@ export default function ExportMenu({
   disabled,
 }) {
   const [open, setOpen] = useState(false);
+  const [exportReady, setExportReady] = useState(false);
   const [toast, showToast] = useToast();
   const menuRef = useRef(null);
   const triggerRef = useRef(null);
@@ -120,7 +134,8 @@ export default function ExportMenu({
         : 'Échec de la copie.',
       ok ? 'success' : 'error'
     );
-    setOpen(false);
+    if (ok) setExportReady(true);
+    setOpen(true);
   }, [prepareOutput, showToast]);
 
   const handleDownload = useCallback((format) => {
@@ -142,10 +157,12 @@ export default function ExportMenu({
       `Fichier .${ext} généré — ${formatNumber(exportTokens)} tokens`,
       'success'
     );
-    setOpen(false);
+    setExportReady(true);
+    setOpen(true);
   }, [prepareOutput, projectName, showToast]);
 
   const handleLLM = useCallback((target) => {
+    if (!exportReady) return;
     const output = prepareOutput('txt');
     if (!output) return;
     // window.open() must be called synchronously from the user gesture
@@ -167,7 +184,7 @@ export default function ExportMenu({
       }
     });
     setOpen(false);
-  }, [prepareOutput, showToast]);
+  }, [exportReady, prepareOutput, showToast]);
 
   return (
     <>
@@ -211,14 +228,27 @@ export default function ExportMenu({
               </div>
               <div className="mx-3 h-px bg-cyber-border" />
               <div className="px-1.5 pt-1 pb-1.5">
-                <p className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-cyber-text-3">Ouvrir dans</p>
+                <div className="flex items-center justify-between gap-2 px-2.5 py-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-cyber-text-3">Continuer avec</p>
+                  {exportReady ? (
+                    <span className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wide text-cyber-accent">
+                      <Check className="w-3 h-3" /> Prêt
+                    </span>
+                  ) : null}
+                </div>
+                {!exportReady ? (
+                  <div className="mx-2.5 mb-1.5 flex items-start gap-1.5 rounded-lg border border-cyber-border bg-cyber-surface-2/60 px-2 py-2 text-[10px] leading-relaxed text-cyber-text-3">
+                    <LockKeyhole className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-cyber-text-3" />
+                    <span>Copiez ou téléchargez d’abord votre contexte.</span>
+                  </div>
+                ) : null}
                 {LLM_TARGETS.map((t) => (
-                  <button key={t.key} onClick={() => handleLLM(t)} disabled={disabled} className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-cyber-text-2 hover:bg-cyber-surface-2 hover:text-cyber-accent transition-colors disabled:opacity-40" role="menuitem">
-                    <span className="flex items-center justify-center w-5 h-5" style={{ color: 'var(--cp-text-2)' }}>
-                      <BrandIcon d={t.path} />
+                  <button key={t.key} onClick={() => handleLLM(t)} disabled={disabled || !exportReady} aria-disabled={!exportReady} title={!exportReady ? 'Disponible après copie ou téléchargement' : `Ouvrir ${t.label}`} className="group w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-cyber-text-2 hover:bg-cyber-surface-2 hover:text-cyber-text transition-colors disabled:opacity-45 disabled:cursor-not-allowed" role="menuitem">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-md" style={{ color: t.color, background: t.surface }}>
+                      <BrandIcon d={t.path} brandKey={t.key} color={t.color} />
                     </span>
                     <span>{t.label}</span>
-                    <ExternalLink className="w-3 h-3 ml-auto text-cyber-text-3" />
+                    <ExternalLink className="w-3 h-3 ml-auto text-cyber-text-3 group-hover:text-cyber-text-2" />
                   </button>
                 ))}
               </div>

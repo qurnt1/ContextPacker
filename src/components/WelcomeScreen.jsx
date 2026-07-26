@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   FolderOpen,
-  Zap,
   AlertTriangle,
   Github,
   ShieldCheck,
@@ -16,6 +15,7 @@ import { getHandle } from '../utils/handleStorage';
 import { listGitHubBranches } from '../utils/githubScanner';
 import RecentProjectItem from './RecentProjectItem';
 import BranchSelector from './BranchSelector';
+import ContextPackerMark from './ContextPackerMark';
 
 const isSupported = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
 const MAX_VISIBLE = 6;
@@ -263,7 +263,7 @@ export default function WelcomeScreen({ onShowOnboarding }) {
           {/* Logo */}
           <motion.div initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2, duration: 0.6 }} className="mb-6">
             <div className="welcome-mark inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-cyber-surface card mb-5">
-              <Zap className="w-8 h-8 text-cyber-accent" />
+              <ContextPackerMark className="w-8 h-8 text-cyber-accent" title="ContextPacker" />
             </div>
           </motion.div>
 

@@ -77,4 +77,30 @@ describe('ExportMenu behavior', () => {
     await waitFor(() => expect(confirm).toHaveBeenCalledOnce());
     expect(copyToClipboard).not.toHaveBeenCalled();
   });
+
+  it('keeps AI destinations locked until an export succeeds', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue({ closed: false });
+    render(
+      <ExportMenu
+        projectName="demo"
+        selectedFiles={selectedFiles}
+        tree={{ name: 'demo', children: [] }}
+        selectedPaths={new Set(['src/index.js'])}
+        minifyEnabled={false}
+        contentTokens={2}
+        tokenLimit={128}
+        disabled={false}
+      />
+    );
+
+    fireEvent.click(screen.getByTitle(/exporter/i));
+    const chatgpt = screen.getByRole('menuitem', { name: /ChatGPT/i });
+    expect(chatgpt).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('menuitem', { name: /copier le contexte/i }));
+    await waitFor(() => expect(chatgpt).toBeEnabled());
+
+    fireEvent.click(chatgpt);
+    expect(open).toHaveBeenCalledWith('https://chatgpt.com/', '_blank', 'noopener,noreferrer');
+  });
 });

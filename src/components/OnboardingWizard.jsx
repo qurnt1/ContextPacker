@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FolderOpen, FileStack, ExternalLink, ChevronRight, ChevronLeft, X, Zap } from 'lucide-react';
+import { FolderOpen, FileStack, ExternalLink, ChevronRight, ChevronLeft, X } from 'lucide-react';
+import ContextPackerMark from './ContextPackerMark';
 
 const STEPS = [
   {
@@ -135,7 +136,7 @@ export default function OnboardingWizard({ isOpen, onClose, onComplete }) {
                 {/* Header */}
                 <div className="flex items-center gap-3 px-5 py-4 border-b border-cyber-border">
                   <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-cyber-accent/10">
-                    <Zap className="w-4 h-4 text-cyber-accent" />
+                    <ContextPackerMark className="w-4 h-4 text-cyber-accent" />
                   </div>
                   <div className="flex-1">
                     <h3 className="text-sm font-semibold text-cyber-text">Bienvenue dans ContextPacker</h3>

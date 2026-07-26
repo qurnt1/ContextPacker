@@ -1,11 +1,12 @@
 import { motion } from 'framer-motion';
-import { Zap, Moon, Sun, Monitor, FolderOpen, Loader2, Home, Keyboard, RefreshCw } from 'lucide-react';
+import { Moon, Sun, Monitor, FolderOpen, Loader2, Home, Keyboard, RefreshCw } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useTheme } from '../hooks/useTheme';
 import { useStore } from '../store';
 import { useToast } from '../hooks/useToast';
 import SettingsPanel from './SettingsPanel';
 import Toast from './Toast';
+import ContextPackerMark from './ContextPackerMark';
 
 export default function Header({ onShowHelp }) {
   const { theme, setTheme, resolved } = useTheme();
@@ -55,7 +56,7 @@ export default function Header({ onShowHelp }) {
           className="flex items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-cyber-surface-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <div className="flex items-center justify-center w-6 h-6 rounded-md bg-cyber-accent/10">
-            <Zap className="w-3.5 h-3.5 text-cyber-accent" />
+            <ContextPackerMark className="w-3.5 h-3.5 text-cyber-accent" />
           </div>
           <span className="text-sm font-bold tracking-tight whitespace-nowrap">
             <span className="text-cyber-text">Context</span>
