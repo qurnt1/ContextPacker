@@ -1,4 +1,4 @@
-import { useState, memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronRight,
@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import { formatSize } from '../utils/helpers';
 import { getLangColor } from '../utils/languageBadge';
-import { useStore } from '../store';
 
 const CODE_EXTENSIONS = new Set([
   '.js', '.jsx', '.ts', '.tsx', '.py', '.rb', '.go', '.rs', '.java',
@@ -38,10 +37,12 @@ const FileTree = memo(function FileTree({
   depth = 0,
   isRoot = false,
   searchQuery = '',
+  expandedPaths,
+  onToggleExpanded,
+  onFileClick,
 }) {
-  const [expanded, setExpanded] = useState(depth < 3);
   const isDirectory = node.type === 'directory';
-  const selectRange = useStore((s) => s.selectRange);
+  const expanded = isRoot || expandedPaths?.has(node.path);
 
   const selectionState = useMemo(() => {
     if (!isDirectory) {
@@ -67,16 +68,10 @@ const FileTree = memo(function FileTree({
 
   const handleCheckboxClick = (event) => {
     event.stopPropagation();
-    // Shift+click range selection (fonctionne sur checkbox ET sur la rangée)
-    if (event.shiftKey && window.__cpLastClickedPath && !isDirectory) {
-      selectRange(window.__cpLastClickedPath, node.path);
-      return;
-    }
     if (isDirectory) {
       onToggleFolder(node.path);
     } else {
-      window.__cpLastClickedPath = node.path;
-      onTogglePath(node.path);
+      onFileClick(node.path, event);
     }
   };
 
@@ -84,6 +79,7 @@ const FileTree = memo(function FileTree({
 
   if (isRoot) {
     const visible = sortedChildren.filter((child) => matchesSearch(child, searchQuery));
+
     if (visible.length === 0) {
       return (
         <div className="px-3 py-6 text-center text-[11px] text-cyber-text-3">
@@ -104,6 +100,9 @@ const FileTree = memo(function FileTree({
             minifyEnabled={minifyEnabled}
             depth={depth + 1}
             searchQuery={searchQuery}
+            expandedPaths={expandedPaths}
+            onToggleExpanded={onToggleExpanded}
+            onFileClick={onFileClick}
           />
         ))}
       </div>
@@ -131,7 +130,7 @@ const FileTree = memo(function FileTree({
         style={{ paddingLeft: `${(depth - 1) * 14 + 4}px` }}
         onClick={(e) => {
           if (isDirectory) {
-            setExpanded((value) => !value);
+            onToggleExpanded(node.path);
             return;
           }
           handleCheckboxClick(e);
@@ -212,6 +211,9 @@ const FileTree = memo(function FileTree({
                   minifyEnabled={minifyEnabled}
                   depth={depth + 1}
                   searchQuery={searchQuery}
+                  expandedPaths={expandedPaths}
+                  onToggleExpanded={onToggleExpanded}
+                  onFileClick={onFileClick}
                 />
               ))}
             </motion.div>

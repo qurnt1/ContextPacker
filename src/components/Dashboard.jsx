@@ -1,12 +1,10 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Hash, FileStack, AlignLeft, Clipboard, Download, Check, AlertTriangle } from 'lucide-react';
+import { Hash, FileStack, AlignLeft, AlertTriangle } from 'lucide-react';
 import { formatNumber } from '../utils/helpers';
 import { useStore } from '../store';
-import { generatePlainOutput } from '../utils/outputFormatter';
-import { generateMarkdownOutput } from '../utils/markdownFormatter';
-import { useToast } from '../hooks/useToast';
-import Toast from './Toast';
+import ExportMenu from './ExportMenu';
+import LinearTokenProgress from './LinearTokenProgress';
 
 export default function Dashboard() {
   const tokenLimit = useStore((s) => s.tokenLimit);
@@ -16,7 +14,6 @@ export default function Dashboard() {
   const minifyEnabled = useStore((s) => s.minifyEnabled);
   const tree = useStore((s) => s.tree);
 
-  // Compute derived data with useMemo
   const selectedFiles = useMemo(
     () =>
       files
@@ -41,95 +38,30 @@ export default function Dashboard() {
     };
   }, [selectedFiles, minifyEnabled, files.length]);
 
-  const outputText = useMemo(() => {
-    if (selectedFiles.length === 0) return '';
-    return generatePlainOutput(
-      projectName,
-      selectedFiles,
-      stats.totalTokens,
-      minifyEnabled,
-      tree,
-      selectedPaths
-    );
-  }, [projectName, selectedFiles, stats.totalTokens, minifyEnabled, tree, selectedPaths]);
-
-  const markdownOutput = useMemo(() => {
-    if (selectedFiles.length === 0) return '';
-    return generateMarkdownOutput(
-      projectName,
-      selectedFiles,
-      stats.totalTokens,
-      minifyEnabled,
-      tree,
-      selectedPaths
-    );
-  }, [projectName, selectedFiles, stats.totalTokens, minifyEnabled, tree, selectedPaths]);
-
-  const handleDownloadMD = useCallback(() => {
-    if (!markdownOutput) return;
-    const blob = new Blob([markdownOutput], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${projectName || 'context'}-packed.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [markdownOutput, projectName]);
-
   const { totalTokens, fileCount, totalFiles, totalLines } = stats;
-  const usage = totalTokens / tokenLimit;
   const isWarning = totalTokens > tokenLimit;
-  const percentage = usage * 100;
-  const [copied, setCopied] = useState(false);
-  const [toast, showToast] = useToast();
+  const percentage = tokenLimit > 0 ? (totalTokens / tokenLimit) * 100 : 0;
 
   const limitLabel =
     tokenLimit >= 1_000_000
       ? `${(tokenLimit / 1_000_000).toFixed(tokenLimit % 1_000_000 === 0 ? 0 : 1)}M`
       : `${(tokenLimit / 1_000).toFixed(0)}K`;
 
-  const handleCopy = useCallback(async () => {
-    if (!outputText) return;
-    try {
-      await navigator.clipboard.writeText(outputText);
-      setCopied(true);
-      showToast('Copié dans le presse-papier', 'success');
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Copy failed:', err);
-    }
-  }, [outputText, showToast]);
-
-  const handleDownload = useCallback(() => {
-    if (!outputText) return;
-    const blob = new Blob([outputText], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${projectName || 'context'}-packed.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [outputText, projectName]);
-
   return (
     <motion.div
       initial={{ y: 12, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ delay: 0.15 }}
-      className="h-[52px] border-t border-cyber-border bg-cyber-surface flex items-center px-4 md:px-5 gap-5 transition-colors duration-300 z-20 flex-shrink-0"
+      className="status-bar h-[58px] border-t border-cyber-border flex items-center px-4 md:px-5 gap-4 transition-colors duration-300 z-20 flex-shrink-0"
     >
       {/* Stats */}
       <div className="flex items-center gap-4 flex-shrink-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" title="Tokens de contenu (hors structure et métadonnées)">
           <Hash className={`w-3.5 h-3.5 ${isWarning ? 'text-red-400' : 'text-cyber-accent'}`} />
           <span className={`font-mono text-sm font-bold tabular-nums ${isWarning ? 'text-red-400' : 'text-cyber-text'}`}>
             {formatNumber(totalTokens)}
           </span>
-          <span className="text-[10px] text-cyber-text-3 font-medium uppercase tracking-wider">tokens</span>
+          <span className="text-[10px] text-cyber-text-3 font-medium uppercase tracking-wider">tokens contenu</span>
         </div>
 
         <div className="w-px h-5 bg-cyber-border/50" />
@@ -153,75 +85,34 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Arc gauge */}
-      <div className="flex-1 flex items-center justify-center gap-3 max-w-lg mx-auto w-full">
-        <span className="text-[10px] font-semibold text-cyber-text-3 uppercase tracking-wider">
+      {/* Linear progress bar */}
+      <div className="flex-1 flex items-center justify-center gap-3 max-w-lg mx-auto">
+        <span className="text-[10px] font-semibold text-cyber-text-3 uppercase tracking-wider flex-shrink-0">
           {limitLabel}
         </span>
-        <svg width="40" height="40" viewBox="0 0 40 40" className="flex-shrink-0">
-          {/* Background track */}
-          <circle cx="20" cy="20" r={16} fill="none" stroke="var(--cp-surface-2)" strokeWidth="3" />
-          {/* Filled arc */}
-          <circle
-            cx="20" cy="20" r={16} fill="none"
-            stroke={percentage > 100 ? '#ef4444' : percentage > 80 ? '#f59e0b' : '#22c55e'}
-            strokeWidth="3"
-            strokeDasharray={`${Math.min(percentage, 100) / 100 * (2 * Math.PI * 16)} ${2 * Math.PI * 16 - Math.min(percentage, 100) / 100 * (2 * Math.PI * 16)}`}
-            strokeLinecap="round"
-            transform="rotate(-90 20 20)"
-            style={{ transition: 'stroke-dasharray 0.5s ease, stroke 0.3s' }}
-          />
-          {/* Center text */}
-          <text x="20" y="20" textAnchor="middle" dy="0.35em" className="fill-cyber-text" fontSize="8" fontWeight="bold" fontFamily="'JetBrains Mono', monospace">
-            {percentage.toFixed(0)}%
-          </text>
-        </svg>
+        <LinearTokenProgress current={totalTokens} limit={tokenLimit} isWarning={isWarning} />
+        <span className={`text-[10px] font-mono font-bold tabular-nums flex-shrink-0 ${percentage > 100 ? 'text-red-400' : percentage > 80 ? 'text-amber-400' : 'text-cyber-text-2'}`}>
+          {percentage.toFixed(0)}%
+        </span>
         {isWarning && (
-          <div className="flex items-center gap-1 text-red-400">
+          <div className="flex items-center gap-1 text-red-400 flex-shrink-0">
             <AlertTriangle className="w-3 h-3" />
             <span className="text-[10px] font-bold">OVERFLOW</span>
           </div>
         )}
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <button
-          onClick={handleCopy}
-          disabled={!outputText}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-semibold uppercase tracking-wide transition-all ${
-            copied
-              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-              : 'bg-cyber-accent/10 text-cyber-accent border border-cyber-accent/25 hover:bg-cyber-accent/15'
-          } disabled:opacity-40 disabled:cursor-not-allowed`}
-          title="Copier le résultat"
-        >
-          {copied ? <Check className="w-3.5 h-3.5" /> : <Clipboard className="w-3.5 h-3.5" />}
-          <span className="hidden lg:inline">{copied ? 'Copié' : 'Copier'}</span>
-        </button>
-
-        <button
-          onClick={handleDownload}
-          disabled={!outputText}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-semibold uppercase tracking-wide bg-cyber-surface-2 text-cyber-text-2 border border-cyber-border hover:border-cyber-accent/30 hover:text-cyber-accent transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-          title="Télécharger en .txt"
-        >
-          <Download className="w-3.5 h-3.5" />
-          <span className="hidden lg:inline">.TXT</span>
-        </button>
-
-        <button
-          onClick={handleDownloadMD}
-          disabled={!markdownOutput}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-semibold uppercase tracking-wide bg-cyber-accent/10 text-cyber-accent border border-cyber-accent/25 hover:bg-cyber-accent/15 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-          title="Télécharger en .md (Markdown avec blocs de code)"
-        >
-          <Download className="w-3.5 h-3.5" />
-          <span className="hidden lg:inline">.MD</span>
-        </button>
-      </div>
-
-      <Toast message={toast.message} visible={toast.visible} type={toast.type} />
+      {/* Export menu — generates output lazily on user action */}
+      <ExportMenu
+        projectName={projectName}
+        selectedFiles={selectedFiles}
+        tree={tree}
+        selectedPaths={selectedPaths}
+        minifyEnabled={minifyEnabled}
+        contentTokens={totalTokens}
+        tokenLimit={tokenLimit}
+        disabled={selectedFiles.length === 0}
+      />
     </motion.div>
   );
 }

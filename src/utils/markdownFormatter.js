@@ -32,12 +32,20 @@ export function generateMarkdownOutput(projectName, selectedFiles, totalTokens, 
     const ext = (file.extension || '').replace(/^\./, '');
     const lang = ext || '';
 
+    // Detect the longest backtick sequence in the content so our fence
+    // is always at least one tick longer — prevents premature closing.
+    const backtickMatch = content.match(/`{3,}/g);
+    const fenceLen = backtickMatch
+      ? Math.max(...backtickMatch.map((s) => s.length)) + 1
+      : 3;
+    const fence = '`'.repeat(Math.max(fenceLen, 3));
+
     md += `### ${file.path}\n\n`;
     md += `*${lines} lignes • ${tokens.toLocaleString('fr-FR')} tokens*\n\n`;
-    md += '```' + lang + '\n';
+    md += fence + lang + '\n';
     md += content;
     if (!content.endsWith('\n')) md += '\n';
-    md += '```\n\n';
+    md += fence + '\n\n';
   });
 
   return md;

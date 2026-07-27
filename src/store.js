@@ -3,11 +3,56 @@ import { persist } from 'zustand/middleware';
 import { scanDirectory } from './utils/scanner';
 import { scanGitHubRepo, getRecentGitHubRepos } from './utils/githubScanner';
 import { generatePlainOutput } from './utils/outputFormatter';
-import { saveHandle } from './utils/handleStorage';
+import {
+  saveHandle,
+  getHandle,
+  deleteHandle,
+  findMatchingHandle,
+  migrateOldHandle,
+} from './utils/handleStorage';
+
+// ── Helpers ──────────────────────────────────────────────────
+
+/**
+ * Build the logical identity key for a GitHub project.
+ * Uses owner/repo + requested ref (or 'default') + subpath.
+ */
+function githubLogicalKey(owner, repo, requestedRef, followDefault, subPath) {
+  const refPart = followDefault ? 'default' : (requestedRef || 'default');
+  return `github:${owner}/${repo}:${refPart}:${subPath || ''}`;
+}
+
+/**
+ * Build a stable project key for savedSelection.
+ * Local:  local:<uuid>
+ * GitHub: github:<owner>/<repo>:<requestedRef-or-default>:<subPath>
+ */
+function stableProjectKey(sourceMeta, projectId) {
+  if (sourceMeta.type === 'github') {
+    const s = sourceMeta;
+    return githubLogicalKey(s.owner, s.repo, s.requestedRef, s.followDefaultBranch, s.subPath);
+  }
+  return `local:${projectId || ''}`;
+}
+
+/**
+ * Pure function — compute token sum for a given set of paths.
+ * Testable independently of the store.
+ */
+export function calculateSelectionTokens(files, paths, minifyEnabled) {
+  let sum = 0;
+  for (const f of files) {
+    if (paths.has(f.path)) {
+      sum += minifyEnabled ? f.minifiedTokens : f.tokens;
+    }
+  }
+  return sum;
+}
 
 // ── Scan Slice ──────────────────────────────────────────────
 const createScanSlice = (set, get) => ({
   projectName: '',
+  projectLoaded: false,
   files: [],
   tree: null,
   sourceMeta: null,
@@ -26,17 +71,19 @@ const createScanSlice = (set, get) => ({
 
   setCurrentFile: (name) => set({ currentFile: name }),
 
-  completeScan: ({ name, files, tree, source }) => {
+  completeScan: ({ name, files, tree, source, projectId }) => {
     const saved = get().savedSelection;
-    const restorePaths = saved && saved.projectKey === name
+    const pKey = stableProjectKey(source || { type: get().scanMode }, projectId);
+    const restorePaths = saved && saved.projectKey === pKey
       ? new Set(saved.paths.filter(p => files.some(f => f.path === p)))
       : new Set();
 
     set({
       projectName: name,
+      projectLoaded: true,
       files,
       tree,
-      sourceMeta: source || { type: get().scanMode },
+      sourceMeta: { ...(source || { type: get().scanMode }), projectId },
       isScanning: false,
       selectedPaths: restorePaths,
       scanError: '',
@@ -54,14 +101,45 @@ const createScanSlice = (set, get) => ({
     const { startScan, updateProgress, completeScan, failScan, gitignoreEnabled, addRecentProject } = get();
     try {
       startScan('local');
-      const result = await scanDirectory(dirHandle, (count) => updateProgress(count), {
+
+      // Check if this handle matches an existing project via isSameEntry()
+      let projectId = await findMatchingHandle(dirHandle);
+
+      if (!projectId) {
+        // Attempt migration: look for an old entry keyed by folder name (pre-UUID format)
+        const oldEntry = get().recentProjects.find(
+          (p) => p.type === 'local' && p.name === dirHandle.name && /^local:[^a-f0-9-]/.test(p.key)
+        );
+        if (oldEntry) {
+          projectId = crypto.randomUUID();
+          const migratedHandle = await migrateOldHandle(dirHandle.name, projectId);
+          if (migratedHandle) {
+            set((state) => ({
+              recentProjects: state.recentProjects.map((p) =>
+                p.key === oldEntry.key
+                  ? { ...p, key: `local:${projectId}`, id: projectId }
+                  : p
+              ),
+            }));
+          }
+        }
+      }
+
+      if (!projectId) {
+        projectId = crypto.randomUUID();
+      }
+
+      const result = await scanDirectory(dirHandle, (count, total) => updateProgress(count, total), {
         applyGitignore: gitignoreEnabled,
         onFileStart: (name) => set({ currentFile: name }),
       });
-      completeScan({ name: result.name, files: result.files, tree: result.tree, source: { type: 'local' } });
-      const key = `local:${result.name}`;
-      saveHandle(key, dirHandle);
+      completeScan({ name: result.name, files: result.files, tree: result.tree, source: { type: 'local' }, projectId });
+
+      saveHandle(projectId, dirHandle);
+
+      const key = `local:${projectId}`;
       addRecentProject({
+        id: projectId,
         key,
         type: 'local',
         name: result.name,
@@ -69,24 +147,28 @@ const createScanSlice = (set, get) => ({
         totalTokens: result.files.reduce((sum, f) => sum + (f.tokens || 0), 0),
         openedAt: new Date().toISOString(),
       });
+
+      return { ok: true, value: result };
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error('Scan error:', err);
-        failScan(err.message || 'Impossible de scanner ce dossier.');
-      } else {
+      if (err.name === 'AbortError') {
         set({ isScanning: false });
+        return { ok: false, error: err, aborted: true };
       }
+      console.error('Scan error:', err);
+      failScan(err.message || 'Impossible de scanner ce dossier.');
+      return { ok: false, error: err, aborted: false };
     }
   },
 
   resetProject: () => {
-    const { projectName, selectedPaths } = get();
-    // Save selection in memory for this project key
-    if (projectName && selectedPaths.size > 0) {
-      set({ savedSelection: { projectKey: projectName, paths: [...selectedPaths] } });
+    const { sourceMeta, selectedPaths } = get();
+    if (sourceMeta && selectedPaths.size > 0) {
+      const pKey = stableProjectKey(sourceMeta, sourceMeta.projectId);
+      set({ savedSelection: { projectKey: pKey, paths: [...selectedPaths] } });
     }
     set({
       projectName: '',
+      projectLoaded: false,
       files: [],
       tree: null,
       sourceMeta: null,
@@ -104,26 +186,106 @@ const createScanSlice = (set, get) => ({
   handleOpenLocal: async (dirHandle) => {
     const { scanFromHandle, failScan } = get();
 
-    // Si un handle valide est fourni (depuis drag-drop) → scan direct, pas de picker
     if (dirHandle?.kind === 'directory') {
-      await scanFromHandle(dirHandle);
-      return;
+      return await scanFromHandle(dirHandle);
     }
 
-    // Sinon → picker système
     try {
       const handle = await window.showDirectoryPicker({ mode: 'read' });
-      await scanFromHandle(handle);
+      return await scanFromHandle(handle);
     } catch (err) {
       if (err.name === 'AbortError') {
         set({ isScanning: false });
-      } else {
-        failScan(err.message || "Impossible d'ouvrir ce dossier.");
+        return { ok: false, error: err, aborted: true };
       }
+      failScan(err.message || "Impossible d'ouvrir ce dossier.");
+      return { ok: false, error: err, aborted: false };
     }
   },
 
-  handleOpenGitHub: async ({ repoInput, subPath = '' }) => {
+  /**
+   * Re-open a local project from history.
+   * Retrieves the stored handle, checks permission, rescans.
+   */
+  handleReopenLocal: async (project) => {
+    try {
+      const { scanFromHandle } = get();
+      const projectId = project.id || project.key?.replace(/^local:/, '');
+
+      if (!projectId || projectId === project.name) {
+        return { ok: false, error: new Error('MISSING_HANDLE'), aborted: false };
+      }
+
+      const saved = await getHandle(projectId);
+      if (!saved) {
+        return { ok: false, error: new Error('MISSING_HANDLE'), aborted: false };
+      }
+
+      const opts = { mode: 'read' };
+      let permission = await saved.queryPermission(opts);
+      if (permission !== 'granted') {
+        permission = await saved.requestPermission(opts);
+      }
+
+      if (permission !== 'granted') {
+        return { ok: false, error: new Error('PERMISSION_DENIED'), aborted: false };
+      }
+
+      return await scanFromHandle(saved);
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        set({ isScanning: false });
+        return { ok: false, error: err, aborted: true };
+      }
+      return { ok: false, error: err, aborted: false };
+    }
+  },
+
+  /**
+   * Refresh the currently open project without returning to the welcome screen.
+   */
+  handleRefresh: async () => {
+    try {
+      const { sourceMeta, scanFromHandle, handleOpenGitHub } = get();
+    if (!sourceMeta) return { ok: false, error: new Error('No project loaded'), aborted: false };
+
+    if (sourceMeta.type === 'github') {
+      const src = sourceMeta;
+      return await handleOpenGitHub({
+        repoInput: src.input || `https://github.com/${src.owner}/${src.repo}`,
+        ref: src.followDefaultBranch ? '' : src.requestedRef,
+        subPath: src.subPath || '',
+      });
+    }
+
+    // Local: re-scan using stored projectId from sourceMeta
+    const projectId = sourceMeta.projectId;
+    if (projectId) {
+      const { getHandle: getH } = await import('./utils/handleStorage');
+      const handle = await getH(projectId);
+      if (handle) {
+        const opts = { mode: 'read' };
+        let perm = await handle.queryPermission(opts);
+        if (perm !== 'granted') {
+          perm = await handle.requestPermission(opts);
+        }
+        if (perm === 'granted') {
+          return await scanFromHandle(handle);
+        }
+      }
+    }
+    const err = new Error("Impossible d'accéder au dossier. Réessayez depuis l'écran d'accueil.");
+    return { ok: false, error: err, aborted: false };
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        set({ isScanning: false });
+        return { ok: false, error: err, aborted: true };
+      }
+      return { ok: false, error: err, aborted: false };
+    }
+  },
+
+  handleOpenGitHub: async ({ repoInput, ref = '', subPath = '' }) => {
     const {
       startScan,
       updateProgress,
@@ -141,6 +303,7 @@ const createScanSlice = (set, get) => ({
 
       const result = await scanGitHubRepo({
         repoInput,
+        ref,
         token: githubToken,
         applyGitignore: gitignoreEnabled,
         subPath,
@@ -170,27 +333,37 @@ const createScanSlice = (set, get) => ({
         source: result.source || { type: 'github' },
       });
 
-      // Add to unified history
+      const src = result.source || {};
+      const logicalKey = githubLogicalKey(
+        src.owner, src.repo, src.requestedRef, src.followDefaultBranch, src.subPath
+      );
+
       addRecentProject({
-        key: `github:${result.source?.owner}/${result.source?.repo}@${result.source?.ref}:${result.source?.subPath || ''}`,
+        key: logicalKey,
         type: 'github',
         name: result.name,
-        owner: result.source?.owner,
-        repo: result.source?.repo,
-        ref: result.source?.ref,
-        subPath: result.source?.subPath || '',
-        input: result.source?.input,
+        owner: src.owner,
+        repo: src.repo,
+        ref: result.resolvedRef || src.ref,
+        requestedRef: src.requestedRef,
+        followDefaultBranch: src.followDefaultBranch,
+        subPath: src.subPath || '',
+        input: src.input,
+        resolvedSha: result.resolvedSha,
         fileCount: result.files.length,
         totalTokens: result.files.reduce((sum, f) => sum + (f.tokens || 0), 0),
         openedAt: new Date().toISOString(),
       });
+
+      return { ok: true, value: result };
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error('GitHub scan error:', err);
-        failScan(err.message || 'Impossible de charger ce projet GitHub.');
-      } else {
+      if (err.name === 'AbortError') {
         set({ isScanning: false });
+        return { ok: false, error: err, aborted: true };
       }
+      console.error('GitHub scan error:', err);
+      failScan(err.message || 'Impossible de charger ce projet GitHub.');
+      return { ok: false, error: err, aborted: false };
     }
   },
 });
@@ -202,57 +375,73 @@ const createSelectionSlice = (set, get) => ({
   showWarning: false,
   pendingPaths: null,
 
-  togglePath: (path) =>
-    set((state) => {
-      const next = new Set(state.selectedPaths);
-      if (next.has(path)) next.delete(path);
-      else next.add(path);
-      return { selectedPaths: next };
-    }),
+  /**
+   * Centralized selection request.
+   * Only warns when the token count *increases* past the threshold.
+   * Deselecting never triggers a popup.
+   */
+  requestSelection: (nextPaths) => {
+    const { files, minifyEnabled, tokenLimit, warningPercent, customThreshold, selectedPaths } = get();
+    const paths = nextPaths instanceof Set ? nextPaths : new Set(nextPaths);
 
-  toggleFolder: (folderPath) =>
-    set((state) => {
-      const next = new Set(state.selectedPaths);
-      const folderFiles = state.files.filter(
-        (f) => f.path.startsWith(folderPath + '/') || f.path === folderPath
-      );
-      const allSelected = folderFiles.every((f) => next.has(f.path));
-      folderFiles.forEach((f) => {
-        if (allSelected) next.delete(f.path);
-        else next.add(f.path);
-      });
-      return { selectedPaths: next };
-    }),
+    const currentTokens = calculateSelectionTokens(files, selectedPaths, minifyEnabled);
+    const nextTokens = calculateSelectionTokens(files, paths, minifyEnabled);
 
-  toggleExtension: (ext) =>
-    set((state) => {
-      const next = new Set(state.selectedPaths);
-      const extFiles = state.files.filter((f) => f.extension === ext);
-      const allSelected = extFiles.every((f) => next.has(f.path));
-      extFiles.forEach((f) => {
-        if (allSelected) next.delete(f.path);
-        else next.add(f.path);
-      });
-      return { selectedPaths: next };
-    }),
-
-  selectAll: () => {
-    const { files, minifyEnabled, tokenLimit, warningPercent, customThreshold } = get();
-    const allPaths = new Set(files.map((f) => f.path));
-
-    const newTokens = files.reduce(
-      (sum, f) => sum + (minifyEnabled ? f.minifiedTokens : f.tokens),
-      0
-    );
-    const overPercent = newTokens > (tokenLimit * warningPercent) / 100;
-    const overCustom = customThreshold > 0 && newTokens > customThreshold;
-
-    if (overPercent || overCustom) {
-      set({ pendingPaths: allPaths, showWarning: true });
+    // Deselecting — always allow immediately
+    if (nextTokens <= currentTokens) {
+      set({ selectedPaths: paths });
       return;
     }
 
-    set({ selectedPaths: allPaths });
+    // Tokens increased — check thresholds
+    const overPercent = nextTokens > (tokenLimit * warningPercent) / 100;
+    const overCustom = customThreshold > 0 && nextTokens > customThreshold;
+
+    if (overPercent || overCustom) {
+      set({ pendingPaths: paths, showWarning: true });
+      return;
+    }
+
+    set({ selectedPaths: paths });
+  },
+
+  togglePath: (path) => {
+    const next = new Set(get().selectedPaths);
+    if (next.has(path)) next.delete(path);
+    else next.add(path);
+    get().requestSelection(next);
+  },
+
+  toggleFolder: (folderPath) => {
+    const state = get();
+    const next = new Set(state.selectedPaths);
+    const folderFiles = state.files.filter(
+      (f) => f.path.startsWith(folderPath + '/') || f.path === folderPath
+    );
+    const allSelected = folderFiles.every((f) => next.has(f.path));
+    folderFiles.forEach((f) => {
+      if (allSelected) next.delete(f.path);
+      else next.add(f.path);
+    });
+    get().requestSelection(next);
+  },
+
+  toggleExtension: (ext) => {
+    const state = get();
+    const next = new Set(state.selectedPaths);
+    const extFiles = state.files.filter((f) => f.extension === ext);
+    const allSelected = extFiles.every((f) => next.has(f.path));
+    extFiles.forEach((f) => {
+      if (allSelected) next.delete(f.path);
+      else next.add(f.path);
+    });
+    get().requestSelection(next);
+  },
+
+  selectAll: () => {
+    const { files } = get();
+    const allPaths = new Set(files.map((f) => f.path));
+    get().requestSelection(allPaths);
   },
 
   deselectAll: () => set({ selectedPaths: new Set() }),
@@ -266,22 +455,26 @@ const createSelectionSlice = (set, get) => ({
 
   cancelWarning: () => set({ pendingPaths: null, showWarning: false }),
 
-  selectRange: (fromPath, toPath) =>
-    set((state) => {
-      const idxA = state.files.findIndex((f) => f.path === fromPath);
-      const idxB = state.files.findIndex((f) => f.path === toPath);
-      if (idxA === -1 || idxB === -1) return state;
-      const start = Math.min(idxA, idxB);
-      const end = Math.max(idxA, idxB);
-      const next = new Set(state.selectedPaths);
-      for (let i = start; i <= end; i++) {
-        next.add(state.files[i].path);
-      }
-      return { selectedPaths: next };
-    }),
+  selectRange: (fromPath, toPath, visiblePaths) => {
+    const { selectedPaths, files } = get();
+    // visiblePaths: ordered list as displayed in the tree (respects search & collapse).
+    const paths = visiblePaths || files.map((f) => f.path);
+    const idxA = paths.indexOf(fromPath);
+    const idxB = paths.indexOf(toPath);
+    if (idxA === -1 || idxB === -1) return;
+    const start = Math.min(idxA, idxB);
+    const end = Math.max(idxA, idxB);
+    const next = new Set(selectedPaths);
+    for (let i = start; i <= end; i++) {
+      next.add(paths[i]);
+    }
+    get().requestSelection(next);
+  },
 });
 
 // ── Settings Slice (persisted) ──────────────────────────────
+const MAX_RECENT_PROJECTS = 10;
+
 const createSettingsSlice = (set, get) => ({
   minifyEnabled: false,
   gitignoreEnabled: true,
@@ -292,51 +485,174 @@ const createSettingsSlice = (set, get) => ({
   recentProjects: [],
   sidebarCollapsed: false,
   sidebarWidth: 340,
+  favoriteProjects: [],
+  onboardingDone: false,
 
-  setMinifyEnabled: (v) => set({ minifyEnabled: typeof v === 'function' ? v(get().minifyEnabled) : v }),
+  setMinifyEnabled: (v) => {
+    const state = get();
+    const newVal = typeof v === 'function' ? v(state.minifyEnabled) : v;
+    const previousTokens = calculateSelectionTokens(state.files, state.selectedPaths, state.minifyEnabled);
+    set({ minifyEnabled: newVal });
+    // Re-evaluate current selection against thresholds when minification changes
+    const { selectedPaths, files } = get();
+    if (selectedPaths.size > 0) {
+      const nextTokens = calculateSelectionTokens(files, selectedPaths, newVal);
+      const { tokenLimit, warningPercent, customThreshold } = get();
+      const overPercent = nextTokens > (tokenLimit * warningPercent) / 100;
+      const overCustom = customThreshold > 0 && nextTokens > customThreshold;
+      if (nextTokens > previousTokens && (overPercent || overCustom)) {
+        set({ pendingPaths: selectedPaths, showWarning: true });
+      } else {
+        set({ pendingPaths: null, showWarning: false });
+      }
+    }
+  },
   setGitignoreEnabled: (v) =>
     set({ gitignoreEnabled: typeof v === 'function' ? v(get().gitignoreEnabled) : v }),
-  setTokenLimit: (v) => set({ tokenLimit: typeof v === 'function' ? v(get().tokenLimit) : v }),
-  setWarningPercent: (v) =>
-    set({ warningPercent: typeof v === 'function' ? v(get().warningPercent) : v }),
-  setCustomThreshold: (v) =>
-    set({ customThreshold: typeof v === 'function' ? v(get().customThreshold) : v }),
+  setTokenLimit: (v) => {
+    const newLimit = typeof v === 'function' ? v(get().tokenLimit) : v;
+    set({ tokenLimit: newLimit });
+    // Re-evaluate current selection when limit is lowered
+    const { selectedPaths, files, minifyEnabled, warningPercent, customThreshold } = get();
+    if (selectedPaths.size > 0) {
+      const tokens = calculateSelectionTokens(files, selectedPaths, minifyEnabled);
+      const overPercent = tokens > (newLimit * warningPercent) / 100;
+      const overCustom = customThreshold > 0 && tokens > customThreshold;
+      if (overPercent || overCustom) {
+        set({ pendingPaths: selectedPaths, showWarning: true });
+      } else {
+        set({ pendingPaths: null, showWarning: false });
+      }
+    }
+  },
+  setWarningPercent: (v) => {
+    const newPct = typeof v === 'function' ? v(get().warningPercent) : v;
+    set({ warningPercent: newPct });
+    // Re-evaluate
+    const { selectedPaths, files, minifyEnabled, tokenLimit, customThreshold } = get();
+    if (selectedPaths.size > 0) {
+      const tokens = calculateSelectionTokens(files, selectedPaths, minifyEnabled);
+      const overPercent = tokens > (tokenLimit * newPct) / 100;
+      const overCustom = customThreshold > 0 && tokens > customThreshold;
+      if (overPercent || overCustom) {
+        set({ pendingPaths: selectedPaths, showWarning: true });
+      } else {
+        set({ pendingPaths: null, showWarning: false });
+      }
+    }
+  },
+  setCustomThreshold: (v) => {
+    const newThresh = typeof v === 'function' ? v(get().customThreshold) : v;
+    set({ customThreshold: newThresh });
+    const { selectedPaths, files, minifyEnabled, tokenLimit, warningPercent } = get();
+    if (selectedPaths.size > 0) {
+      const tokens = calculateSelectionTokens(files, selectedPaths, minifyEnabled);
+      const overPercent = tokens > (tokenLimit * warningPercent) / 100;
+      const overCustom = newThresh > 0 && tokens > newThresh;
+      if (overPercent || overCustom) {
+        set({ pendingPaths: selectedPaths, showWarning: true });
+      } else {
+        set({ pendingPaths: null, showWarning: false });
+      }
+    }
+  },
   setGithubToken: (v) =>
     set({ githubToken: typeof v === 'function' ? v(get().githubToken) : v }),
 
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   setSidebarWidth: (w) => set({ sidebarWidth: Math.max(180, Math.min(600, w)) }),
 
+  // Favorites
+  toggleFavorite: (key) =>
+    set((state) => {
+      const favs = state.favoriteProjects || [];
+      const exists = favs.includes(key);
+      return {
+        favoriteProjects: exists ? favs.filter((k) => k !== key) : [...favs, key],
+      };
+    }),
+
+  setOnboardingDone: () => set({ onboardingDone: true }),
+
   addRecentProject: (project) =>
     set((state) => {
       const key = project.key || `${project.type}:${project.name}:${project.openedAt}`;
-      const filtered = state.recentProjects.filter((p) => p.key !== key);
-      return { recentProjects: [{ ...project, key }, ...filtered].slice(0, 10) };
+      const favSet = new Set(state.favoriteProjects || []);
+      // Remove existing entry with same key, then prepend the new one
+      const others = state.recentProjects.filter((p) => p.key !== key);
+      const next = [{ ...project, key }, ...others];
+      // Preserve all favorites; limit only non-favorites
+      const favorites = next.filter((p) => favSet.has(p.key));
+      const nonFavorites = next.filter((p) => !favSet.has(p.key));
+      const cappedNonFavs = nonFavorites.slice(0, MAX_RECENT_PROJECTS);
+      // Merge: favorites first (sorted by openedAt), then non-favorites
+      const merged = [
+        ...favorites.sort((a, b) => (b.openedAt ? new Date(b.openedAt).getTime() : 0) - (a.openedAt ? new Date(a.openedAt).getTime() : 0)),
+        ...cappedNonFavs,
+      ];
+      return { recentProjects: merged };
     }),
 
   removeRecentProject: (key) =>
-    set((state) => ({
-      recentProjects: state.recentProjects.filter((p) => p.key !== key),
-    })),
+    set((state) => {
+      // Also clean up IndexedDB handle for local projects
+      const project = state.recentProjects.find((p) => p.key === key);
+      if (project?.type === 'local' && project.id) {
+        deleteHandle(project.id).catch(() => {});
+      }
+      return { recentProjects: state.recentProjects.filter((p) => p.key !== key) };
+    }),
 
   loadGithubHistory: () => {
     try {
       const githubRepos = getRecentGitHubRepos();
-      const entries = githubRepos.map((item) => ({
-        key: `github:${item.owner}/${item.repo}@${item.ref}:${item.subPath || ''}`,
-        type: 'github',
-        name: `${item.owner}/${item.repo}${item.subPath ? `/${item.subPath}` : ''}`,
-        owner: item.owner,
-        repo: item.repo,
-        ref: item.ref,
-        subPath: item.subPath || '',
-        input: item.input || `https://github.com/${item.owner}/${item.repo}`,
-        fileCount: item.fileCount,
-        openedAt: item.scannedAt || new Date().toISOString(),
-      }));
+      const seen = new Set();
+      const entries = [];
+      for (const item of githubRepos) {
+        // Preserve the stored followDefaultBranch and requestedRef
+        const followDefault = item.followDefaultBranch !== undefined
+          ? item.followDefaultBranch
+          : !item.ref;
+        const requestedRef = item.requestedRef !== undefined
+          ? item.requestedRef
+          : (item.ref || '');
+        const key = githubLogicalKey(
+          item.owner, item.repo, requestedRef, followDefault, item.subPath
+        );
+        if (seen.has(key)) continue;
+        seen.add(key);
+        entries.push({
+          key,
+          type: 'github',
+          name: `${item.owner}/${item.repo}${item.subPath ? `/${item.subPath}` : ''}`,
+          owner: item.owner,
+          repo: item.repo,
+          ref: item.ref,
+          requestedRef,
+          followDefaultBranch: followDefault,
+          subPath: item.subPath || '',
+          input: item.input || `https://github.com/${item.owner}/${item.repo}`,
+          fileCount: item.fileCount,
+          resolvedSha: item.resolvedSha,
+          openedAt: item.scannedAt || new Date().toISOString(),
+        });
+      }
       set((state) => {
-        const existing = state.recentProjects.filter((p) => p.type !== 'github');
-        return { recentProjects: [...entries, ...existing].slice(0, 10) };
+        const favSet = new Set(state.favoriteProjects || []);
+        const existingKeys = new Set(entries.map((e) => e.key));
+        const existing = state.recentProjects.filter(
+          (p) => p.type !== 'github' || !existingKeys.has(p.key)
+        );
+        const merged = [...entries, ...existing];
+        const favorites = merged.filter((p) => favSet.has(p.key));
+        const nonFavorites = merged.filter((p) => !favSet.has(p.key));
+        const cappedNonFavs = nonFavorites.slice(0, MAX_RECENT_PROJECTS);
+        return {
+          recentProjects: [
+            ...favorites.sort((a, b) => (b.openedAt ? new Date(b.openedAt).getTime() : 0) - (a.openedAt ? new Date(a.openedAt).getTime() : 0)),
+            ...cappedNonFavs,
+          ],
+        };
       });
     } catch {
       // localStorage unavailable
@@ -362,7 +678,8 @@ export const useStore = create(
         customThreshold: state.customThreshold,
         githubToken: state.githubToken,
         recentProjects: state.recentProjects,
-        sidebarCollapsed: state.sidebarCollapsed,
+        favoriteProjects: state.favoriteProjects,
+        onboardingDone: state.onboardingDone,
         sidebarWidth: state.sidebarWidth,
       }),
     }
@@ -416,7 +733,7 @@ export const selectOutputText = (state) => {
   );
 };
 
-export const selectHasProject = (state) => state.files.length > 0;
+export const selectHasProject = (state) => state.projectLoaded;
 
 export const selectWarningTokens = (state) => {
   if (!state.pendingPaths) return 0;

@@ -1,32 +1,28 @@
-const C_STYLE = ['.js', '.jsx', '.ts', '.tsx', '.css', '.scss', '.less', '.java', '.c', '.cpp', '.h', '.hpp', '.go', '.rs', '.swift', '.kt', '.cs', '.php', '.dart'];
-const HASH_STYLE = ['.py', '.rb', '.sh', '.bash', '.yml', '.yaml', '.toml', '.r', '.pl', '.pm'];
-const HTML_STYLE = ['.html', '.htm', '.xml', '.svg', '.vue', '.svelte'];
+/**
+ * Safe code minification — whitespace-only.
+ *
+ * Regex-based comment removal is fundamentally unsafe because it cannot
+ * distinguish comments from string literals, regex literals, template
+ * strings, or shell directives.  A tokenizer per language would be the
+ * correct fix, but that pulls in heavy dependencies for a marginal gain.
+ *
+ * ponytail: whitespace-only cleaning is acceptable; if comment-stripping
+ * becomes a hard requirement, integrate a per-language tokenizer (e.g.
+ * tree-sitter WASM modules) rather than adding more regexes here.
+ */
 
-export function minifyCode(code, extension) {
+// Remove blank lines
+const RE_BLANK = /^\s*[\r\n]/gm;
+
+// Remove trailing whitespace
+const RE_TRAILING = /[ \t]+$/gm;
+
+export function minifyCode(code, _extension) {
   if (!code) return code;
   let result = code;
 
-  // Remove multi-line comments (C-style)
-  if (C_STYLE.includes(extension)) {
-    result = result.replace(/\/\*[\s\S]*?\*\//g, '');
-    result = result.replace(/\/\/.*$/gm, '');
-  }
-
-  // Remove # comments (Python, Ruby, Shell, YAML, etc.)
-  if (HASH_STYLE.includes(extension)) {
-    result = result.replace(/^(\s*)#(?!!).*/gm, '');
-  }
-
-  // Remove HTML comments
-  if (HTML_STYLE.includes(extension)) {
-    result = result.replace(/<!--[\s\S]*?-->/g, '');
-  }
-
-  // Remove blank lines
-  result = result.replace(/^\s*[\r\n]/gm, '');
-
-  // Remove trailing whitespace
-  result = result.replace(/[ \t]+$/gm, '');
+  result = result.replace(RE_BLANK, '');
+  result = result.replace(RE_TRAILING, '');
 
   return result.trim();
 }

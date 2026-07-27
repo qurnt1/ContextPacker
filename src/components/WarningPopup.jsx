@@ -52,7 +52,7 @@ export default function WarningPopup() {
             {/* Header */}
             <div className="flex items-center gap-3 px-5 py-4 border-b border-cyber-border">
               <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-amber-500/10">
-                <AlertTriangle className="w-4.5 h-4.5 text-amber-400" />
+                <AlertTriangle className="w-[18px] h-[18px] text-amber-400" />
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-cyber-text">Volume important détecté</h3>

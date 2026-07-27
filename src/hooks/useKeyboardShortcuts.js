@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useStore } from '../store';
 
 export function useKeyboardShortcuts() {
@@ -10,6 +10,9 @@ export function useKeyboardShortcuts() {
   const cancelWarning = useStore((s) => s.cancelWarning);
   const showWarning = useStore((s) => s.showWarning);
 
+  const openHelp = useCallback(() => setShowHelp(true), []);
+  const closeHelp = useCallback(() => setShowHelp(false), []);
+
   useEffect(() => {
     const handler = (e) => {
       const tag = document.activeElement?.tagName?.toLowerCase();
@@ -19,17 +22,29 @@ export function useKeyboardShortcuts() {
       // Ctrl+F → focus search input (when project is loaded, not in editable field)
       if ((e.ctrlKey || e.metaKey) && e.key === 'f' && hasProject && !isEditable) {
         e.preventDefault();
-        if (window.__cpSearchInputRef?.current) {
-          window.__cpSearchInputRef.current.focus();
-          window.__cpSearchInputRef.current.select();
-        }
+        window.dispatchEvent(new CustomEvent('contextpacker:focus-search'));
         return;
       }
 
-      // ? → toggle shortcut help (works globally)
+      // ? → toggle shortcut help (works globally when not editing)
       if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey && !isEditable) {
         e.preventDefault();
         setShowHelp((v) => !v);
+        return;
+      }
+
+      // Escape → close help modal, or warn popup, or reset project
+      if (e.key === 'Escape' && !isEditable) {
+        if (showHelp) {
+          e.preventDefault();
+          setShowHelp(false);
+          return;
+        }
+        if (showWarning) {
+          e.preventDefault();
+          cancelWarning();
+          return;
+        }
         return;
       }
 
@@ -48,22 +63,11 @@ export function useKeyboardShortcuts() {
         deselectAll();
         return;
       }
-
-      // Escape → close warning popup or go back to welcome
-      if (e.key === 'Escape' && !isEditable) {
-        if (showWarning) {
-          e.preventDefault();
-          cancelWarning();
-          return;
-        }
-        // If no warning, could clear search or go back — but Escape is overloaded.
-        // We only handle warning dismissal here.
-      }
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [hasProject, selectAll, deselectAll, resetProject, cancelWarning, showWarning]);
+  }, [hasProject, selectAll, deselectAll, resetProject, cancelWarning, showWarning, showHelp]);
 
-  return { showHelp, closeHelp: () => setShowHelp(false) };
+  return { showHelp, openHelp, closeHelp };
 }

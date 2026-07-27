@@ -1,6 +1,6 @@
-# ContextPacker v4.0
+# ContextPacker
 
-Transformez un projet complet en un prompt unique, structuré et prêt à coller dans votre LLM.
+Transformez un dossier local ou un dépôt GitHub en un contexte structuré prêt pour votre IA. Sélectionnez uniquement les fichiers utiles, contrôlez le nombre de tokens, puis copiez ou exportez le résultat vers ChatGPT, Claude, Gemini ou Perplexity. 100 % client-side.
 
 ![Accueil](./assets/accueil.png)
 
@@ -13,14 +13,17 @@ Note: pour l'import local, utilisez un navigateur Chromium (Chrome, Edge, Brave.
 ## Nouveautés v4.0
 
 - **Drag & drop** : glissez un dossier directement sur l'écran d'accueil, le scan démarre sans picker.
-- **Projets récents persistants** : historique des projets locaux et GitHub avec réouverture rapide (permission persistante Chrome 122+).
-- **Sélection à la plage (Shift+Click)** : maintenez Shift et cliquez pour sélectionner une plage de fichiers.
-- **Panneau latéral redimensionnable et escamotable** : ajustez la largeur ou repliez complètement la sidebar.
-- **Barre de recherche** : filtrez les fichiers par nom dans l'arborescence.
-- **Tri des extensions par fréquence** avec badges de sélection.
-- **Squelettes de chargement** : animation placeholder pendant le scan.
-- **Dashboard temps réel** : tokens, lignes, volume, jauge de progression.
-- **Raccourcis clavier** : `Ctrl+A` tout sélectionner, `Ctrl+Shift+A` désélectionner, `Ctrl+F` rechercher, `?` aide.
+- **Projets récents persistants** : historique local et GitHub avec réouverture rapide. Identité stable par UUID (deux dossiers de même nom ne sont plus confondus).
+- **Projets favoris** : épinglez vos projets préférés, toujours affichés en premier.
+- **Fenêtre d'onboarding** : présentation guidée au premier lancement.
+- **Actualisation** : rafraîchissez un projet ouvert sans revenir à l'accueil.
+- **Export vers LLM** : copiez le contexte puis ouvrez directement ChatGPT, Claude, Gemini ou Perplexity.
+- **Barre de progression linéaire** : suivi clair de l'utilisation des tokens.
+- **Raccourcis clavier visibles** : bouton d'aide dans le header.
+- **Panneau latéral unifié** : un seul bouton pour ouvrir/fermer, placé dans l'en-tête du panneau.
+- **Sélection à la plage (Shift+Click)** : maintenez Shift et cliquez pour sélectionner une plage.
+- **Panneau latéral redimensionnable et escamotable**.
+- **Barre de recherche** et **tri des extensions par fréquence**.
 
 ## Fonctionnalités
 
@@ -30,7 +33,7 @@ Note: pour l'import local, utilisez un navigateur Chromium (Chrome, Edge, Brave.
 - Exclusion automatique des fichiers binaires.
 - Minification optionnelle (commentaires + lignes vides).
 - Comptage de tokens avec `js-tiktoken` (`o200k_base`, fallback `cl100k_base`).
-- Export en `clipboard` ou en `.txt`.
+- Export presse-papier, `.txt`, `.md`, ou ouverture directe vers ChatGPT, Claude, Gemini et Perplexity.
 - Thèmes clair / sombre / système.
 - 100% client-side, aucun fichier envoyé à un serveur.
 

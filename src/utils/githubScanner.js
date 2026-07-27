@@ -15,6 +15,10 @@ const DOWNLOAD_CONCURRENCY = 6;
 
 const githubScanCache = new Map();
 
+// Branch list cache: key = "owner/repo", value = { data, ts }
+const branchCache = new Map();
+const BRANCH_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export function parseGitHubRepoInput(input, manualSubPath = '') {
   const trimmed = String(input || '').trim();
   if (!trimmed) {
@@ -38,10 +42,11 @@ export function parseGitHubRepoInput(input, manualSubPath = '') {
     repo = (parts[1] || '').replace(/\.git$/i, '');
 
     if (parts[2] === 'tree' && parts[3]) {
-      ref = decodeURIComponent(parts[3]);
-      if (parts.length > 4) {
-        parsedSubPath = decodeURIComponent(parts.slice(4).join('/'));
-      }
+      // The branch/subpath boundary is resolved once the real branch list is
+      // available. Keep the whole path here so branches containing '/' remain
+      // possible candidates.
+      ref = decodeURIComponent(parts.slice(3).join('/'));
+      parsedSubPath = '';
     }
   } else {
     const noHost = trimmed.replace(/^github\.com\//i, '');
@@ -69,8 +74,169 @@ export function parseGitHubRepoInput(input, manualSubPath = '') {
   };
 }
 
+// ── Branch listing ──────────────────────────────────────────
+
+/**
+ * List all branches for a GitHub repository with metadata.
+ *
+ * @param {object} opts
+ * @param {string} opts.repoInput  - URL or owner/repo
+ * @param {string} [opts.token]    - optional GitHub PAT
+ * @param {AbortSignal} [opts.signal] - abort controller signal
+ * @returns {Promise<{owner, repo, defaultBranch, branches: Array}>}
+ */
+export async function listGitHubBranches({
+  repoInput,
+  token = '',
+  signal,
+} = {}) {
+  const parsed = parseGitHubRepoInput(repoInput);
+  const authToken = String(token || '').trim();
+  const cacheKey = `${parsed.owner}/${parsed.repo}`;
+
+  // Check cache
+  let branchData = branchCache.get(cacheKey);
+  if (!branchData || (Date.now() - branchData.ts) >= BRANCH_CACHE_TTL) {
+    // Fetch repo info (default_branch)
+    const repoInfo = await fetchGitHubJson(
+      `${GITHUB_API_BASE}/repos/${parsed.owner}/${parsed.repo}`,
+      authToken,
+      { signal }
+    );
+
+    if (repoInfo.private) {
+      throw new Error('Les repositories privés ne sont pas supportés dans cette version.');
+    }
+
+    const defaultBranch = repoInfo.default_branch;
+
+    // Paginate branches (per_page=100)
+    const allBranches = [];
+    let page = 1;
+    while (true) {
+      const pageBranches = await fetchGitHubJson(
+        `${GITHUB_API_BASE}/repos/${parsed.owner}/${parsed.repo}/branches?per_page=100&page=${page}`,
+        authToken,
+        { signal }
+      );
+      if (!Array.isArray(pageBranches) || pageBranches.length === 0) break;
+      allBranches.push(...pageBranches);
+      if (pageBranches.length < 100) break;
+      page += 1;
+    }
+
+    // Deduplicate SHAs — fetch commit date only once per unique SHA.
+    // A failed metadata request must remain visible to the caller.
+    const shaToDate = new Map();
+    const uniqueShas = [...new Set(allBranches.map((b) => b.commit?.sha).filter(Boolean))];
+
+    await mapConcurrent(uniqueShas, DOWNLOAD_CONCURRENCY, async (sha) => {
+      const commit = await fetchGitHubJson(
+        `${GITHUB_API_BASE}/repos/${parsed.owner}/${parsed.repo}/commits/${sha}`,
+        authToken,
+        { signal }
+      );
+      shaToDate.set(sha, commit?.commit?.committer?.date || '');
+    });
+
+    // Build branch objects
+    const branches = allBranches.map((b) => ({
+      name: b.name,
+      sha: b.commit?.sha || '',
+      updatedAt: shaToDate.get(b.commit?.sha) || '',
+      isDefault: b.name === defaultBranch,
+      protected: b.protected || false,
+    }));
+
+    // Sort: newest first, then name ascending
+    branches.sort((a, b) => {
+      const dateA = a.updatedAt ? Date.parse(a.updatedAt) : 0;
+      const dateB = b.updatedAt ? Date.parse(b.updatedAt) : 0;
+      return (
+        dateB - dateA ||
+        a.name.localeCompare(b.name, 'fr', { sensitivity: 'base', numeric: true })
+      );
+    });
+
+    branchData = {
+      owner: parsed.owner,
+      repo: parsed.repo,
+      defaultBranch,
+      branches,
+    };
+
+    branchCache.set(cacheKey, { data: branchData, ts: Date.now() });
+  } else {
+    branchData = branchData.data;
+  }
+
+  const treeLocation = parsed.ref
+    ? resolveTreeLocation(parsed.ref, branchData.branches)
+    : { ref: '', subPath: '' };
+
+  return {
+    ...branchData,
+    inputRef: treeLocation.ref,
+    inputSubPath: treeLocation.subPath,
+  };
+}
+
+function resolveTreeLocation(treePath, branches) {
+  const normalizedPath = String(treePath || '').replace(/^\/+|\/+$/g, '');
+  if (!normalizedPath) return { ref: '', subPath: '' };
+
+  const branchNames = branches.map((branch) => branch.name).sort((a, b) => b.length - a.length);
+  const matchingBranch = branchNames.find(
+    (name) => normalizedPath === name || normalizedPath.startsWith(`${name}/`)
+  );
+
+  if (!matchingBranch) {
+    return { ref: normalizedPath, subPath: '' };
+  }
+
+  return {
+    ref: matchingBranch,
+    subPath: normalizedPath.slice(matchingBranch.length).replace(/^\/+/, ''),
+  };
+}
+
+// ── Tree resolution ─────────────────────────────────────────
+
+/**
+ * Resolve the current tree SHA for a branch reference.
+ * Returns the tree SHA of the latest commit on the branch.
+ */
+async function resolveTreeSha(owner, repo, ref, authToken, signal) {
+  try {
+    // Get the ref data to find the commit SHA
+    const refData = await fetchGitHubJson(
+      `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/ref/heads/${encodeURIComponent(ref)}`,
+      authToken,
+      { signal }
+    );
+    if (refData?.object?.sha) {
+      // Get the commit to find the tree SHA
+      const commitData = await fetchGitHubJson(
+        `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/commits/${refData.object.sha}`,
+        authToken,
+        { signal }
+      );
+      if (commitData?.tree?.sha) {
+        return { treeSha: commitData.tree.sha, commitSha: refData.object.sha };
+      }
+    }
+  } catch {
+    // If ref resolution fails (e.g., the ref is already a SHA), fall back
+  }
+  // Fallback: use the ref directly (might be a SHA already)
+  return { treeSha: ref, commitSha: ref };
+}
+
+// ── Main scan ───────────────────────────────────────────────
+
 export async function scanGitHubRepo({
   repoInput,
+  ref,
   token = '',
   applyGitignore = true,
   subPath = '',
@@ -94,8 +260,24 @@ export async function scanGitHubRepo({
     throw new Error('Les repositories privés ne sont pas supportés dans cette version.');
   }
 
-  const resolvedRef = parsed.ref || repoInfo.default_branch;
-  const cacheKey = `${parsed.owner}/${parsed.repo}@${resolvedRef}::${parsed.subPath || ''}::${applyGitignore ? '1' : '0'}`;
+  // `undefined` means no explicit choice; an empty string explicitly means
+  // follow the repository default branch, even when the URL contains /tree/.
+  const requestedRef = ref !== undefined
+    ? String(ref).trim()
+    : String(parsed.ref || '').trim();
+  const resolvedRef = requestedRef || repoInfo.default_branch;
+  const followDefaultBranch = requestedRef === '';
+
+  // Resolve the current tree SHA for the branch
+  const { treeSha, commitSha } = await resolveTreeSha(
+    parsed.owner,
+    parsed.repo,
+    resolvedRef,
+    authToken
+  );
+
+  // Cache key is based on immutable tree SHA
+  const cacheKey = `${parsed.owner}/${parsed.repo}@${treeSha}::${parsed.subPath || ''}::${applyGitignore ? '1' : '0'}`;
   const cached = githubScanCache.get(cacheKey);
   if (cached) {
     if (onProgress) {
@@ -106,18 +288,18 @@ export async function scanGitHubRepo({
 
   const treeData = await fetchGitHubJson(
     `${GITHUB_API_BASE}/repos/${parsed.owner}/${parsed.repo}/git/trees/${encodeURIComponent(
-      resolvedRef
+      treeSha
     )}?recursive=1`,
     authToken
   );
 
   if (!Array.isArray(treeData.tree)) {
-    throw new Error('Impossible de lire l arborescence du repository.');
+    throw new Error("Impossible de lire l'arborescence du repository.");
   }
 
   if (treeData.truncated) {
     throw new Error(
-      'Repository trop volumineux pour l API GitHub recursive tree (résultat tronqué).'
+      "Repository trop volumineux pour l'API GitHub recursive tree (résultat tronqué)."
     );
   }
 
@@ -250,10 +432,15 @@ export async function scanGitHubRepo({
       type: 'github',
       owner: parsed.owner,
       repo: parsed.repo,
-      ref: resolvedRef,
+      requestedRef,
+      resolvedRef,
+      followDefaultBranch,
       subPath: parsed.subPath,
       input: parsed.normalizedInput,
     },
+    resolvedRef,
+    resolvedSha: commitSha,
+    treeSha,
     estimate,
   };
 
@@ -262,14 +449,19 @@ export async function scanGitHubRepo({
     owner: parsed.owner,
     repo: parsed.repo,
     ref: resolvedRef,
+    requestedRef,
+    followDefaultBranch,
     subPath: parsed.subPath,
     input: parsed.normalizedInput,
     scannedAt: new Date().toISOString(),
     fileCount: files.length,
+    resolvedSha: commitSha,
   });
 
   return result;
 }
+
+// ── Recent repos (localStorage) ─────────────────────────────
 
 export function getRecentGitHubRepos() {
   if (typeof window === 'undefined') return [];
@@ -287,10 +479,11 @@ function pushRecentGitHubRepo(repoMeta) {
   if (typeof window === 'undefined') return;
   try {
     const current = getRecentGitHubRepos();
-    const key = `${repoMeta.owner}/${repoMeta.repo}@${repoMeta.ref}::${repoMeta.subPath || ''}`;
-    const deduped = current.filter(
-      (item) => `${item.owner}/${item.repo}@${item.ref}::${item.subPath || ''}` !== key
-    );
+    const matchKey = `${repoMeta.owner}/${repoMeta.repo}:${repoMeta.requestedRef || 'default'}:${repoMeta.subPath || ''}`;
+    const deduped = current.filter((item) => {
+      const itemKey = `${item.owner}/${item.repo}:${item.requestedRef || item.ref || 'default'}:${item.subPath || ''}`;
+      return itemKey !== matchKey;
+    });
     const next = [repoMeta, ...deduped].slice(0, RECENT_REPOS_MAX);
     window.localStorage.setItem(RECENT_REPOS_KEY, JSON.stringify(next));
   } catch {
@@ -298,7 +491,9 @@ function pushRecentGitHubRepo(repoMeta) {
   }
 }
 
-async function fetchGitHubJson(url, token) {
+// ── GitHub API helpers ──────────────────────────────────────
+
+async function fetchGitHubJson(url, token, { signal } = {}) {
   const headers = {
     Accept: 'application/vnd.github+json',
   };
@@ -306,7 +501,7 @@ async function fetchGitHubJson(url, token) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, { headers });
+  const response = await fetch(url, { headers, signal });
   if (response.ok) return response.json();
 
   let message = `GitHub API error (${response.status})`;

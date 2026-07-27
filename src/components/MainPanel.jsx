@@ -24,6 +24,7 @@ export default function MainPanel() {
   const tree = useStore((s) => s.tree);
   const selectedPaths = useStore((s) => s.selectedPaths);
   const minifyEnabled = useStore((s) => s.minifyEnabled);
+  const projectLoaded = useStore((s) => s.projectLoaded);
   const files = useStore((s) => s.files);
 
   const selectedFiles = useMemo(
@@ -51,9 +52,9 @@ export default function MainPanel() {
   const isEmpty = selectedFiles.length === 0;
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-cyber-bg transition-colors duration-300">
+    <div className="workspace-panel flex-1 flex flex-col overflow-hidden transition-colors duration-300">
       {/* Preview header */}
-      <div className="flex items-center gap-2 px-5 py-2.5 border-b border-cyber-border bg-cyber-surface/40">
+      <div className="panel-toolbar flex items-center gap-2 px-5 py-3 border-b border-cyber-border">
         <Eye className="w-4 h-4 text-cyber-accent" />
         <span className="text-sm font-medium text-cyber-text-2">Prévisualisation</span>
         {!isEmpty ? (
@@ -75,9 +76,13 @@ export default function MainPanel() {
                 <line x1="36" y1="52" x2="52" y2="52" stroke="currentColor" strokeWidth="1" className="text-cyber-accent/40" />
                 <path d="M44 8V20H64L44 8Z" stroke="currentColor" strokeWidth="1.5" className="text-cyber-text-2" />
               </svg>
-              <p className="text-sm font-medium text-cyber-text-2">Aucun fichier sélectionné</p>
+              <p className="text-sm font-medium text-cyber-text-2">
+                {projectLoaded && files.length === 0 ? 'Aucun fichier admissible trouvé' : 'Aucun fichier sélectionné'}
+              </p>
               <p className="text-xs mt-1.5 text-cyber-text-3 max-w-xs">
-                Sélectionnez des fichiers dans le panneau latéral pour générer votre contexte.
+                {projectLoaded && files.length === 0
+                  ? 'Ce projet ne contient aucun fichier texte compatible avec les filtres actuels.'
+                  : 'Sélectionnez des fichiers dans le panneau latéral pour générer votre contexte.'}
               </p>
               <p className="text-[10px] mt-3 text-cyber-text-3/70">
                 Raccourci : <kbd className="px-1 py-0.5 rounded bg-cyber-surface-2 border border-cyber-border text-[10px] font-mono">Ctrl+A</kbd> pour tout sélectionner
