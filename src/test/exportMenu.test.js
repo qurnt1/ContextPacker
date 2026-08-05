@@ -1,14 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import { LLM_TARGETS } from '../components/ExportMenu';
 
 describe('ExportMenu — LLM destinations', () => {
   it('contains all four LLM targets with correct URLs', () => {
     // Test the logical data (the component renders these)
-    const targets = [
-      { key: 'chatgpt', label: 'ChatGPT', url: 'https://chatgpt.com/' },
-      { key: 'claude', label: 'Claude', url: 'https://claude.ai/new' },
-      { key: 'gemini', label: 'Gemini', url: 'https://gemini.google.com/app' },
-      { key: 'perplexity', label: 'Perplexity', url: 'https://www.perplexity.ai/' },
-    ];
+    const targets = LLM_TARGETS;
     expect(targets).toHaveLength(4);
     const keys = targets.map((t) => t.key);
     expect(keys).toContain('chatgpt');
@@ -18,12 +14,7 @@ describe('ExportMenu — LLM destinations', () => {
   });
 
   it('each target has a valid HTTPS URL', () => {
-    const targets = [
-      { url: 'https://chatgpt.com/' },
-      { url: 'https://claude.ai/new' },
-      { url: 'https://gemini.google.com/app' },
-      { url: 'https://www.perplexity.ai/' },
-    ];
+    const targets = LLM_TARGETS;
     for (const t of targets) {
       expect(t.url).toMatch(/^https:\/\//);
     }

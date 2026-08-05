@@ -7,6 +7,7 @@ import {
   ToggleLeft,
   ToggleRight,
   Package,
+  FolderTree,
   GitBranch,
   Search,
   X,
@@ -16,6 +17,8 @@ import {
 import FileTree from './FileTree';
 import { formatNumber } from '../utils/helpers';
 import { useStore } from '../store';
+import { isSelectableFile } from '../utils/securityPolicy';
+import { buildSelectionIndex, getSearchResultPaths } from '../utils/treeUtils';
 
 function sortNodes(nodes) {
   return [...nodes].sort((a, b) => {
@@ -71,6 +74,8 @@ export default function Sidebar() {
   const setGitignoreEnabled = useStore((s) => s.setGitignoreEnabled);
   const sidebarCollapsed = useStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useStore((s) => s.toggleSidebar);
+  const includeFullTreeInExport = useStore((s) => s.includeFullTreeInExport);
+  const setIncludeFullTreeInExport = useStore((s) => s.setIncludeFullTreeInExport);
 
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef(null);
@@ -92,8 +97,19 @@ export default function Sidebar() {
   }, []);
 
   const visibleFilePaths = useMemo(
-    () => (tree ? collectVisibleFilePaths(tree, expandedPaths, searchQuery) : []),
-    [tree, expandedPaths, searchQuery]
+    () => {
+      if (!tree) return [];
+      const paths = searchQuery
+        ? getSearchResultPaths(tree, searchQuery)
+        : collectVisibleFilePaths(tree, expandedPaths);
+      return paths.filter((path) => files.some((file) => file.path === path && isSelectableFile(file)));
+    },
+    [tree, expandedPaths, searchQuery, files]
+  );
+
+  const selectionIndex = useMemo(
+    () => (tree ? buildSelectionIndex(tree, selectedPaths) : new Map()),
+    [tree, selectedPaths]
   );
 
   const handleToggleExpanded = (path) => {
@@ -116,7 +132,7 @@ export default function Sidebar() {
 
   const extensions = useMemo(() => {
     const countMap = {};
-    files.forEach((file) => {
+    files.filter(isSelectableFile).forEach((file) => {
       if (!file.extension) return;
       countMap[file.extension] = (countMap[file.extension] || 0) + 1;
     });
@@ -126,20 +142,19 @@ export default function Sidebar() {
   }, [files]);
 
   const stats = useMemo(() => {
-    const selected = files.filter((file) => selectedPaths.has(file.path));
+    const selectableFiles = files.filter(isSelectableFile);
+    const selected = selectableFiles.filter((file) => selectedPaths.has(file.path));
     const totalTokens = selected.reduce(
       (sum, file) => sum + (minifyEnabled ? file.minifiedTokens : file.tokens), 0
     );
     const totalSize = selected.reduce((sum, file) => sum + file.size, 0);
     const totalLines = selected.reduce((sum, file) => sum + (file.lines || 0), 0);
-    return { totalTokens, totalSize, totalLines, fileCount: selected.length, totalFiles: files.length };
+    return { totalTokens, totalSize, totalLines, fileCount: selected.length, totalFiles: selectableFiles.length };
   }, [files, selectedPaths, minifyEnabled]);
 
   const visibleCount = useMemo(() => {
-    if (!searchQuery) return files.length;
-    const q = searchQuery.toLowerCase();
-    return files.filter((f) => f.path.toLowerCase().includes(q)).length;
-  }, [files, searchQuery]);
+    return visibleFilePaths.length;
+  }, [visibleFilePaths]);
 
   // ── Collapsed: thin strip — toggle at top, actions below, no bottom button ──
   if (sidebarCollapsed) {
@@ -177,7 +192,7 @@ export default function Sidebar() {
         </button>
 
         {/* Minification toggle */}
-        <button onClick={() => setMinifyEnabled((v) => !v)} title="Minification" className={`p-1.5 rounded-md transition-colors ${minifyEnabled ? 'text-cyber-accent bg-cyber-accent/10' : 'text-cyber-text-3 hover:text-cyber-accent hover:bg-cyber-surface-2'}`}>
+        <button onClick={() => setMinifyEnabled((v) => !v)} title="Formatage compact" className={`p-1.5 rounded-md transition-colors ${minifyEnabled ? 'text-cyber-accent bg-cyber-accent/10' : 'text-cyber-text-3 hover:text-cyber-accent hover:bg-cyber-surface-2'}`}>
           <Scissors className="w-4 h-4" />
         </button>
       </motion.aside>
@@ -274,15 +289,26 @@ export default function Sidebar() {
           </button>
         </div>
         <div className="flex gap-1.5">
-          <button onClick={() => setGitignoreEnabled((v) => !v)} className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded-md transition-all ${gitignoreEnabled ? 'bg-cyber-accent/10 text-cyber-accent border border-cyber-accent/20' : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:text-cyber-text-2'}`}>
+          <button onClick={() => setGitignoreEnabled((v) => !v)} aria-pressed={gitignoreEnabled} className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded-md transition-all ${gitignoreEnabled ? 'bg-cyber-accent/10 text-cyber-accent border border-cyber-accent/20' : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:text-cyber-text-2'}`}>
             <GitBranch className="w-3 h-3" />.gitignore
             {gitignoreEnabled ? <ToggleRight className="w-4 h-4 text-cyber-accent" /> : <ToggleLeft className="w-4 h-4" />}
           </button>
-          <button onClick={() => setMinifyEnabled((v) => !v)} className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded-md transition-all ${minifyEnabled ? 'bg-cyber-accent/10 text-cyber-accent border border-cyber-accent/20' : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:text-cyber-text-2'}`} title="Optimise le contexte en réduisant le nombre de tokens sans altérer la logique du code.">
-            <Scissors className="w-3 h-3" />Minifier
+          <button onClick={() => setMinifyEnabled((v) => !v)} aria-pressed={minifyEnabled} className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded-md transition-all ${minifyEnabled ? 'bg-cyber-accent/10 text-cyber-accent border border-cyber-accent/20' : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:text-cyber-text-2'}`} title="Active ou désactive le formatage compact de l’export.">
+            <Scissors className="w-3 h-3" />Formatage compact
             {minifyEnabled ? <ToggleRight className="w-4 h-4 text-cyber-accent" /> : <ToggleLeft className="w-4 h-4" />}
           </button>
         </div>
+        <label className={`flex w-full items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded-md transition-all cursor-pointer focus-within:ring-2 focus-within:ring-cyber-accent/50 focus-within:ring-offset-1 focus-within:ring-offset-cyber-surface ${includeFullTreeInExport ? 'bg-cyber-accent/10 text-cyber-accent border border-cyber-accent/20' : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:text-cyber-text-2'}`} title="Inclut aussi les dossiers et fichiers non sélectionnés dans la structure de l’export.">
+          <input
+            type="checkbox"
+            checked={includeFullTreeInExport}
+            onChange={(event) => setIncludeFullTreeInExport(event.target.checked)}
+            className="sr-only"
+          />
+          <FolderTree className="w-3 h-3" />
+          <span>Arborescence complète</span>
+          {includeFullTreeInExport ? <ToggleRight className="w-4 h-4 text-cyber-accent" /> : <ToggleLeft className="w-4 h-4" />}
+        </label>
       </div>
 
       {/* Extensions */}
@@ -291,8 +317,8 @@ export default function Sidebar() {
           <p className="text-[10px] uppercase tracking-wider text-cyber-text-3 mb-2 font-semibold">Extensions</p>
           <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
             {extensions.map((ext) => {
-              const total = files.filter((file) => file.extension === ext).length;
-              const selected = files.filter((file) => file.extension === ext && selectedPaths.has(file.path)).length;
+              const total = files.filter((file) => isSelectableFile(file) && file.extension === ext).length;
+              const selected = files.filter((file) => isSelectableFile(file) && file.extension === ext && selectedPaths.has(file.path)).length;
               const allSelected = selected === total;
               return (
                 <button key={ext} onClick={() => toggleExtension(ext)} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono transition-all ${allSelected ? 'bg-cyber-accent/15 text-cyber-accent border border-cyber-accent/25' : selected > 0 ? 'bg-cyber-accent/8 text-cyber-accent/70 border border-cyber-accent/15' : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:border-cyber-border'}`}>
@@ -317,7 +343,7 @@ export default function Sidebar() {
             ))}
           </div>
         ) : tree ? (
-          <FileTree node={tree} files={files} selectedPaths={selectedPaths} onTogglePath={togglePath} onToggleFolder={toggleFolder} minifyEnabled={minifyEnabled} depth={0} isRoot searchQuery={searchQuery} expandedPaths={expandedPaths} onToggleExpanded={handleToggleExpanded} visibleFilePaths={visibleFilePaths} onFileClick={handleFileClick} />
+          <FileTree node={tree} selectedPaths={selectedPaths} selectionIndex={selectionIndex} onToggleFolder={toggleFolder} minifyEnabled={minifyEnabled} depth={0} isRoot searchQuery={searchQuery} expandedPaths={expandedPaths} onToggleExpanded={handleToggleExpanded} onFileClick={handleFileClick} />
         ) : null}
       </div>
     </motion.aside>

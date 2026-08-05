@@ -6,18 +6,9 @@ import CodeBlock from './CodeBlock';
 import { generateTreeText } from '../utils/outputFormatter';
 import { formatNumber } from '../utils/helpers';
 import { useStore } from '../store';
-
-function filterTree(node, selectedPaths) {
-  if (!node) return null;
-  if (node.type === 'file') {
-    return selectedPaths.has(node.path) ? { ...node } : null;
-  }
-  const filteredChildren = (node.children || [])
-    .map((child) => filterTree(child, selectedPaths))
-    .filter(Boolean);
-  if (filteredChildren.length === 0) return null;
-  return { ...node, children: filteredChildren };
-}
+import { filterTreeForExport } from '../utils/treeUtils';
+import { isSelectableFile } from '../utils/securityPolicy';
+import { MAX_PREVIEW_FILES } from '../constants';
 
 export default function MainPanel() {
   const projectName = useStore((s) => s.projectName);
@@ -26,11 +17,12 @@ export default function MainPanel() {
   const minifyEnabled = useStore((s) => s.minifyEnabled);
   const projectLoaded = useStore((s) => s.projectLoaded);
   const files = useStore((s) => s.files);
+  const includeFullTreeInExport = useStore((s) => s.includeFullTreeInExport);
 
   const selectedFiles = useMemo(
     () =>
       files
-        .filter((file) => selectedPaths.has(file.path))
+        .filter((file) => isSelectableFile(file) && selectedPaths.has(file.path))
         .sort((a, b) => b.size - a.size),
     [files, selectedPaths]
   );
@@ -45,9 +37,12 @@ export default function MainPanel() {
   );
 
   const treeText = useMemo(() => {
-    const filtered = filterTree(tree, selectedPaths);
+    const filtered = filterTreeForExport(tree, selectedPaths, includeFullTreeInExport);
     return filtered ? generateTreeText(filtered, '', true, true) : '';
-  }, [tree, selectedPaths]);
+  }, [tree, selectedPaths, includeFullTreeInExport]);
+
+  const previewFiles = selectedFiles.slice(0, MAX_PREVIEW_FILES);
+  const previewLimited = selectedFiles.length > previewFiles.length;
 
   const isEmpty = selectedFiles.length === 0;
 
@@ -99,8 +94,7 @@ export default function MainPanel() {
             >
               <div className="font-mono text-sm">
                 <p className="text-cyber-accent font-semibold">
-                  [CONTEXTPACKER · {projectName}] · {formatNumber(totalTokens)} tokens · minification:{' '}
-                  {minifyEnabled ? 'ON' : 'OFF'}
+                  [CONTEXTPACKER · {projectName}] · {formatNumber(totalTokens)} tokens · source préservée
                 </p>
               </div>
             </motion.div>
@@ -113,9 +107,9 @@ export default function MainPanel() {
                 transition={{ delay: 0.05 }}
                 className="card p-4"
               >
-                <p className="text-[10px] uppercase tracking-wider text-cyber-text-3 mb-3 font-semibold">
-                  Structure
-                </p>
+            <p className="text-[10px] uppercase tracking-wider text-cyber-text-3 mb-3 font-semibold">
+              Structure
+            </p>
                 <pre className="font-mono text-xs text-cyber-text-2 leading-relaxed whitespace-pre overflow-x-auto">
                   {treeText}
                 </pre>
@@ -123,7 +117,13 @@ export default function MainPanel() {
             ) : null}
 
             {/* File cards */}
-            {selectedFiles.map((file, index) => {
+            {previewLimited ? (
+              <p className="text-[11px] text-cyber-text-3">
+                Prévisualisation limitée à {MAX_PREVIEW_FILES} fichiers. L’export conserve la sélection complète.
+              </p>
+            ) : null}
+
+            {previewFiles.map((file, index) => {
               const content = minifyEnabled ? file.minifiedContent : file.content;
               const tokens = minifyEnabled ? file.minifiedTokens : file.tokens;
               const lines = content.split('\n').length;
@@ -140,7 +140,7 @@ export default function MainPanel() {
                 >
                   <div className="flex items-center justify-between px-4 py-2 bg-cyber-surface-2/50 border-b border-cyber-border">
                     <div className="flex items-center gap-2 min-w-0">
-                      {(() => { const c = getLangColor(file.extension); return c ? <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: c }} title={file.extension} /> : null; })()}
+                      {langColor ? <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: langColor }} title={file.extension} /> : null}
                       <span className="font-mono text-xs text-cyber-accent truncate">{file.path}</span>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0 ml-3">

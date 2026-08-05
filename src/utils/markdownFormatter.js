@@ -1,22 +1,11 @@
 import { generateTreeText } from './outputFormatter';
+import { filterTreeForExport } from './treeUtils';
 
-function filterTree(node, selectedPaths) {
-  if (!node) return null;
-  if (node.type === 'file') {
-    return selectedPaths.has(node.path) ? { ...node } : null;
-  }
-  const filteredChildren = (node.children || [])
-    .map((child) => filterTree(child, selectedPaths))
-    .filter(Boolean);
-  if (filteredChildren.length === 0) return null;
-  return { ...node, children: filteredChildren };
-}
-
-export function generateMarkdownOutput(projectName, selectedFiles, totalTokens, minifyEnabled, tree, selectedPaths) {
+export function generateMarkdownOutput(projectName, selectedFiles, totalTokens, minifyEnabled, tree, selectedPaths, includeFullTree = false) {
   let md = `# ContextPacker — ${projectName}\n\n`;
-  md += `> **Tokens** : ${totalTokens.toLocaleString('fr-FR')} | **Minification** : ${minifyEnabled ? 'ON' : 'OFF'} | **Fichiers** : ${selectedFiles.length}\n\n`;
+  md += `> **Tokens contenu** : ${totalTokens.toLocaleString('fr-FR')} | **Source préservée** : oui | **Fichiers** : ${selectedFiles.length}\n\n`;
 
-  const filteredTree = filterTree(tree, selectedPaths);
+  const filteredTree = filterTreeForExport(tree, selectedPaths, includeFullTree);
   if (filteredTree) {
     md += '## Structure\n\n```\n';
     md += generateTreeText(filteredTree, '', true, true);

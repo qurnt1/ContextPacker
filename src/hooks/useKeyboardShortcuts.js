@@ -6,7 +6,6 @@ export function useKeyboardShortcuts() {
   const hasProject = useStore((s) => s.files.length > 0);
   const selectAll = useStore((s) => s.selectAll);
   const deselectAll = useStore((s) => s.deselectAll);
-  const resetProject = useStore((s) => s.resetProject);
   const cancelWarning = useStore((s) => s.cancelWarning);
   const showWarning = useStore((s) => s.showWarning);
 
@@ -67,7 +66,7 @@ export function useKeyboardShortcuts() {
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [hasProject, selectAll, deselectAll, resetProject, cancelWarning, showWarning, showHelp]);
+  }, [hasProject, selectAll, deselectAll, cancelWarning, showWarning, showHelp]);
 
   return { showHelp, openHelp, closeHelp };
 }

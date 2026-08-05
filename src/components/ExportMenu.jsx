@@ -12,8 +12,8 @@ import { copyToClipboard } from '../utils/clipboard';
 import { useToast } from '../hooks/useToast';
 import { generatePlainOutput } from '../utils/outputFormatter';
 import { generateMarkdownOutput } from '../utils/markdownFormatter';
-import { countTokens } from '../utils/tokenCounter';
-import { formatNumber } from '../utils/helpers';
+import { createExportResult } from '../utils/exportUtils';
+import { formatNumber, sanitizeFilename } from '../utils/helpers';
 import Toast from './Toast';
 
 // ── Official brand SVG paths (source: simple-icons v16.27.0, CC0) ──
@@ -43,7 +43,7 @@ function BrandIcon({ d, brandKey, color }) {
   );
 }
 
-const LLM_TARGETS = [
+export const LLM_TARGETS = [
   { key: 'chatgpt', label: 'ChatGPT', url: 'https://chatgpt.com/', path: BRAND_PATHS.openai, color: '#10a37f', surface: 'rgba(16, 163, 127, 0.13)' },
   { key: 'claude', label: 'Claude', url: 'https://claude.ai/new', path: BRAND_PATHS.anthropic, color: '#d97757', surface: 'rgba(217, 119, 87, 0.14)' },
   { key: 'gemini', label: 'Gemini', url: 'https://gemini.google.com/app', path: BRAND_PATHS.gemini, color: '#8b78d8', surface: 'rgba(139, 120, 216, 0.14)' },
@@ -59,6 +59,7 @@ export default function ExportMenu({
   minifyEnabled,
   contentTokens,
   tokenLimit,
+  includeFullTreeInExport = false,
   disabled,
 }) {
   const [open, setOpen] = useState(false);
@@ -69,7 +70,7 @@ export default function ExportMenu({
 
   // Lazy generation — only build the output when the user asks for it
   const buildOutput = useCallback((format) => {
-    if (selectedFiles.length === 0) return '';
+    if (selectedFiles.length === 0 && !includeFullTreeInExport) return '';
     if (format === 'md') {
       return generateMarkdownOutput(
         projectName,
@@ -77,7 +78,8 @@ export default function ExportMenu({
         contentTokens,
         minifyEnabled,
         tree,
-        selectedPaths
+        selectedPaths,
+        includeFullTreeInExport
       );
     }
     return generatePlainOutput(
@@ -86,9 +88,10 @@ export default function ExportMenu({
       contentTokens,
       minifyEnabled,
       tree,
-      selectedPaths
+      selectedPaths,
+      includeFullTreeInExport
     );
-  }, [projectName, selectedFiles, contentTokens, minifyEnabled, tree, selectedPaths]);
+  }, [projectName, selectedFiles, contentTokens, minifyEnabled, tree, selectedPaths, includeFullTreeInExport]);
 
   useEffect(() => {
     if (!open) return;
@@ -110,23 +113,24 @@ export default function ExportMenu({
 
   const prepareOutput = useCallback((format) => {
     const output = buildOutput(format);
-    if (!output) return '';
+    if (!output) return null;
 
-    const exportTokens = countTokens(output);
+    const result = createExportResult(output);
+    const exportTokens = result.tokenCount;
     if (tokenLimit > 0 && exportTokens > tokenLimit) {
       const shouldContinue = window.confirm(
         `L'export contient environ ${formatNumber(exportTokens)} tokens, au-dessus de votre limite de ${formatNumber(tokenLimit)}. Continuer ?`
       );
-      if (!shouldContinue) return '';
+      if (!shouldContinue) return null;
     }
-    return output;
+    return result;
   }, [buildOutput, tokenLimit]);
 
   const handleCopy = useCallback(async () => {
     const output = prepareOutput('txt');
     if (!output) return;
-    const ok = await copyToClipboard(output);
-    const exportTokens = countTokens(output);
+    const ok = await copyToClipboard(output.output);
+    const exportTokens = output.tokenCount;
     showToast(
       ok
         ? `Contexte copié — ${formatNumber(exportTokens)} tokens`
@@ -141,16 +145,16 @@ export default function ExportMenu({
     if (!output) return;
     const ext = format === 'md' ? 'md' : 'txt';
     const mime = format === 'md' ? 'text/markdown;charset=utf-8' : 'text/plain;charset=utf-8';
-    const blob = new Blob([output], { type: mime });
+    const blob = new Blob([output.output], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${projectName || 'context'}-packed.${ext}`;
+    a.download = `${sanitizeFilename(projectName || 'context')}-packed.${ext}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    const exportTokens = countTokens(output);
+    const exportTokens = output.tokenCount;
     showToast(
       `Fichier .${ext} généré — ${formatNumber(exportTokens)} tokens`,
       'success'
@@ -162,13 +166,13 @@ export default function ExportMenu({
     const output = prepareOutput('txt');
     if (!output) return;
     setActiveTargetKey(target.key);
-    const copyPromise = copyToClipboard(output);
+    const copyPromise = copyToClipboard(output.output);
     // Open directly during the user gesture. Some browsers return null for a
     // successful noopener window, so the return value cannot identify blocking.
     const newWindow = window.open(target.url, '_blank', 'noopener,noreferrer');
 
     copyPromise.then((ok) => {
-      const exportTokens = countTokens(output);
+      const exportTokens = output.tokenCount;
       showToast(
         ok
           ? `Contexte copié (${formatNumber(exportTokens)} tokens). Collez dans ${target.label}.`

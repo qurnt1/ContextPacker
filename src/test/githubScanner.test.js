@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Import the module under test
-import { listGitHubBranches, parseGitHubRepoInput, scanGitHubRepo } from '../utils/githubScanner';
+import {
+  listGitHubBranches,
+  parseGitHubRepoInput,
+  resetGitHubCaches,
+  scanGitHubRepo,
+} from '../utils/githubScanner';
 
 function jsonResponse(data, status = 200, headers = {}) {
   return {
@@ -68,9 +73,10 @@ describe('parseGitHubRepoInput', () => {
 describe('listGitHubBranches', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    resetGitHubCaches();
   });
 
-  it('paginates, deduplicates commit SHAs, sorts branches, and forwards the token', async () => {
+  it('paginates branches without per-branch commit calls and forwards the token', async () => {
     const branches = Array.from({ length: 100 }, (_, index) => ({
       name: `branch-${String(index).padStart(3, '0')}`,
       commit: { sha: 'same-sha' },
@@ -86,24 +92,18 @@ describe('listGitHubBranches', () => {
       if (url.includes('/branches?') && new URL(url).searchParams.get('page') === '2') {
         return jsonResponse(branches.slice(100));
       }
-      if (url.endsWith('/commits/same-sha')) {
-        return jsonResponse({ commit: { committer: { date: '2024-01-01T00:00:00Z' } } });
-      }
-      if (url.endsWith('/commits/new-sha')) {
-        return jsonResponse({ commit: { committer: { date: '2025-01-01T00:00:00Z' } } });
-      }
       throw new Error(`Unexpected URL: ${url}`);
     });
 
     const result = await listGitHubBranches({ repoInput: 'acme/packer', token: 'secret-token' });
 
     expect(result.branches).toHaveLength(101);
-    expect(result.branches[0].name).toBe('feature/v4-fixes');
+    expect(result.branches[0].name).toBe('branch-000');
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining('/repos/acme/packer'),
       expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer secret-token' }) })
     );
-    expect(global.fetch.mock.calls.filter(([url]) => url.endsWith('/commits/same-sha'))).toHaveLength(1);
+    expect(global.fetch.mock.calls.some(([url]) => url.includes('/commits/'))).toBe(false);
   });
 
   it('resolves a branch with slashes and its URL subpath', async () => {
@@ -117,9 +117,6 @@ describe('listGitHubBranches', () => {
           { name: 'feature/v4-fixes', commit: { sha: 'feature-sha' } },
         ]);
       }
-      if (url.endsWith('/commits/main-sha') || url.endsWith('/commits/feature-sha')) {
-        return jsonResponse({ commit: { committer: { date: '2024-01-01T00:00:00Z' } } });
-      }
       throw new Error(`Unexpected URL: ${url}`);
     });
 
@@ -131,15 +128,12 @@ describe('listGitHubBranches', () => {
     expect(result.inputSubPath).toBe('src/components');
   });
 
-  it('propagates commit metadata errors instead of caching incomplete dates', async () => {
+  it('propagates branch listing rate-limit errors', async () => {
     global.fetch = vi.fn(async (url) => {
       if (url.endsWith('/repos/acme/rate-limit')) {
         return jsonResponse({ default_branch: 'main', private: false });
       }
       if (url.includes('/branches?')) {
-        return jsonResponse([{ name: 'main', commit: { sha: 'limited-sha' } }]);
-      }
-      if (url.endsWith('/commits/limited-sha')) {
         return jsonResponse({ message: 'API rate limit exceeded' }, 403, { 'x-ratelimit-remaining': '0' });
       }
       throw new Error(`Unexpected URL: ${url}`);

@@ -27,15 +27,14 @@ export default function RecentProjectItem({
   onToggleFavorite,
 }) {
   const isGithub = item.type === 'github';
+  const handleOpen = () => {
+    if (!disabled) needsPermission ? onRelocate?.(item) : onOpen(item);
+  };
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      onClick={() => { if (disabled) return; needsPermission ? onRelocate?.(item) : onOpen(item); }}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter' && !disabled) { needsPermission ? onRelocate?.(item) : onOpen(item); } }}
       className={`group flex items-center gap-2 px-3 py-2 rounded-xl border transition-all cursor-pointer ${
         isOpening
           ? 'border-cyber-accent/40 bg-cyber-accent/5'
@@ -56,6 +55,12 @@ export default function RecentProjectItem({
         <Star className={`w-3.5 h-3.5 ${isFavorite ? 'fill-current' : ''}`} />
       </button>
 
+      <button
+        type="button"
+        onClick={handleOpen}
+        disabled={disabled}
+        className="flex items-center gap-2 flex-1 min-w-0 text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyber-accent/60"
+      >
       {/* Icon */}
       <div className={`flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${
         isGithub ? 'bg-purple-500/10 text-purple-400' : 'bg-cyber-accent/10 text-cyber-accent'
@@ -88,6 +93,7 @@ export default function RecentProjectItem({
           <AlertTriangle className="w-3.5 h-3.5" />
         </span>
       )}
+      </button>
 
       {/* Actions */}
       <div className="flex items-center gap-1 flex-shrink-0">

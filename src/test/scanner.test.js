@@ -16,9 +16,9 @@ function directoryEntry(name, entries) {
   return {
     kind: 'directory',
     name,
-    values: async function* values() {
+    values: vi.fn(async function* values() {
       yield* entries;
-    },
+    }),
   };
 }
 
@@ -36,9 +36,9 @@ describe('scanDirectory progress', () => {
       progress.push([count, total]);
     });
 
-    expect(result.files.map((file) => file.path)).toEqual(['src/App.jsx', 'index.js']);
-    expect(progress[0]).toEqual([0, 2]);
-    expect(progress.at(-1)).toEqual([2, 2]);
+    expect(result.files.map((file) => file.path)).toEqual(['src/App.jsx', 'empty.js', 'index.js']);
+    expect(progress[0]).toEqual([0, 3]);
+    expect(progress.at(-1)).toEqual([3, 3]);
   });
 
   it('counts a candidate that is rejected as binary after reading', async () => {
@@ -55,5 +55,43 @@ describe('scanDirectory progress', () => {
     expect(result.files).toHaveLength(1);
     expect(progress[0]).toEqual([0, 2]);
     expect(progress.at(-1)).toEqual([2, 2]);
+  });
+
+  it('shows sensitive entries without reading them and does not traverse virtualenvs', async () => {
+    const env = fileEntry('.env', 'SECRET=do-not-read');
+    const example = fileEntry('.env.example', 'PUBLIC=value');
+    const virtualenv = directoryEntry('.venv', [fileEntry('bin/python', 'do-not-read')]);
+    const root = directoryEntry('demo', [env, example, virtualenv]);
+
+    const result = await scanDirectory(root);
+
+    expect(result.files.map((file) => file.path)).toEqual(['.env.example']);
+    expect(env.getFile).not.toHaveBeenCalled();
+    expect(virtualenv.values).not.toHaveBeenCalled();
+    expect(result.tree.children.find((node) => node.name === '.env')).toMatchObject({
+      blocked: true,
+      selectable: false,
+      blockedReason: 'sensitive',
+      traversed: false,
+    });
+    expect(result.tree.children.find((node) => node.name === '.venv')).toMatchObject({
+      type: 'directory',
+      blocked: true,
+      selectable: false,
+      traversed: false,
+    });
+  });
+
+  it('keeps JSON and CSV text files, including empty files and accents', async () => {
+    const root = directoryEntry('demo', [
+      fileEntry('data.json', '{}'),
+      fileEntry('table.csv', 'nom;ville\r\nÉlodie;Poitiers\r\n'),
+      fileEntry('empty.json', ''),
+    ]);
+
+    const result = await scanDirectory(root);
+
+    expect(result.files.map((file) => file.path)).toEqual(['data.json', 'empty.json', 'table.csv']);
+    expect(result.files.find((file) => file.path === 'table.csv')).toMatchObject({ lines: 3, content: 'nom;ville\r\nÉlodie;Poitiers\r\n' });
   });
 });

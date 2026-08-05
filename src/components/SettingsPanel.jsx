@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Settings, X, Info, KeyRound } from 'lucide-react';
@@ -17,6 +17,8 @@ export default function SettingsPanel() {
 
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const triggerRef = useRef(null);
+  const panelRef = useRef(null);
 
   useEffect(() => {
     setMounted(true);
@@ -34,6 +36,19 @@ export default function SettingsPanel() {
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      triggerRef.current?.focus();
+      return undefined;
+    }
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') setIsOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    panelRef.current?.focus();
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
   const limits =
     DEFAULT_TOKEN_LIMITS && DEFAULT_TOKEN_LIMITS.length > 0
       ? DEFAULT_TOKEN_LIMITS
@@ -42,6 +57,7 @@ export default function SettingsPanel() {
   return (
     <>
       <button
+        ref={triggerRef}
         onClick={() => setIsOpen(true)}
         title="Paramètres"
         className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg text-cyber-text-2 hover:text-cyber-accent hover:bg-cyber-surface-2 transition-colors"
@@ -73,6 +89,10 @@ export default function SettingsPanel() {
                   transition={{ type: 'spring', damping: 28, stiffness: 300 }}
                   className="fixed top-0 right-0 bottom-0 w-full max-w-[380px] bg-cyber-surface border-l border-cyber-border shadow-2xl flex flex-col"
                   style={{ zIndex: 9999 }}
+                  ref={panelRef}
+                  role="dialog"
+                  aria-modal="true"
+                  tabIndex={-1}
                 >
                   {/* Header */}
                   <div className="flex items-center justify-between px-5 py-4 border-b border-cyber-border flex-shrink-0">
@@ -190,9 +210,13 @@ export default function SettingsPanel() {
                       <p className="text-[11px] text-cyber-text-3 mt-1 mb-3">
                         Améliore le rate-limit pour les scans fréquents.
                       </p>
+                      <p className="text-[10px] text-cyber-text-3 mb-3">
+                        Conservé en mémoire uniquement, jamais dans les réglages persistés.
+                      </p>
                       <div className="space-y-2">
                         <input
                           type="password"
+                          autoComplete="off"
                           value={githubToken || ''}
                           onChange={(event) => setGithubToken(event.target.value)}
                           className="w-full px-4 py-2.5 rounded-lg text-xs font-mono bg-cyber-surface-2 border border-cyber-border text-cyber-text placeholder:text-cyber-text-3/50 focus:outline-none focus:border-cyber-accent/50 transition-colors"

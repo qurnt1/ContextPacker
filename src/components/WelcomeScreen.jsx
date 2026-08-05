@@ -46,6 +46,7 @@ export default function WelcomeScreen({ onShowOnboarding }) {
   const [selectedBranch, setSelectedBranch] = useState('');
   const [defaultBranch, setDefaultBranch] = useState('');
   const branchAbortRef = useRef(null);
+  const branchRequestIdRef = useRef(0);
   const dragCounter = useRef(0);
   const [isDragOver, setIsDragOver] = useState(false);
   const [openingKey, setOpeningKey] = useState(null);
@@ -54,6 +55,7 @@ export default function WelcomeScreen({ onShowOnboarding }) {
 
   // Debounced branch loading when repoInput changes
   useEffect(() => {
+    const requestId = ++branchRequestIdRef.current;
     // Abort previous request
     if (branchAbortRef.current) {
       branchAbortRef.current.abort();
@@ -65,6 +67,7 @@ export default function WelcomeScreen({ onShowOnboarding }) {
       setBranchError('');
       setSelectedBranch('');
       setDefaultBranch('');
+      setBranchesLoading(false);
       return;
     }
 
@@ -74,6 +77,7 @@ export default function WelcomeScreen({ onShowOnboarding }) {
     if (!hasSep) {
       setBranches([]);
       setBranchError('');
+      setBranchesLoading(false);
       return;
     }
 
@@ -89,7 +93,7 @@ export default function WelcomeScreen({ onShowOnboarding }) {
           signal: controller.signal,
         });
         // Check we weren't aborted or superseded
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || requestId !== branchRequestIdRef.current) return;
         setBranches(data.branches);
         setDefaultBranch(data.defaultBranch);
         setSelectedBranch(data.inputRef || '');
@@ -98,11 +102,11 @@ export default function WelcomeScreen({ onShowOnboarding }) {
           subPathRef.current = data.inputSubPath;
         }
       } catch (err) {
-        if (err.name === 'AbortError') return;
+        if (err.name === 'AbortError' || requestId !== branchRequestIdRef.current) return;
         setBranchError(err.message || 'Erreur lors du chargement des branches.');
         setBranches([]);
       } finally {
-        if (!controller.signal.aborted) {
+        if (requestId === branchRequestIdRef.current) {
           setBranchesLoading(false);
         }
       }
@@ -217,7 +221,9 @@ export default function WelcomeScreen({ onShowOnboarding }) {
         const handle = await item.getAsFileSystemHandle();
         if (handle?.kind === 'directory') { await handleOpenLocal(handle); return; }
       }
-    } catch {}
+    } catch (error) {
+      if (error?.name !== 'AbortError') console.warn('Échec du glisser-déposer.', error);
+    }
     await handleOpenLocal();
   };
 
@@ -358,6 +364,18 @@ export default function WelcomeScreen({ onShowOnboarding }) {
                     loading={branchesLoading}
                     error={branchError}
                   />
+                  {branchError && branches.length === 0 ? (
+                    <input
+                      type="text"
+                      value={selectedBranch}
+                      onChange={(event) => setSelectedBranch(event.target.value)}
+                      disabled={isScanning}
+                      placeholder="Saisir une branche manuellement"
+                      aria-label="Branche GitHub manuelle"
+                      className="mt-1.5 w-full px-3.5 py-2.5 rounded-lg bg-cyber-surface-2 border border-cyber-border text-cyber-text text-sm focus:outline-none focus:border-cyber-accent/50"
+                    />
+                  ) : null}
+                  {branchError ? <p className="mt-1 text-[10px] text-red-400">{branchError}</p> : null}
                 </div>
                 <div>
                   <label className="text-xs text-cyber-text-3 uppercase tracking-wider font-semibold">Sous-dossier (optionnel)</label>

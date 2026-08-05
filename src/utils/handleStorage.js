@@ -24,9 +24,13 @@ function openDB() {
         }
       }
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      const db = req.result;
+      db.onversionchange = () => db.close();
+      resolve(db);
+    };
     req.onerror = () => reject(req.error);
-    req.onblocked = () => console.warn('IndexedDB blocked — close other tabs using this app.');
+    req.onblocked = () => reject(new Error('IndexedDB blocked. Close other ContextPacker tabs.'));
   });
 }
 
@@ -57,8 +61,9 @@ function waitForTransaction(tx) {
  * @param {FileSystemDirectoryHandle} handle
  */
 export async function saveHandle(projectId, handle) {
+  let db;
   try {
-    const db = await openDB();
+    db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
     store.put({
@@ -68,9 +73,12 @@ export async function saveHandle(projectId, handle) {
       savedAt: Date.now(),
     });
     await waitForTransaction(tx);
-    db.close();
+    return true;
   } catch (err) {
     console.warn('Failed to save handle to IndexedDB:', err);
+    return false;
+  } finally {
+    db?.close();
   }
 }
 
@@ -80,17 +88,19 @@ export async function saveHandle(projectId, handle) {
  * @returns {Promise<FileSystemDirectoryHandle|null>}
  */
 export async function getHandle(projectId) {
+  let db;
   try {
-    const db = await openDB();
+    db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readonly');
     const store = tx.objectStore(STORE_NAME);
     const entry = await promisifyRequest(store.get(`local:${projectId}`));
     await waitForTransaction(tx);
-    db.close();
     return entry?.handle || null;
   } catch (err) {
     console.warn('Failed to get handle from IndexedDB:', err);
     return null;
+  } finally {
+    db?.close();
   }
 }
 
@@ -99,17 +109,19 @@ export async function getHandle(projectId) {
  * @returns {Promise<Array<{key: string, projectId: string, savedAt: number}>>}
  */
 export async function listHandles() {
+  let db;
   try {
-    const db = await openDB();
+    db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readonly');
     const store = tx.objectStore(STORE_NAME);
     const entries = await promisifyRequest(store.getAll());
     await waitForTransaction(tx);
-    db.close();
     return entries.map(({ key, projectId, savedAt }) => ({ key, projectId, savedAt }));
   } catch (err) {
     console.warn('Failed to list handles from IndexedDB:', err);
     return [];
+  } finally {
+    db?.close();
   }
 }
 
@@ -118,15 +130,19 @@ export async function listHandles() {
  * @param {string} projectId
  */
 export async function deleteHandle(projectId) {
+  let db;
   try {
-    const db = await openDB();
+    db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
     store.delete(`local:${projectId}`);
     await waitForTransaction(tx);
-    db.close();
+    return true;
   } catch (err) {
     console.warn('Failed to delete handle from IndexedDB:', err);
+    return false;
+  } finally {
+    db?.close();
   }
 }
 
@@ -137,13 +153,13 @@ export async function deleteHandle(projectId) {
  * @returns {Promise<string|null>} - existing projectId or null
  */
 export async function findMatchingHandle(candidate) {
+  let db;
   try {
-    const db = await openDB();
+    db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readonly');
     const store = tx.objectStore(STORE_NAME);
     const entries = await promisifyRequest(store.getAll());
     await waitForTransaction(tx);
-    db.close();
 
     for (const entry of entries) {
       if (!entry.handle) continue;
@@ -159,6 +175,8 @@ export async function findMatchingHandle(candidate) {
   } catch (err) {
     console.warn('Failed to find matching handle:', err);
     return null;
+  } finally {
+    db?.close();
   }
 }
 
@@ -170,15 +188,15 @@ export async function findMatchingHandle(candidate) {
  * @returns {Promise<FileSystemDirectoryHandle|null>}
  */
 export async function migrateOldHandle(oldName, newProjectId) {
+  let db;
   try {
-    const db = await openDB();
+    db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
     const oldKey = `local:${oldName}`;
     const oldEntry = await promisifyRequest(store.get(oldKey));
     if (!oldEntry) {
       await waitForTransaction(tx);
-      db.close();
       return null;
     }
     // Write under new key and delete old
@@ -190,10 +208,11 @@ export async function migrateOldHandle(oldName, newProjectId) {
     });
     store.delete(oldKey);
     await waitForTransaction(tx);
-    db.close();
     return oldEntry.handle || null;
   } catch (err) {
     console.warn('Failed to migrate old handle:', err);
     return null;
+  } finally {
+    db?.close();
   }
 }
