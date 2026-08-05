@@ -54,13 +54,15 @@ function AppInner() {
       setSidebarWidth(startWidth + delta);
     };
     const onUp = () => {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
       document.body.style.userSelect = '';
       document.body.style.cursor = '';
     };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
   }, [setSidebarWidth]);
 
   return (
@@ -83,7 +85,7 @@ function AppInner() {
                 <Sidebar />
               </div>
               {!sidebarCollapsed && (
-                <div className="w-1.5 flex-shrink-0 cursor-col-resize hover:bg-cyber-accent/30 active:bg-cyber-accent/50 transition-colors relative group" onMouseDown={handleResizeStart}>
+                <div className="w-1.5 flex-shrink-0 cursor-col-resize hover:bg-cyber-accent/30 active:bg-cyber-accent/50 transition-colors relative group" onPointerDown={handleResizeStart} role="separator" aria-label="Redimensionner le panneau latéral" aria-orientation="vertical" tabIndex={0}>
                   <div className="absolute inset-y-0 -left-1 -right-1" />
                 </div>
               )}

@@ -15,6 +15,9 @@ export function getExtension(filename) {
   return '.' + parts[parts.length - 1].toLowerCase();
 }
 
-export function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
+export function sanitizeFilename(name) {
+  return String(name || 'context')
+    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-')
+    .replace(/[. ]+$/g, '')
+    .trim() || 'context';
 }

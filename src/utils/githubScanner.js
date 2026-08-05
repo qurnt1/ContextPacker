@@ -4,6 +4,8 @@ import { getExtension } from './helpers';
 import { minifyCode } from './minifier';
 import { countTokens, initEncoding } from './tokenCounter';
 import { MAX_FILE_SIZE } from '../constants';
+import { getSecurityMetadata } from './securityPolicy';
+import { buildTreeFromFiles } from './treeUtils';
 
 const GITHUB_API_BASE = 'https://api.github.com';
 const RECENT_REPOS_KEY = 'cp-recent-github-repos';
@@ -14,10 +16,38 @@ const BYTES_PER_TOKEN_ESTIMATE = 4;
 const DOWNLOAD_CONCURRENCY = 6;
 
 const githubScanCache = new Map();
+const GITHUB_SCAN_CACHE_MAX = 8;
 
 // Branch list cache: key = "owner/repo", value = { data, ts }
 const branchCache = new Map();
 const BRANCH_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const BRANCH_CACHE_MAX = 16;
+
+export function resetGitHubCaches() {
+  githubScanCache.clear();
+  branchCache.clear();
+}
+
+function authScope(token) {
+  return token ? 'authenticated' : 'anonymous';
+}
+
+function getLru(map, key) {
+  const value = map.get(key);
+  if (value !== undefined) {
+    map.delete(key);
+    map.set(key, value);
+  }
+  return value;
+}
+
+function setLru(map, key, value, maxEntries) {
+  map.delete(key);
+  map.set(key, value);
+  while (map.size > maxEntries) {
+    map.delete(map.keys().next().value);
+  }
+}
 
 export function parseGitHubRepoInput(input, manualSubPath = '') {
   const trimmed = String(input || '').trim();
@@ -92,10 +122,10 @@ export async function listGitHubBranches({
 } = {}) {
   const parsed = parseGitHubRepoInput(repoInput);
   const authToken = String(token || '').trim();
-  const cacheKey = `${parsed.owner}/${parsed.repo}`;
+  const cacheKey = `${parsed.owner}/${parsed.repo}:${authScope(authToken)}`;
 
   // Check cache
-  let branchData = branchCache.get(cacheKey);
+  let branchData = getLru(branchCache, cacheKey);
   if (!branchData || (Date.now() - branchData.ts) >= BRANCH_CACHE_TTL) {
     // Fetch repo info (default_branch)
     const repoInfo = await fetchGitHubJson(
@@ -125,35 +155,19 @@ export async function listGitHubBranches({
       page += 1;
     }
 
-    // Deduplicate SHAs — fetch commit date only once per unique SHA.
-    // A failed metadata request must remain visible to the caller.
-    const shaToDate = new Map();
-    const uniqueShas = [...new Set(allBranches.map((b) => b.commit?.sha).filter(Boolean))];
-
-    await mapConcurrent(uniqueShas, DOWNLOAD_CONCURRENCY, async (sha) => {
-      const commit = await fetchGitHubJson(
-        `${GITHUB_API_BASE}/repos/${parsed.owner}/${parsed.repo}/commits/${sha}`,
-        authToken,
-        { signal }
-      );
-      shaToDate.set(sha, commit?.commit?.committer?.date || '');
-    });
-
     // Build branch objects
     const branches = allBranches.map((b) => ({
       name: b.name,
       sha: b.commit?.sha || '',
-      updatedAt: shaToDate.get(b.commit?.sha) || '',
       isDefault: b.name === defaultBranch,
       protected: b.protected || false,
     }));
 
-    // Sort: newest first, then name ascending
+    // The branch endpoint does not include commit dates. Keep the default
+    // branch first, then use a stable name order without extra commit calls.
     branches.sort((a, b) => {
-      const dateA = a.updatedAt ? Date.parse(a.updatedAt) : 0;
-      const dateB = b.updatedAt ? Date.parse(b.updatedAt) : 0;
       return (
-        dateB - dateA ||
+        Number(b.isDefault) - Number(a.isDefault) ||
         a.name.localeCompare(b.name, 'fr', { sensitivity: 'base', numeric: true })
       );
     });
@@ -165,7 +179,7 @@ export async function listGitHubBranches({
       branches,
     };
 
-    branchCache.set(cacheKey, { data: branchData, ts: Date.now() });
+    setLru(branchCache, cacheKey, { data: branchData, ts: Date.now() }, BRANCH_CACHE_MAX);
   } else {
     branchData = branchData.data;
   }
@@ -207,29 +221,28 @@ function resolveTreeLocation(treePath, branches) {
  * Returns the tree SHA of the latest commit on the branch.
  */
 async function resolveTreeSha(owner, repo, ref, authToken, signal) {
-  try {
-    // Get the ref data to find the commit SHA
-    const refData = await fetchGitHubJson(
-      `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/ref/heads/${encodeURIComponent(ref)}`,
-      authToken,
-      { signal }
-    );
-    if (refData?.object?.sha) {
-      // Get the commit to find the tree SHA
-      const commitData = await fetchGitHubJson(
-        `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/commits/${refData.object.sha}`,
-        authToken,
-        { signal }
-      );
-      if (commitData?.tree?.sha) {
-        return { treeSha: commitData.tree.sha, commitSha: refData.object.sha };
-      }
-    }
-  } catch {
-    // If ref resolution fails (e.g., the ref is already a SHA), fall back
+  if (/^[0-9a-f]{40}$/i.test(ref)) {
+    return { treeSha: ref, commitSha: ref };
   }
-  // Fallback: use the ref directly (might be a SHA already)
-  return { treeSha: ref, commitSha: ref };
+
+  const refData = await fetchGitHubJson(
+    `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/ref/heads/${encodeURIComponent(ref)}`,
+    authToken,
+    { signal }
+  );
+  if (!refData?.object?.sha) {
+    throw new Error(`Impossible de résoudre la branche GitHub « ${ref} ».`);
+  }
+
+  const commitData = await fetchGitHubJson(
+    `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/commits/${refData.object.sha}`,
+    authToken,
+    { signal }
+  );
+  if (!commitData?.tree?.sha) {
+    throw new Error(`Impossible de résoudre le snapshot GitHub « ${ref} ».`);
+  }
+  return { treeSha: commitData.tree.sha, commitSha: refData.object.sha };
 }
 
 // ── Main scan ───────────────────────────────────────────────
@@ -245,15 +258,18 @@ export async function scanGitHubRepo({
   onEstimate,
   onProgress,
   onFileStart,
+  signal,
 } = {}) {
   initEncoding();
+  throwIfAborted(signal);
 
   const parsed = parseGitHubRepoInput(repoInput, subPath);
   const authToken = String(token || '').trim();
 
   const repoInfo = await fetchGitHubJson(
     `${GITHUB_API_BASE}/repos/${parsed.owner}/${parsed.repo}`,
-    authToken
+    authToken,
+    { signal }
   );
 
   if (repoInfo.private) {
@@ -273,12 +289,13 @@ export async function scanGitHubRepo({
     parsed.owner,
     parsed.repo,
     resolvedRef,
-    authToken
+    authToken,
+    signal
   );
 
   // Cache key is based on immutable tree SHA
-  const cacheKey = `${parsed.owner}/${parsed.repo}@${treeSha}::${parsed.subPath || ''}::${applyGitignore ? '1' : '0'}`;
-  const cached = githubScanCache.get(cacheKey);
+  const cacheKey = `${parsed.owner}/${parsed.repo}@${treeSha}::${parsed.subPath || ''}::${applyGitignore ? '1' : '0'}::${authScope(authToken)}`;
+  const cached = getLru(githubScanCache, cacheKey);
   if (cached) {
     if (onProgress) {
       onProgress(cached.files.length, cached.files.length, 'cache');
@@ -290,7 +307,8 @@ export async function scanGitHubRepo({
     `${GITHUB_API_BASE}/repos/${parsed.owner}/${parsed.repo}/git/trees/${encodeURIComponent(
       treeSha
     )}?recursive=1`,
-    authToken
+    authToken,
+    { signal }
   );
 
   if (!Array.isArray(treeData.tree)) {
@@ -302,6 +320,19 @@ export async function scanGitHubRepo({
       "Repository trop volumineux pour l'API GitHub recursive tree (résultat tronqué)."
     );
   }
+
+  const blockedDirectories = treeData.tree
+    .filter((entry) => entry.type === 'tree')
+    .map((entry) => ({ entry, security: getSecurityMetadata(entry.path, 'directory') }))
+    .filter(({ security }) => security.blocked);
+  const blockedDirectoryPaths = blockedDirectories.map(({ entry }) => entry.path);
+  const extraNodes = blockedDirectories.map(({ entry, security }) => ({
+    name: entry.path.split('/').pop(),
+    path: entry.path,
+    type: 'directory',
+    children: [],
+    ...security,
+  }));
 
   let blobEntries = treeData.tree.filter((entry) => entry.type === 'blob');
   if (parsed.subPath) {
@@ -316,18 +347,15 @@ export async function scanGitHubRepo({
     const gitignoreEntry = blobEntries.find((entry) => entry.path === '.gitignore')
       || treeData.tree.find((entry) => entry.type === 'blob' && entry.path === '.gitignore');
     if (gitignoreEntry) {
-      try {
-        gitignoreContent = await fetchBlobText(
-          parsed.owner,
-          parsed.repo,
-          resolvedRef,
-          gitignoreEntry.path,
-          gitignoreEntry.sha,
-          authToken
-        );
-      } catch {
-        gitignoreContent = '';
-      }
+      gitignoreContent = await fetchBlobText(
+        parsed.owner,
+        parsed.repo,
+        resolvedRef,
+        gitignoreEntry.path,
+        gitignoreEntry.sha,
+        authToken,
+        signal
+      );
     }
   }
 
@@ -338,8 +366,31 @@ export async function scanGitHubRepo({
 
   const candidates = blobEntries.filter((entry) => {
     if (!entry.path || typeof entry.path !== 'string') return false;
-    if (entry.size == null || entry.size === 0) return false;
-    if (entry.size > MAX_FILE_SIZE) return false;
+    if (blockedDirectoryPaths.some((directory) => entry.path.startsWith(`${directory}/`))) return false;
+    const security = getSecurityMetadata(entry.path, 'file');
+    if (security.blocked) {
+      extraNodes.push({
+        name: entry.path.split('/').pop(),
+        path: entry.path,
+        type: 'file',
+        size: entry.size ?? null,
+        ...security,
+      });
+      return false;
+    }
+    if (entry.size != null && entry.size > MAX_FILE_SIZE) {
+      extraNodes.push({
+        name: entry.path.split('/').pop(),
+        path: entry.path,
+        type: 'file',
+        size: entry.size,
+        selectable: false,
+        blocked: false,
+        blockedReason: 'size',
+        traversed: false,
+      });
+      return false;
+    }
     if (ignoreFilter.ignores(entry.path)) return false;
     if (isBinaryExtension(entry.path)) return false;
     return true;
@@ -380,16 +431,18 @@ export async function scanGitHubRepo({
   let processed = 0;
 
   await mapConcurrent(candidates, DOWNLOAD_CONCURRENCY, async (entry) => {
+    throwIfAborted(signal);
     const content = await fetchBlobText(
       parsed.owner,
       parsed.repo,
       resolvedRef,
       entry.path,
       entry.sha,
-      authToken
+      authToken,
+      signal
     );
 
-    if (!content || isBinaryContent(content)) {
+    if (isBinaryContent(content)) {
       processed += 1;
       if (onProgress) onProgress(processed, candidates.length, 'download');
       return;
@@ -409,10 +462,14 @@ export async function scanGitHubRepo({
       extension,
       content,
       minifiedContent,
-      size: entry.size || new Blob([content]).size,
+      size: entry.size ?? new Blob([content]).size,
       lines,
       tokens,
       minifiedTokens,
+      selectable: true,
+      blocked: false,
+      blockedReason: null,
+      traversed: true,
     });
 
     processed += 1;
@@ -422,7 +479,7 @@ export async function scanGitHubRepo({
   files.sort((a, b) => a.path.localeCompare(b.path));
 
   const projectName = `${parsed.repo}${parsed.subPath ? `/${parsed.subPath}` : ''}`;
-  const tree = buildTreeFromFiles(projectName, files);
+  const tree = buildTreeFromFiles(projectName, files, extraNodes);
 
   const result = {
     name: projectName,
@@ -444,7 +501,7 @@ export async function scanGitHubRepo({
     estimate,
   };
 
-  githubScanCache.set(cacheKey, cloneResult(result));
+  setLru(githubScanCache, cacheKey, cloneResult(result), GITHUB_SCAN_CACHE_MAX);
   pushRecentGitHubRepo({
     owner: parsed.owner,
     repo: parsed.repo,
@@ -470,7 +527,8 @@ export function getRecentGitHubRepos() {
     const parsed = JSON.parse(raw || '[]');
     if (!Array.isArray(parsed)) return [];
     return parsed.filter((item) => item && item.owner && item.repo).slice(0, RECENT_REPOS_MAX);
-  } catch {
+  } catch (error) {
+    console.warn('Impossible de lire l’historique GitHub local.', error);
     return [];
   }
 }
@@ -486,8 +544,8 @@ function pushRecentGitHubRepo(repoMeta) {
     });
     const next = [repoMeta, ...deduped].slice(0, RECENT_REPOS_MAX);
     window.localStorage.setItem(RECENT_REPOS_KEY, JSON.stringify(next));
-  } catch {
-    // localStorage can be unavailable in strict privacy mode.
+  } catch (error) {
+    console.warn('Impossible de sauvegarder l’historique GitHub local.', error);
   }
 }
 
@@ -522,7 +580,19 @@ async function fetchGitHubJson(url, token, { signal } = {}) {
   throw new Error(message);
 }
 
-async function fetchBlobText(owner, repo, ref, path, sha, token) {
+async function fetchBlobText(owner, repo, ref, path, sha, token, signal) {
+  if (sha) {
+    const blobData = await fetchGitHubJson(
+      `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/blobs/${sha}`,
+      token,
+      { signal }
+    );
+    if (!blobData || blobData.encoding !== 'base64' || typeof blobData.content !== 'string') {
+      throw new Error(`Blob invalide pour ${path}`);
+    }
+    return decodeBase64Utf8(blobData.content.replace(/\n/g, ''));
+  }
+
   const encodedPath = path
     .split('/')
     .map((part) => encodeURIComponent(part))
@@ -534,28 +604,21 @@ async function fetchBlobText(owner, repo, ref, path, sha, token) {
     if (token) {
       rawHeaders.Authorization = `Bearer ${token}`;
     }
-    const rawResponse = await fetch(rawUrl, { headers: rawHeaders });
+    const rawResponse = await fetch(rawUrl, { headers: rawHeaders, signal });
     if (rawResponse.ok) {
       return await rawResponse.text();
     }
-  } catch {
-    // Fallback to blob endpoint below.
+  } catch (error) {
+    if (error?.name === 'AbortError' || signal?.aborted) {
+      throw error;
+    }
   }
 
   if (!sha) {
     throw new Error(`Impossible de télécharger ${path}`);
   }
 
-  const blobData = await fetchGitHubJson(
-    `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/blobs/${sha}`,
-    token
-  );
-  if (!blobData || blobData.encoding !== 'base64' || !blobData.content) {
-    throw new Error(`Blob invalide pour ${path}`);
-  }
-
-  const base64 = blobData.content.replace(/\n/g, '');
-  return decodeBase64Utf8(base64);
+  throw new Error(`Impossible de télécharger ${path}`);
 }
 
 function decodeBase64Utf8(base64) {
@@ -571,51 +634,6 @@ function normalizeSubPath(subPath) {
   return String(subPath || '')
     .replace(/^\/+/, '')
     .replace(/\/+$/, '');
-}
-
-function buildTreeFromFiles(rootName, files) {
-  const root = { name: rootName, path: '', type: 'directory', children: [] };
-  const directoryIndex = new Map();
-  directoryIndex.set('', root);
-
-  files.forEach((file) => {
-    const parts = file.path.split('/').filter(Boolean);
-    const fileName = parts[parts.length - 1];
-    const dirParts = parts.slice(0, -1);
-    let currentPath = '';
-    let currentNode = root;
-
-    dirParts.forEach((part) => {
-      currentPath = currentPath ? `${currentPath}/${part}` : part;
-      if (directoryIndex.has(currentPath)) {
-        currentNode = directoryIndex.get(currentPath);
-        return;
-      }
-
-      const dirNode = {
-        name: part,
-        path: currentPath,
-        type: 'directory',
-        children: [],
-      };
-      currentNode.children.push(dirNode);
-      directoryIndex.set(currentPath, dirNode);
-      currentNode = dirNode;
-    });
-
-    currentNode.children.push({
-      name: fileName,
-      path: file.path,
-      type: 'file',
-      extension: file.extension,
-      size: file.size,
-      lines: file.lines,
-      tokens: file.tokens,
-      minifiedTokens: file.minifiedTokens,
-    });
-  });
-
-  return root;
 }
 
 function formatMegaBytes(bytes) {
@@ -636,4 +654,11 @@ async function mapConcurrent(items, limit, worker) {
     }
   });
   await Promise.all(workers);
+}
+
+function throwIfAborted(signal) {
+  if (!signal?.aborted) return;
+  const error = new Error('Chargement GitHub annulé.');
+  error.name = 'AbortError';
+  throw error;
 }

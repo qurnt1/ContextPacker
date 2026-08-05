@@ -5,6 +5,7 @@ import { formatNumber } from '../utils/helpers';
 import { useStore } from '../store';
 import ExportMenu from './ExportMenu';
 import LinearTokenProgress from './LinearTokenProgress';
+import { isSelectableFile } from '../utils/securityPolicy';
 
 export default function Dashboard() {
   const tokenLimit = useStore((s) => s.tokenLimit);
@@ -13,11 +14,12 @@ export default function Dashboard() {
   const selectedPaths = useStore((s) => s.selectedPaths);
   const minifyEnabled = useStore((s) => s.minifyEnabled);
   const tree = useStore((s) => s.tree);
+  const includeFullTreeInExport = useStore((s) => s.includeFullTreeInExport);
 
   const selectedFiles = useMemo(
     () =>
       files
-        .filter((file) => selectedPaths.has(file.path))
+        .filter((file) => isSelectableFile(file) && selectedPaths.has(file.path))
         .sort((a, b) => b.size - a.size),
     [files, selectedPaths]
   );
@@ -34,7 +36,7 @@ export default function Dashboard() {
       totalSize,
       totalLines,
       fileCount: selectedFiles.length,
-      totalFiles: files.length,
+      totalFiles: files.filter(isSelectableFile).length,
     };
   }, [selectedFiles, minifyEnabled, files.length]);
 
@@ -111,7 +113,8 @@ export default function Dashboard() {
         minifyEnabled={minifyEnabled}
         contentTokens={totalTokens}
         tokenLimit={tokenLimit}
-        disabled={selectedFiles.length === 0}
+        includeFullTreeInExport={includeFullTreeInExport}
+        disabled={files.filter(isSelectableFile).length === 0}
       />
     </motion.div>
   );

@@ -7,16 +7,19 @@ import {
   FolderOpen,
   FileCode2,
   FileText,
+  Ban,
   Check,
   Minus,
 } from 'lucide-react';
 import { formatSize } from '../utils/helpers';
 import { getLangColor } from '../utils/languageBadge';
+import { sortTreeChildren } from '../utils/treeUtils';
 
 const CODE_EXTENSIONS = new Set([
   '.js', '.jsx', '.ts', '.tsx', '.py', '.rb', '.go', '.rs', '.java',
   '.c', '.cpp', '.h', '.hpp', '.cs', '.php', '.swift', '.kt', '.dart',
   '.vue', '.svelte', '.css', '.scss', '.less', '.html', '.sh',
+  '.jsonc',
 ]);
 
 function matchesSearch(node, query) {
@@ -29,9 +32,8 @@ function matchesSearch(node, query) {
 
 const FileTree = memo(function FileTree({
   node,
-  files,
   selectedPaths,
-  onTogglePath,
+  selectionIndex,
   onToggleFolder,
   minifyEnabled,
   depth = 0,
@@ -42,28 +44,23 @@ const FileTree = memo(function FileTree({
   onFileClick,
 }) {
   const isDirectory = node.type === 'directory';
-  const expanded = isRoot || expandedPaths?.has(node.path);
+  const expanded = isRoot || expandedPaths?.has(node.path) || (Boolean(searchQuery) && isDirectory && matchesSearch(node, searchQuery));
+  const isBlocked = Boolean(node.blocked || node.selectable === false);
 
   const selectionState = useMemo(() => {
     if (!isDirectory) {
+      if (isBlocked) return 'none';
       return selectedPaths.has(node.path) ? 'all' : 'none';
     }
-    const descendantFiles = files.filter((file) =>
-      file.path.startsWith(node.path ? node.path + '/' : '')
-    );
-    if (descendantFiles.length === 0) return 'none';
-    const selectedCount = descendantFiles.filter((file) => selectedPaths.has(file.path)).length;
-    if (selectedCount === 0) return 'none';
-    if (selectedCount === descendantFiles.length) return 'all';
+    const summary = selectionIndex?.get(node.path);
+    if (!summary || summary.selectableCount === 0 || summary.selectedCount === 0) return 'none';
+    if (summary.selectedCount === summary.selectableCount) return 'all';
     return 'some';
-  }, [isDirectory, node.path, files, selectedPaths]);
+  }, [isDirectory, node.path, isBlocked, selectionIndex, selectedPaths]);
 
   const sortedChildren = useMemo(() => {
     if (!node.children) return [];
-    return [...node.children].sort((a, b) => {
-      if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
+    return sortTreeChildren(node.children);
   }, [node.children]);
 
   const handleCheckboxClick = (event) => {
@@ -71,6 +68,7 @@ const FileTree = memo(function FileTree({
     if (isDirectory) {
       onToggleFolder(node.path);
     } else {
+      if (isBlocked) return;
       onFileClick(node.path, event);
     }
   };
@@ -93,9 +91,8 @@ const FileTree = memo(function FileTree({
           <FileTree
             key={child.path}
             node={child}
-            files={files}
             selectedPaths={selectedPaths}
-            onTogglePath={onTogglePath}
+            selectionIndex={selectionIndex}
             onToggleFolder={onToggleFolder}
             minifyEnabled={minifyEnabled}
             depth={depth + 1}
@@ -124,11 +121,12 @@ const FileTree = memo(function FileTree({
   return (
     <div>
       <div
-        className={`group flex items-center gap-1 py-[4px] px-1.5 rounded-md cursor-pointer transition-colors duration-100 hover:bg-cyber-surface-2 ${
+        className={`group flex items-center gap-1 py-[4px] px-1.5 rounded-md ${isBlocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-cyber-surface-2'} transition-colors duration-100 ${
           !isDirectory && selectionState === 'all' ? 'bg-cyber-accent/[0.06]' : ''
         }`}
         style={{ paddingLeft: `${(depth - 1) * 14 + 4}px` }}
         onClick={(e) => {
+          if (isBlocked) return;
           if (isDirectory) {
             onToggleExpanded(node.path);
             return;
@@ -146,6 +144,9 @@ const FileTree = memo(function FileTree({
 
         <button
           onClick={handleCheckboxClick}
+          disabled={isBlocked}
+          aria-label={isBlocked ? `${node.name}, bloqué et non sélectionnable` : `Sélectionner ${node.name}`}
+          title={isBlocked ? `Bloqué : ${node.blockedReason || 'fichier sensible'}` : undefined}
           className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-colors border ${
             selectionState === 'all'
               ? 'bg-cyber-accent/25 border-cyber-accent/50 text-cyber-accent'
@@ -154,8 +155,9 @@ const FileTree = memo(function FileTree({
                 : 'border-cyber-border hover:border-cyber-text-3'
           }`}
         >
-          {selectionState === 'all' ? <Check className="w-2.5 h-2.5" /> : null}
-          {selectionState === 'some' ? <Minus className="w-2.5 h-2.5" /> : null}
+          {isBlocked ? <Ban className="w-2.5 h-2.5" /> : null}
+          {!isBlocked && selectionState === 'all' ? <Check className="w-2.5 h-2.5" /> : null}
+          {!isBlocked && selectionState === 'some' ? <Minus className="w-2.5 h-2.5" /> : null}
         </button>
 
         {!isDirectory && getLangColor(node.extension) && (
@@ -163,11 +165,12 @@ const FileTree = memo(function FileTree({
         )}
         {!isDirectory && !getLangColor(node.extension) && <span className="w-2 h-2 flex-shrink-0" />}
 
-        <FileIcon className={`w-3.5 h-3.5 flex-shrink-0 ${iconColor}`} />
+        {isBlocked ? <Ban className="w-3.5 h-3.5 flex-shrink-0 text-red-400" aria-hidden="true" /> : <FileIcon className={`w-3.5 h-3.5 flex-shrink-0 ${iconColor}`} />}
 
         <span className="text-[12px] truncate flex-1 text-cyber-text-2 group-hover:text-cyber-text transition-colors" title={node.path}>
           {node.name}
         </span>
+        {isBlocked ? <span className="text-[9px] text-red-300/80 uppercase">bloqué</span> : null}
 
         {!isDirectory ? (
           <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">
@@ -204,9 +207,8 @@ const FileTree = memo(function FileTree({
                 <FileTree
                   key={child.path}
                   node={child}
-                  files={files}
                   selectedPaths={selectedPaths}
-                  onTogglePath={onTogglePath}
+                  selectionIndex={selectionIndex}
                   onToggleFolder={onToggleFolder}
                   minifyEnabled={minifyEnabled}
                   depth={depth + 1}

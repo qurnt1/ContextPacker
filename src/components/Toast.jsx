@@ -24,6 +24,8 @@ export default function Toast({ message, visible, type = 'success', onDone }) {
           exit={{ opacity: 0, y: 16, scale: 0.95 }}
           transition={{ duration: 0.25, ease: 'easeOut' }}
           className="fixed bottom-6 right-6 z-[9999] flex items-center gap-2.5 px-4 py-3 rounded-lg shadow-lg pointer-events-auto"
+          role={isSuccess ? 'status' : 'alert'}
+          aria-live="polite"
           style={{
             background: 'var(--cp-surface)',
             border: `1px solid ${isSuccess ? 'rgba(34,197,94,0.3)' : 'var(--cp-border)'}`,

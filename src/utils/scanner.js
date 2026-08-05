@@ -4,10 +4,13 @@ import { getExtension } from './helpers';
 import { minifyCode } from './minifier';
 import { countTokens, initEncoding } from './tokenCounter';
 import { MAX_FILE_SIZE } from '../constants';
+import { getSecurityMetadata } from './securityPolicy';
 
 export async function scanDirectory(dirHandle, onProgress, options = {}) {
-  const { applyGitignore = true, onFileStart } = options;
+  const { applyGitignore = true, onFileStart, signal } = options;
   initEncoding();
+
+  throwIfAborted(signal);
 
   const projectName = dirHandle.name;
 
@@ -25,10 +28,19 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
     includeDefaults: true,
   });
   const files = [];
-  const tree = { name: projectName, path: '', type: 'directory', children: [] };
+  const tree = {
+    name: projectName,
+    path: '',
+    type: 'directory',
+    children: [],
+    selectable: true,
+    blocked: false,
+    traversed: true,
+  };
   const candidates = [];
 
   async function scan(handle, basePath, parentNode) {
+    throwIfAborted(signal);
     const entries = [];
     for await (const entry of handle.values()) {
       entries.push(entry);
@@ -40,7 +52,31 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
     });
 
     for (const entry of entries) {
+      throwIfAborted(signal);
       const entryPath = basePath ? `${basePath}/${entry.name}` : entry.name;
+
+      const security = getSecurityMetadata(entryPath, entry.kind);
+      if (entry.kind === 'directory' && security.blocked) {
+        parentNode.children.push({
+          name: entry.name,
+          path: entryPath,
+          type: 'directory',
+          children: [],
+          ...security,
+        });
+        continue;
+      }
+
+      if (entry.kind === 'file' && security.blocked) {
+        parentNode.children.push({
+          name: entry.name,
+          path: entryPath,
+          type: 'file',
+          size: null,
+          ...security,
+        });
+        continue;
+      }
 
       try {
         if (filter.ignores(entryPath)) continue;
@@ -49,7 +85,15 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
       }
 
       if (entry.kind === 'directory') {
-        const dirNode = { name: entry.name, path: entryPath, type: 'directory', children: [] };
+        const dirNode = {
+          name: entry.name,
+          path: entryPath,
+          type: 'directory',
+          children: [],
+          selectable: true,
+          blocked: false,
+          traversed: true,
+        };
         parentNode.children.push(dirNode);
         await scan(entry, entryPath, dirNode);
       } else {
@@ -57,7 +101,19 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
 
         try {
           const file = await entry.getFile();
-          if (file.size > MAX_FILE_SIZE || file.size === 0) continue;
+          if (file.size > MAX_FILE_SIZE) {
+            parentNode.children.push({
+              name: entry.name,
+              path: entryPath,
+              type: 'file',
+              size: file.size,
+              selectable: false,
+              blocked: false,
+              blockedReason: 'size',
+              traversed: false,
+            });
+            continue;
+          }
           candidates.push({ entry, entryPath, parentNode, file });
         } catch (e) {
           console.warn(`Skipped ${entryPath}:`, e.message);
@@ -74,10 +130,11 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
   let count = 0;
   for (const candidate of candidates) {
     try {
+      throwIfAborted(signal);
       if (onFileStart) onFileStart(candidate.entry.name);
 
       const content = await candidate.file.text();
-      if (!content || isBinaryContent(content)) continue;
+      if (isBinaryContent(content)) continue;
 
       const extension = getExtension(candidate.entry.name);
       const lines = content.split('\n').length;
@@ -95,6 +152,10 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
         lines,
         tokens,
         minifiedTokens,
+        selectable: true,
+        blocked: false,
+        blockedReason: null,
+        traversed: true,
       });
 
       candidate.parentNode.children.push({
@@ -106,6 +167,10 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
         lines,
         tokens,
         minifiedTokens,
+        selectable: true,
+        blocked: false,
+        blockedReason: null,
+        traversed: true,
       });
     } catch (e) {
       console.warn(`Skipped ${candidate.entryPath}:`, e.message);
@@ -124,6 +189,13 @@ function pruneEmptyDirectories(node) {
   node.children = node.children.filter((child) => {
     if (child.type !== 'directory') return true;
     pruneEmptyDirectories(child);
-    return child.children.length > 0;
+    return child.children.length > 0 || child.blocked || child.selectable === false;
   });
+}
+
+function throwIfAborted(signal) {
+  if (!signal?.aborted) return;
+  const error = new Error('Analyse annulée.');
+  error.name = 'AbortError';
+  throw error;
 }

@@ -16,9 +16,9 @@ describe('Version consistency', () => {
     expect(APP_VERSION).toBe(pkg.version);
   });
 
-  it('package.json version is 4.0.0', () => {
+  it('package.json version follows SemVer', () => {
     const pkg = JSON.parse(readFileSync(resolve(__dirname, '../../package.json'), 'utf-8'));
-    expect(pkg.version).toBe('4.0.0');
+    expect(pkg.version).toMatch(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/);
   });
 
   it('README does not contain hardcoded old version 3.0.0', () => {

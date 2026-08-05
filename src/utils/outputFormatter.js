@@ -1,10 +1,12 @@
-export function generatePlainOutput(projectName, selectedFiles, totalTokens, minifyEnabled, tree, selectedPaths) {
+import { filterTreeForExport, sortTreeChildren } from './treeUtils';
+
+export function generatePlainOutput(projectName, selectedFiles, totalTokens, minifyEnabled, tree, selectedPaths, includeFullTree = false) {
   let output = '';
 
-  output += `[CONTEXTPACKER - PROJET: ${projectName}] | TOKENS: ${totalTokens} | MINIFICATION: ${minifyEnabled ? 'OUI' : 'NON'}\n\n`;
+  output += `[CONTEXTPACKER - PROJET: ${projectName}] | TOKENS CONTENU: ${totalTokens} | SOURCE PRESERVEE: OUI\n\n`;
 
   output += `[STRUCTURE]\n`;
-  const filteredTree = filterTree(tree, selectedPaths);
+  const filteredTree = filterTreeForExport(tree, selectedPaths, includeFullTree);
   if (filteredTree) {
     output += generateTreeText(filteredTree, '', true, true);
   }
@@ -35,10 +37,7 @@ export function generateTreeText(node, prefix = '', isLast = true, isRoot = true
   }
 
   if (node.children && node.children.length > 0) {
-    const sorted = [...node.children].sort((a, b) => {
-      if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
+    const sorted = sortTreeChildren(node.children);
 
     sorted.forEach((child, i) => {
       const childIsLast = i === sorted.length - 1;
@@ -48,20 +47,4 @@ export function generateTreeText(node, prefix = '', isLast = true, isRoot = true
   }
 
   return result;
-}
-
-function filterTree(node, selectedPaths) {
-  if (!node) return null;
-
-  if (node.type === 'file') {
-    return selectedPaths.has(node.path) ? { ...node } : null;
-  }
-
-  const filteredChildren = (node.children || [])
-    .map((child) => filterTree(child, selectedPaths))
-    .filter(Boolean);
-
-  if (filteredChildren.length === 0) return null;
-
-  return { ...node, children: filteredChildren };
 }

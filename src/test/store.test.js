@@ -142,6 +142,8 @@ describe('Store — visible selection behavior', () => {
       customThreshold: 0,
       showWarning: false,
       pendingPaths: null,
+      warningAccepted: false,
+      warningKind: null,
     });
   });
 
@@ -173,6 +175,71 @@ describe('Store — visible selection behavior', () => {
 
     expect(useStore.getState().showWarning).toBe(false);
     expect(useStore.getState().pendingPaths).toBeNull();
+  });
+
+  it('never selects blocked files', () => {
+    useStore.setState({
+      files: [
+        { path: '.env', blocked: true, selectable: false },
+        { path: 'public.js', tokens: 10, minifiedTokens: 10 },
+      ],
+      selectedPaths: new Set(),
+    });
+
+    useStore.getState().selectAll();
+
+    expect(useStore.getState().selectedPaths).toEqual(new Set(['public.js']));
+  });
+
+  it('accepts the selection warning once for the current session', () => {
+    useStore.setState({ tokenLimit: 100, warningPercent: 50 });
+    useStore.getState().selectRange('a.js', 'c.js', ['a.js', 'b.js', 'c.js']);
+    expect(useStore.getState().showWarning).toBe(true);
+
+    useStore.getState().confirmWarning();
+    useStore.getState().deselectAll();
+    useStore.getState().selectAll();
+
+    expect(useStore.getState().showWarning).toBe(false);
+    expect(useStore.getState().selectedPaths).toEqual(new Set(['a.js', 'b.js', 'c.js']));
+  });
+
+  it('does not attach a selection payload to settings warnings', () => {
+    useStore.setState({
+      selectedPaths: new Set(['a.js']),
+      tokenLimit: 10,
+      warningPercent: 50,
+      pendingPaths: null,
+      showWarning: false,
+    });
+
+    useStore.getState().setTokenLimit(1);
+
+    expect(useStore.getState().showWarning).toBe(true);
+    expect(useStore.getState().warningKind).toBe('settings');
+    expect(useStore.getState().pendingPaths).toBeNull();
+  });
+
+  it('preserves valid selections when refreshing the same project', () => {
+    useStore.setState({
+      projectLoaded: true,
+      sourceMeta: { type: 'local', projectId: 'refresh-id' },
+      selectedPaths: new Set(['a.js']),
+      savedSelection: null,
+    });
+
+    useStore.getState().completeScan({
+      name: 'test-project',
+      files: [
+        { path: 'a.js', selectable: true, blocked: false },
+        { path: 'new.js', selectable: true, blocked: false },
+      ],
+      tree: { name: 'test-project', path: '', type: 'directory', children: [] },
+      source: { type: 'local' },
+      projectId: 'refresh-id',
+    });
+
+    expect(useStore.getState().selectedPaths).toEqual(new Set(['a.js']));
   });
 });
 

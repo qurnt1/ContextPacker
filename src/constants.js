@@ -2,7 +2,6 @@ export const DEFAULT_IGNORED_PATTERNS = [
   'node_modules',
   '.git',
   'venv',
-  '.venv',
   '__pycache__',
   'dist',
   'build',
@@ -23,12 +22,6 @@ export const DEFAULT_IGNORED_PATTERNS = [
   '.DS_Store',
   'Thumbs.db',
   '*.log',
-  'package-lock.json',
-  'yarn.lock',
-  'pnpm-lock.yaml',
-  'bun.lockb',
-  '.env.local',
-  '.env.production',
 ];
 
 export const BINARY_EXTENSIONS = new Set([
@@ -54,8 +47,8 @@ export const BINARY_EXTENSIONS = new Set([
   '.DS_Store', '.ico',
 ]);
 
-export const TOKEN_WARNING_THRESHOLD = 128_000;
 export const DEFAULT_TOKEN_LIMITS = [32_000, 64_000, 128_000, 200_000, 500_000, 1_000_000];
 export const DEFAULT_WARNING_PERCENT = 40;
 export const MAX_FILE_SIZE = 1_000_000; // 1 MB
 export const MAX_HIGHLIGHT_SIZE = 50_000; // 50 KB
+export const MAX_PREVIEW_FILES = 40;

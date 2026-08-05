@@ -10,6 +10,7 @@ import {
   findMatchingHandle,
   migrateOldHandle,
 } from './utils/handleStorage';
+import { isSelectableFile } from './utils/securityPolicy';
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -42,8 +43,8 @@ function stableProjectKey(sourceMeta, projectId) {
 export function calculateSelectionTokens(files, paths, minifyEnabled) {
   let sum = 0;
   for (const f of files) {
-    if (paths.has(f.path)) {
-      sum += minifyEnabled ? f.minifiedTokens : f.tokens;
+    if (paths.has(f.path) && isSelectableFile(f)) {
+      sum += minifyEnabled ? (f.minifiedTokens || 0) : (f.tokens || 0);
     }
   }
   return sum;
@@ -62,21 +63,49 @@ const createScanSlice = (set, get) => ({
   scanTotal: 0,
   scanError: '',
   currentFile: '',
+  scanRequestId: 0,
+  scanController: null,
 
-  startScan: (mode) =>
-    set({ isScanning: true, scanCount: 0, scanTotal: 0, scanMode: mode, scanError: '', currentFile: '' }),
+  startScan: (mode) => {
+    get().scanController?.abort();
+    const controller = new AbortController();
+    const requestId = get().scanRequestId + 1;
+    set({
+      isScanning: true,
+      scanCount: 0,
+      scanTotal: 0,
+      scanMode: mode,
+      scanError: '',
+      currentFile: '',
+      scanRequestId: requestId,
+      scanController: controller,
+    });
+    return { requestId, signal: controller.signal };
+  },
 
   updateProgress: (count, total) =>
     set({ scanCount: count, scanTotal: total ?? get().scanTotal }),
 
   setCurrentFile: (name) => set({ currentFile: name }),
 
-  completeScan: ({ name, files, tree, source, projectId }) => {
-    const saved = get().savedSelection;
+  completeScan: ({ name, files, tree, source, projectId, scanRequestId }) => {
+    const state = get();
+    if (scanRequestId !== undefined && scanRequestId !== state.scanRequestId) return false;
+
+    const saved = state.savedSelection;
     const pKey = stableProjectKey(source || { type: get().scanMode }, projectId);
-    const restorePaths = saved && saved.projectKey === pKey
-      ? new Set(saved.paths.filter(p => files.some(f => f.path === p)))
-      : new Set();
+    const currentKey = state.sourceMeta
+      ? stableProjectKey(state.sourceMeta, state.sourceMeta.projectId)
+      : '';
+    const sameProject = currentKey === pKey;
+    const canRestoreSaved = Boolean(saved && saved.projectKey === pKey);
+    const pathsToRestore = sameProject
+      ? state.selectedPaths
+      : (canRestoreSaved ? new Set(saved.paths) : new Set());
+    const validPaths = new Set(
+      files.filter(isSelectableFile).map((file) => file.path)
+    );
+    const restorePaths = new Set([...pathsToRestore].filter((path) => validPaths.has(path)));
 
     set({
       projectName: name,
@@ -90,8 +119,13 @@ const createScanSlice = (set, get) => ({
       scanCount: 0,
       scanTotal: 0,
       currentFile: '',
-      savedSelection: restorePaths.size > 0 ? null : saved,
+      scanController: null,
+      savedSelection: sameProject || canRestoreSaved ? null : saved,
+      showWarning: false,
+      pendingPaths: null,
+      warningKind: null,
     });
+    return true;
   },
 
   failScan: (error) =>
@@ -99,8 +133,10 @@ const createScanSlice = (set, get) => ({
 
   scanFromHandle: async (dirHandle) => {
     const { startScan, updateProgress, completeScan, failScan, gitignoreEnabled, addRecentProject } = get();
+    let scanRequestId;
     try {
-      startScan('local');
+      const scan = startScan('local');
+      scanRequestId = scan.requestId;
 
       // Check if this handle matches an existing project via isSameEntry()
       let projectId = await findMatchingHandle(dirHandle);
@@ -132,10 +168,12 @@ const createScanSlice = (set, get) => ({
       const result = await scanDirectory(dirHandle, (count, total) => updateProgress(count, total), {
         applyGitignore: gitignoreEnabled,
         onFileStart: (name) => set({ currentFile: name }),
+        signal: scan.signal,
       });
-      completeScan({ name: result.name, files: result.files, tree: result.tree, source: { type: 'local' }, projectId });
+      const completed = completeScan({ name: result.name, files: result.files, tree: result.tree, source: { type: 'local' }, projectId, scanRequestId: scan.requestId });
+      if (!completed) return { ok: false, error: new Error('Scan remplacé.'), aborted: true };
 
-      saveHandle(projectId, dirHandle);
+      await saveHandle(projectId, dirHandle);
 
       const key = `local:${projectId}`;
       addRecentProject({
@@ -150,8 +188,11 @@ const createScanSlice = (set, get) => ({
 
       return { ok: true, value: result };
     } catch (err) {
+      if (scanRequestId !== undefined && get().scanRequestId !== scanRequestId) {
+        return { ok: false, error: err, aborted: true };
+      }
       if (err.name === 'AbortError') {
-        set({ isScanning: false });
+        if (get().scanRequestId === scanRequestId) set({ isScanning: false, scanController: null });
         return { ok: false, error: err, aborted: true };
       }
       console.error('Scan error:', err);
@@ -162,6 +203,7 @@ const createScanSlice = (set, get) => ({
 
   resetProject: () => {
     const { sourceMeta, selectedPaths } = get();
+    get().scanController?.abort();
     if (sourceMeta && selectedPaths.size > 0) {
       const pKey = stableProjectKey(sourceMeta, sourceMeta.projectId);
       set({ savedSelection: { projectKey: pKey, paths: [...selectedPaths] } });
@@ -179,6 +221,10 @@ const createScanSlice = (set, get) => ({
       isScanning: false,
       scanMode: 'local',
       currentFile: '',
+      scanController: null,
+      showWarning: false,
+      pendingPaths: null,
+      warningKind: null,
     });
   },
 
@@ -298,8 +344,10 @@ const createScanSlice = (set, get) => ({
       warningPercent,
       customThreshold,
     } = get();
+    let scanRequestId;
     try {
-      startScan('github');
+      const scan = startScan('github');
+      scanRequestId = scan.requestId;
 
       const result = await scanGitHubRepo({
         repoInput,
@@ -324,14 +372,17 @@ const createScanSlice = (set, get) => ({
         },
         onFileStart: (name) => set({ currentFile: name }),
         onProgress: (current, total) => updateProgress(current, total),
+        signal: scan.signal,
       });
 
-      completeScan({
+      const completed = completeScan({
         name: result.name,
         files: result.files,
         tree: result.tree,
         source: result.source || { type: 'github' },
+        scanRequestId: scan.requestId,
       });
+      if (!completed) return { ok: false, error: new Error('Scan remplacé.'), aborted: true };
 
       const src = result.source || {};
       const logicalKey = githubLogicalKey(
@@ -357,8 +408,11 @@ const createScanSlice = (set, get) => ({
 
       return { ok: true, value: result };
     } catch (err) {
+      if (scanRequestId !== undefined && get().scanRequestId !== scanRequestId) {
+        return { ok: false, error: err, aborted: true };
+      }
       if (err.name === 'AbortError') {
-        set({ isScanning: false });
+        if (get().scanRequestId === scanRequestId) set({ isScanning: false, scanController: null });
         return { ok: false, error: err, aborted: true };
       }
       console.error('GitHub scan error:', err);
@@ -374,6 +428,8 @@ const createSelectionSlice = (set, get) => ({
   savedSelection: null,
   showWarning: false,
   pendingPaths: null,
+  warningKind: null,
+  warningAccepted: false,
 
   /**
    * Centralized selection request.
@@ -381,15 +437,17 @@ const createSelectionSlice = (set, get) => ({
    * Deselecting never triggers a popup.
    */
   requestSelection: (nextPaths) => {
-    const { files, minifyEnabled, tokenLimit, warningPercent, customThreshold, selectedPaths } = get();
-    const paths = nextPaths instanceof Set ? nextPaths : new Set(nextPaths);
+    const { files, minifyEnabled, tokenLimit, warningPercent, customThreshold, selectedPaths, warningAccepted } = get();
+    const requestedPaths = nextPaths instanceof Set ? nextPaths : new Set(nextPaths);
+    const selectablePaths = new Set(files.filter(isSelectableFile).map((file) => file.path));
+    const paths = new Set([...requestedPaths].filter((path) => selectablePaths.has(path)));
 
     const currentTokens = calculateSelectionTokens(files, selectedPaths, minifyEnabled);
     const nextTokens = calculateSelectionTokens(files, paths, minifyEnabled);
 
     // Deselecting — always allow immediately
     if (nextTokens <= currentTokens) {
-      set({ selectedPaths: paths });
+      set({ selectedPaths: paths, pendingPaths: null, showWarning: false, warningKind: null });
       return;
     }
 
@@ -397,12 +455,12 @@ const createSelectionSlice = (set, get) => ({
     const overPercent = nextTokens > (tokenLimit * warningPercent) / 100;
     const overCustom = customThreshold > 0 && nextTokens > customThreshold;
 
-    if (overPercent || overCustom) {
-      set({ pendingPaths: paths, showWarning: true });
+    if ((overPercent || overCustom) && !warningAccepted) {
+      set({ pendingPaths: paths, showWarning: true, warningKind: 'selection' });
       return;
     }
 
-    set({ selectedPaths: paths });
+    set({ selectedPaths: paths, pendingPaths: null, showWarning: false, warningKind: null });
   },
 
   togglePath: (path) => {
@@ -416,7 +474,8 @@ const createSelectionSlice = (set, get) => ({
     const state = get();
     const next = new Set(state.selectedPaths);
     const folderFiles = state.files.filter(
-      (f) => f.path.startsWith(folderPath + '/') || f.path === folderPath
+      (file) => isSelectableFile(file) &&
+        (file.path.startsWith(folderPath + '/') || file.path === folderPath)
     );
     const allSelected = folderFiles.every((f) => next.has(f.path));
     folderFiles.forEach((f) => {
@@ -429,7 +488,7 @@ const createSelectionSlice = (set, get) => ({
   toggleExtension: (ext) => {
     const state = get();
     const next = new Set(state.selectedPaths);
-    const extFiles = state.files.filter((f) => f.extension === ext);
+    const extFiles = state.files.filter((f) => isSelectableFile(f) && f.extension === ext);
     const allSelected = extFiles.every((f) => next.has(f.path));
     extFiles.forEach((f) => {
       if (allSelected) next.delete(f.path);
@@ -440,20 +499,22 @@ const createSelectionSlice = (set, get) => ({
 
   selectAll: () => {
     const { files } = get();
-    const allPaths = new Set(files.map((f) => f.path));
+    const allPaths = new Set(files.filter(isSelectableFile).map((f) => f.path));
     get().requestSelection(allPaths);
   },
 
-  deselectAll: () => set({ selectedPaths: new Set() }),
+  deselectAll: () => set({ selectedPaths: new Set(), pendingPaths: null, showWarning: false, warningKind: null }),
 
   confirmWarning: () =>
     set((state) => ({
       selectedPaths: state.pendingPaths || state.selectedPaths,
       pendingPaths: null,
       showWarning: false,
+      warningAccepted: true,
+      warningKind: null,
     })),
 
-  cancelWarning: () => set({ pendingPaths: null, showWarning: false }),
+  cancelWarning: () => set({ pendingPaths: null, showWarning: false, warningKind: null }),
 
   selectRange: (fromPath, toPath, visiblePaths) => {
     const { selectedPaths, files } = get();
@@ -466,7 +527,9 @@ const createSelectionSlice = (set, get) => ({
     const end = Math.max(idxA, idxB);
     const next = new Set(selectedPaths);
     for (let i = start; i <= end; i++) {
-      next.add(paths[i]);
+      if (files.some((file) => file.path === paths[i] && isSelectableFile(file))) {
+        next.add(paths[i]);
+      }
     }
     get().requestSelection(next);
   },
@@ -482,6 +545,7 @@ const createSettingsSlice = (set, get) => ({
   warningPercent: 40,
   customThreshold: 0,
   githubToken: '',
+  includeFullTreeInExport: false,
   recentProjects: [],
   sidebarCollapsed: false,
   sidebarWidth: 340,
@@ -501,9 +565,9 @@ const createSettingsSlice = (set, get) => ({
       const overPercent = nextTokens > (tokenLimit * warningPercent) / 100;
       const overCustom = customThreshold > 0 && nextTokens > customThreshold;
       if (nextTokens > previousTokens && (overPercent || overCustom)) {
-        set({ pendingPaths: selectedPaths, showWarning: true });
+        set({ pendingPaths: null, showWarning: true, warningKind: 'settings' });
       } else {
-        set({ pendingPaths: null, showWarning: false });
+        set({ pendingPaths: null, showWarning: false, warningKind: null });
       }
     }
   },
@@ -519,9 +583,9 @@ const createSettingsSlice = (set, get) => ({
       const overPercent = tokens > (newLimit * warningPercent) / 100;
       const overCustom = customThreshold > 0 && tokens > customThreshold;
       if (overPercent || overCustom) {
-        set({ pendingPaths: selectedPaths, showWarning: true });
+        set({ pendingPaths: null, showWarning: true, warningKind: 'settings' });
       } else {
-        set({ pendingPaths: null, showWarning: false });
+        set({ pendingPaths: null, showWarning: false, warningKind: null });
       }
     }
   },
@@ -535,9 +599,9 @@ const createSettingsSlice = (set, get) => ({
       const overPercent = tokens > (tokenLimit * newPct) / 100;
       const overCustom = customThreshold > 0 && tokens > customThreshold;
       if (overPercent || overCustom) {
-        set({ pendingPaths: selectedPaths, showWarning: true });
+        set({ pendingPaths: null, showWarning: true, warningKind: 'settings' });
       } else {
-        set({ pendingPaths: null, showWarning: false });
+        set({ pendingPaths: null, showWarning: false, warningKind: null });
       }
     }
   },
@@ -550,14 +614,16 @@ const createSettingsSlice = (set, get) => ({
       const overPercent = tokens > (tokenLimit * warningPercent) / 100;
       const overCustom = newThresh > 0 && tokens > newThresh;
       if (overPercent || overCustom) {
-        set({ pendingPaths: selectedPaths, showWarning: true });
+        set({ pendingPaths: null, showWarning: true, warningKind: 'settings' });
       } else {
-        set({ pendingPaths: null, showWarning: false });
+        set({ pendingPaths: null, showWarning: false, warningKind: null });
       }
     }
   },
   setGithubToken: (v) =>
     set({ githubToken: typeof v === 'function' ? v(get().githubToken) : v }),
+  setIncludeFullTreeInExport: (v) =>
+    set({ includeFullTreeInExport: typeof v === 'function' ? v(get().includeFullTreeInExport) : v }),
 
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   setSidebarWidth: (w) => set({ sidebarWidth: Math.max(180, Math.min(600, w)) }),
@@ -598,9 +664,14 @@ const createSettingsSlice = (set, get) => ({
       // Also clean up IndexedDB handle for local projects
       const project = state.recentProjects.find((p) => p.key === key);
       if (project?.type === 'local' && project.id) {
-        deleteHandle(project.id).catch(() => {});
+        deleteHandle(project.id).catch((error) => {
+          console.warn('Impossible de supprimer le handle local.', error);
+        });
       }
-      return { recentProjects: state.recentProjects.filter((p) => p.key !== key) };
+      return {
+        recentProjects: state.recentProjects.filter((p) => p.key !== key),
+        favoriteProjects: (state.favoriteProjects || []).filter((favoriteKey) => favoriteKey !== key),
+      };
     }),
 
   loadGithubHistory: () => {
@@ -654,8 +725,8 @@ const createSettingsSlice = (set, get) => ({
           ],
         };
       });
-    } catch {
-      // localStorage unavailable
+    } catch (error) {
+      console.warn('Impossible de charger l’historique GitHub.', error);
     }
   },
 });
@@ -670,13 +741,18 @@ export const useStore = create(
     }),
     {
       name: 'cp-store-settings',
+      version: 1,
+      migrate: (persistedState) => ({
+        ...persistedState,
+        githubToken: '',
+      }),
       partialize: (state) => ({
         minifyEnabled: state.minifyEnabled,
         gitignoreEnabled: state.gitignoreEnabled,
         tokenLimit: state.tokenLimit,
         warningPercent: state.warningPercent,
         customThreshold: state.customThreshold,
-        githubToken: state.githubToken,
+        includeFullTreeInExport: state.includeFullTreeInExport,
         recentProjects: state.recentProjects,
         favoriteProjects: state.favoriteProjects,
         onboardingDone: state.onboardingDone,
@@ -689,7 +765,7 @@ export const useStore = create(
 // ── Selectors ───────────────────────────────────────────────
 export const selectExtensions = (state) => {
   const countMap = {};
-  state.files.forEach((file) => {
+  state.files.filter(isSelectableFile).forEach((file) => {
     if (!file.extension) return;
     countMap[file.extension] = (countMap[file.extension] || 0) + 1;
   });
@@ -700,11 +776,11 @@ export const selectExtensions = (state) => {
 
 export const selectSelectedFiles = (state) =>
   state.files
-    .filter((file) => state.selectedPaths.has(file.path))
+    .filter((file) => isSelectableFile(file) && state.selectedPaths.has(file.path))
     .sort((a, b) => b.size - a.size);
 
 export const selectStats = (state) => {
-  const selected = state.files.filter((file) => state.selectedPaths.has(file.path));
+  const selected = state.files.filter((file) => isSelectableFile(file) && state.selectedPaths.has(file.path));
   const totalTokens = selected.reduce(
     (sum, file) => sum + (state.minifyEnabled ? file.minifiedTokens : file.tokens),
     0
@@ -729,7 +805,8 @@ export const selectOutputText = (state) => {
     selectStats(state).totalTokens,
     state.minifyEnabled,
     state.tree,
-    state.selectedPaths
+    state.selectedPaths,
+    state.includeFullTreeInExport
   );
 };
 
@@ -737,7 +814,7 @@ export const selectHasProject = (state) => state.projectLoaded;
 
 export const selectWarningTokens = (state) => {
   if (!state.pendingPaths) return 0;
-  return state.files
-    .filter((f) => state.pendingPaths.has(f.path))
+    return state.files
+    .filter((f) => isSelectableFile(f) && state.pendingPaths.has(f.path))
     .reduce((sum, f) => sum + (state.minifyEnabled ? f.minifiedTokens : f.tokens), 0);
 };
