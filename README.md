@@ -4,9 +4,9 @@ Transformez un dossier local ou un dépôt GitHub en contexte structuré pour vo
 
 ![Accueil](./assets/accueil.png)
 
-## Démo
+## Accéder au site
 
-[Live Demo](https://qurnt1.github.io/ContextPacker/)
+[Accéder au site](https://qurnt1.github.io/ContextPacker/)
 
 Pour l’import local, utilisez Chrome, Edge, Brave ou un autre navigateur Chromium compatible avec la File System Access API.
 
