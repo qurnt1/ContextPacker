@@ -40,6 +40,17 @@ beforeEach(() => {
 });
 
 describe('Sidebar controls', () => {
+  it('starts with full-tree export enabled on a fresh store state and still allows manual toggling', () => {
+    useStore.setState(useStore.getInitialState(), true);
+    render(<Sidebar />);
+
+    const checkbox = screen.getByRole('checkbox', { name: /Arborescence complète/i });
+    expect(checkbox).toBeChecked();
+
+    fireEvent.click(checkbox);
+    expect(checkbox).not.toBeChecked();
+  });
+
   it('uses clear labels and exposes toggle states', () => {
     render(<Sidebar />);
 

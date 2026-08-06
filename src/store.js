@@ -545,7 +545,7 @@ const createSettingsSlice = (set, get) => ({
   warningPercent: 40,
   customThreshold: 0,
   githubToken: '',
-  includeFullTreeInExport: false,
+  includeFullTreeInExport: true,
   recentProjects: [],
   sidebarCollapsed: false,
   sidebarWidth: 340,
