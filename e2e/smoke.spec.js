@@ -76,6 +76,11 @@ test('opens a mocked GitHub project and keeps the workbench usable', async ({ pa
   await openGithubProject(page);
   await expect(page.getByText('Formatage compact')).toBeVisible();
 
+  await expect(page.locator('[data-file-type="readme"]').first()).toBeVisible();
+  await expect(page.locator('[data-file-type="readme"]').first()).toHaveAttribute('viewBox', '0 0 16 16');
+  await expect(page.locator('[data-file-type="react"]').first()).toBeVisible();
+  await expect(page.locator('[data-file-type="react"]').first()).toHaveAttribute('viewBox', '0 0 32 32');
+
   await page.getByRole('button', { name: /Sélectionner README.md/ }).click();
   await expect(page.getByText('Prévisualisation')).toBeVisible();
 

@@ -44,10 +44,22 @@ describe('file type icons', () => {
     const icon = container.querySelector('[data-file-type="docker"]');
 
     expect(icon).toBeInTheDocument();
+    expect(icon).toHaveClass('block');
     expect(icon).toHaveAttribute('width', '15');
     expect(icon).toHaveAttribute('height', '15');
+    expect(icon).toHaveAttribute('viewBox', '0 0 24 24');
     expect(icon).toHaveAttribute('aria-hidden', 'true');
     expect(icon).toHaveAttribute('title', 'Docker');
+  });
+
+  it.each([
+    ['data.json', '.json', 'json', '0 -960 960 960'],
+    ['App.svelte', '.svelte', 'svelte', '0 0 300 300'],
+  ])('preserves the native viewBox for %s', (fileName, extension, type, viewBox) => {
+    const { container } = render(<FileTypeIcon fileName={fileName} extension={extension} />);
+    const icon = container.querySelector(`[data-file-type="${type}"]`);
+
+    expect(icon).toHaveAttribute('viewBox', viewBox);
   });
 });
 

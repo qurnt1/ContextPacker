@@ -60,24 +60,31 @@ const TYPE_BRAND_ICONS = {
   generic: genericIcon,
 };
 
-function getBrandMarkup(rawSvg) {
-  return rawSvg.match(/<svg[^>]*>([\s\S]*)<\/svg>/)?.[1] || '';
+function getBrandSvg(rawSvg) {
+  const svgMatch = rawSvg.match(/<svg\b([^>]*)>([\s\S]*)<\/svg>/);
+  const viewBox = svgMatch?.[1].match(/\bviewBox=['"]([^'"]+)['"]/i)?.[1] || '0 0 16 16';
+
+  return {
+    content: svgMatch?.[2] || '',
+    viewBox,
+  };
 }
 
 const FileTypeIcon = memo(function FileTypeIcon({ fileName, extension, size = 15, className = '' }) {
   const fileType = getFileTypeInfo(fileName, extension);
   const icon = TYPE_BRAND_ICONS[fileType.type] || genericIcon;
+  const brandSvg = getBrandSvg(icon);
 
   return (
     <svg
       aria-hidden="true"
-      className={`flex-shrink-0 ${className}`}
+      className={`block flex-shrink-0 ${className}`}
       data-file-type={fileType.type}
       height={size}
-      viewBox="0 0 16 16"
+      viewBox={brandSvg.viewBox}
       width={size}
       title={fileType.label}
-      dangerouslySetInnerHTML={{ __html: getBrandMarkup(icon) }}
+      dangerouslySetInnerHTML={{ __html: brandSvg.content }}
     />
   );
 });
