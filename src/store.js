@@ -566,7 +566,7 @@ const MAX_RECENT_PROJECTS = 10;
 const createSettingsSlice = (set, get) => ({
   minifyEnabled: false,
   gitignoreEnabled: true,
-  tokenLimit: 128_000,
+  tokenLimit: 200_000,
   warningPercent: 40,
   customThreshold: 0,
   githubToken: '',

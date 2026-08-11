@@ -42,6 +42,12 @@ vi.mock('../utils/githubScanner', () => ({
 import { isAboveWarningThreshold, useStore } from '../store';
 import { getHandle, deleteHandle } from '../utils/handleStorage';
 
+describe('Store defaults', () => {
+  it('starts with a 200k token limit', () => {
+    expect(useStore.getInitialState().tokenLimit).toBe(200_000);
+  });
+});
+
 describe('Store — local project identity', () => {
   beforeEach(() => {
     useStore.setState({ recentProjects: [], favoriteProjects: [], files: [], projectName: '', selectedPaths: new Set(), isScanning: false });

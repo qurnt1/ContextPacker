@@ -197,7 +197,7 @@ export default function ExportMenu({
 
   return (
     <>
-      <div className="relative flex-shrink-0" ref={menuRef}>
+      <div className="relative flex-shrink-0 justify-self-end" ref={menuRef}>
         <button
           ref={triggerRef}
           onClick={() => setOpen((v) => !v)}

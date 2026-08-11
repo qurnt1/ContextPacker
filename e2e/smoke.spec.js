@@ -76,6 +76,14 @@ test('opens a mocked GitHub project and keeps the workbench usable', async ({ pa
   await openGithubProject(page);
   await expect(page.getByText('Formatage compact')).toBeVisible();
 
+  const statusBar = page.locator('.status-bar');
+  const statusBarBox = await statusBar.boundingBox();
+  const exportButtonBox = await page.getByRole('button', { name: 'Exporter' }).boundingBox();
+  expect(statusBarBox).not.toBeNull();
+  expect(exportButtonBox).not.toBeNull();
+  expect(exportButtonBox.x + exportButtonBox.width).toBeGreaterThan(statusBarBox.x + statusBarBox.width - 40);
+  expect(exportButtonBox.x + exportButtonBox.width).toBeLessThanOrEqual(statusBarBox.x + statusBarBox.width + 1);
+
   await expect(page.locator('[data-file-type="readme"]').first()).toBeVisible();
   await expect(page.locator('[data-file-type="readme"]').first()).toHaveAttribute('viewBox', '0 0 16 16');
   await expect(page.locator('[data-file-type="react"]').first()).toBeVisible();
