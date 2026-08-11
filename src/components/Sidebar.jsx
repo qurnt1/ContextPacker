@@ -295,7 +295,7 @@ export default function Sidebar() {
             <CheckSquare className="w-3 h-3" />Tout sélectionner
           </button>
           <button onClick={deselectAll} className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded-md bg-cyber-surface-2 hover:bg-red-500/8 text-cyber-text-2 hover:text-red-400 border border-transparent hover:border-red-500/20 transition-all">
-            <Square className="w-3 h-3" />Désélectionner
+            <Square className="w-3 h-3" />Tout désélectionner
           </button>
         </div>
         <div className="flex gap-1.5">
