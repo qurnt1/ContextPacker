@@ -129,27 +129,27 @@
     width: clamp(12rem, 22vw, 22rem);
     aspect-ratio: 1;
     border-radius: 999px;
-    filter: blur(46px);
+    filter: blur(40px);
     will-change: transform, opacity;
   }
 
   .welcome-orb-lime {
     left: 8%;
     top: 8%;
-    background: radial-gradient(circle, rgba(184, 237, 99, 0.24) 0%, rgba(184, 237, 99, 0.07) 44%, transparent 72%);
+    background: radial-gradient(circle, rgba(184, 237, 99, 0.32) 0%, rgba(184, 237, 99, 0.1) 44%, transparent 72%);
   }
 
   .welcome-orb-teal {
     right: 10%;
     bottom: 12%;
-    background: radial-gradient(circle, rgba(98, 230, 200, 0.2) 0%, rgba(98, 230, 200, 0.06) 44%, transparent 72%);
+    background: radial-gradient(circle, rgba(98, 230, 200, 0.28) 0%, rgba(98, 230, 200, 0.08) 44%, transparent 72%);
   }
 
   .welcome-orb-indigo {
     right: 28%;
     top: 18%;
     width: clamp(10rem, 16vw, 17rem);
-    background: radial-gradient(circle, rgba(127, 156, 245, 0.16) 0%, rgba(127, 156, 245, 0.04) 44%, transparent 72%);
+    background: radial-gradient(circle, rgba(127, 156, 245, 0.22) 0%, rgba(127, 156, 245, 0.06) 44%, transparent 72%);
   }
 
   .welcome-content {
@@ -214,7 +214,7 @@
 
     .welcome-orb {
       width: clamp(10rem, 42vw, 16rem);
-      filter: blur(34px);
+      filter: blur(30px);
     }
 
     .welcome-orb-lime {
