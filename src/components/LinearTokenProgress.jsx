@@ -7,12 +7,16 @@ import { motion } from 'framer-motion';
  *  - current: number (tokens used)
  *  - limit:   number (token limit)
  *  - isWarning: boolean (override: force warning state)
+ *  - warningPercent: number (configured warning threshold)
  */
-export default function LinearTokenProgress({ current, limit, isWarning }) {
+export default function LinearTokenProgress({ current, limit, isWarning, warningPercent = 80 }) {
   const pct = limit > 0 ? Math.min((current / limit) * 100, 100) : 0;
   const realPct = limit > 0 ? (current / limit) * 100 : 0;
   const danger = realPct > 100;
-  const warn = realPct > 80 || isWarning;
+  const safeWarningPercent = Number.isFinite(warningPercent)
+    ? Math.min(Math.max(warningPercent, 0), 100)
+    : 80;
+  const warn = realPct > safeWarningPercent || isWarning;
 
   const barColor = danger
     ? 'var(--cp-danger, #ef4444)'

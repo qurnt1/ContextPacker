@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import 'fake-indexeddb/auto';
 
 // fake-indexeddb uses structured clone, which can't serialize functions.
@@ -11,7 +11,6 @@ import {
   getHandle,
   deleteHandle,
   listHandles,
-  findMatchingHandle,
   migrateOldHandle,
 } from '../utils/handleStorage';
 

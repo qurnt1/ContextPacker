@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Keyboard } from 'lucide-react';
+import ModalPortal from './ModalPortal';
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform || '');
 
@@ -27,7 +27,8 @@ export default function ShortcutHelp({ isOpen, onClose }) {
     }
   }, [isOpen]);
 
-  return createPortal(
+  return (
+    <ModalPortal isOpen={isOpen} onClose={onClose} zIndex={200}>
     <AnimatePresence>
       {isOpen && (
         <>
@@ -95,7 +96,7 @@ export default function ShortcutHelp({ isOpen, onClose }) {
             </motion.div>
         </>
       )}
-    </AnimatePresence>,
-    document.body
+    </AnimatePresence>
+    </ModalPortal>
   );
 }

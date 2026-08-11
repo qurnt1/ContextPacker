@@ -1,21 +1,40 @@
-import { getEncoding } from 'js-tiktoken';
+import { Tiktoken } from 'js-tiktoken/lite';
 
 let encoding = null;
+let encodingPromise = null;
 
-export function initEncoding() {
-  if (!encoding) {
+async function loadEncoding() {
+  try {
+    const { default: o200kBase } = await import('js-tiktoken/ranks/o200k_base');
+    return new Tiktoken(o200kBase);
+  } catch (primaryError) {
     try {
-      encoding = getEncoding('o200k_base');
-    } catch (e) {
-      console.warn('o200k_base unavailable, falling back to cl100k_base:', e);
-      encoding = getEncoding('cl100k_base');
+      const { default: cl100kBase } = await import('js-tiktoken/ranks/cl100k_base');
+      return new Tiktoken(cl100kBase);
+    } catch {
+      throw primaryError;
     }
   }
-  return encoding;
+}
+
+export function initEncoding() {
+  if (encoding) return Promise.resolve(encoding);
+  if (!encodingPromise) {
+    encodingPromise = loadEncoding()
+      .then((loadedEncoding) => {
+        encoding = loadedEncoding;
+        return loadedEncoding;
+      })
+      .catch((error) => {
+        encodingPromise = null;
+        throw error;
+      });
+  }
+  return encodingPromise;
 }
 
 export function countTokens(text) {
   if (!text) return 0;
-  const enc = initEncoding();
-  return enc.encode(text).length;
+  if (!encoding) throw new Error('Le tokenizer n’est pas initialisé.');
+  return encoding.encode(text).length;
 }

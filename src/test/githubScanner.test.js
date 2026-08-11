@@ -17,6 +17,14 @@ function jsonResponse(data, status = 200, headers = {}) {
   };
 }
 
+function textResponse(data, status = 200) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    text: vi.fn().mockResolvedValue(data),
+  };
+}
+
 describe('parseGitHubRepoInput', () => {
   it('parses a full GitHub URL', () => {
     const result = parseGitHubRepoInput('https://github.com/facebook/react');
@@ -168,5 +176,83 @@ describe('listGitHubBranches', () => {
     expect(result.source.requestedRef).toBe('');
     expect(result.source.followDefaultBranch).toBe(true);
     expect(result.source.resolvedRef).toBe('main');
+  });
+});
+
+describe('scanGitHubRepo file downloads', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    resetGitHubCaches();
+  });
+
+  it('downloads files from raw URLs pinned to the resolved commit SHA', async () => {
+    const commitSha = '0123456789abcdef0123456789abcdef01234567';
+    const treeSha = '76543210fedcba9876543210fedcba9876543210';
+    const rawBase = `https://raw.githubusercontent.com/acme/raw-repo/${commitSha}/`;
+
+    global.fetch = vi.fn(async (url) => {
+      if (url.endsWith('/repos/acme/raw-repo')) {
+        return jsonResponse({ default_branch: 'main', private: false });
+      }
+      if (url.endsWith('/git/ref/heads/main')) {
+        return jsonResponse({ object: { sha: commitSha } });
+      }
+      if (url.endsWith(`/git/commits/${commitSha}`)) {
+        return jsonResponse({ tree: { sha: treeSha } });
+      }
+      if (url.endsWith(`/git/trees/${treeSha}?recursive=1`)) {
+        return jsonResponse({
+          tree: [
+            { path: 'src/index.js', type: 'blob', sha: 'index-blob', size: 18 },
+            { path: 'src/nested/view.js', type: 'blob', sha: 'view-blob', size: 19 },
+          ],
+          truncated: false,
+        });
+      }
+      if (url === `${rawBase}src/index.js`) {
+        return textResponse('export default 1;');
+      }
+      if (url === `${rawBase}src/nested/view.js`) {
+        return textResponse('export default 2;');
+      }
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+
+    const result = await scanGitHubRepo({
+      repoInput: 'acme/raw-repo',
+      subPath: 'src',
+      token: 'secret-token',
+      applyGitignore: false,
+    });
+
+    const rawCalls = global.fetch.mock.calls.filter(([url]) => url.startsWith(rawBase));
+    expect(rawCalls.map(([url]) => url).sort()).toEqual([
+      `${rawBase}src/index.js`,
+      `${rawBase}src/nested/view.js`,
+    ]);
+    expect(global.fetch.mock.calls.some(([url]) => url.includes('/git/blobs/'))).toBe(false);
+    expect(rawCalls).toHaveLength(2);
+    expect(rawCalls.every(([, options]) => !options.headers?.Authorization)).toBe(true);
+    expect(result.resolvedSha).toBe(commitSha);
+    expect(result.treeSha).toBe(treeSha);
+    expect(result.files.map((file) => file.path)).toEqual(['src/index.js', 'src/nested/view.js']);
+  });
+
+  it('surfaces a raw download failure instead of returning partial content', async () => {
+    const commitSha = '0123456789abcdef0123456789abcdef01234567';
+    const treeSha = '76543210fedcba9876543210fedcba9876543210';
+
+    global.fetch = vi.fn(async (url) => {
+      if (url.endsWith('/repos/acme/raw-repo')) return jsonResponse({ default_branch: 'main', private: false });
+      if (url.endsWith('/git/ref/heads/main')) return jsonResponse({ object: { sha: commitSha } });
+      if (url.endsWith(`/git/commits/${commitSha}`)) return jsonResponse({ tree: { sha: treeSha } });
+      if (url.endsWith(`/git/trees/${treeSha}?recursive=1`)) {
+        return jsonResponse({ tree: [{ path: 'src/index.js', type: 'blob', size: 18 }], truncated: false });
+      }
+      return new Response('missing', { status: 404 });
+    });
+
+    await expect(scanGitHubRepo({ repoInput: 'acme/raw-repo', subPath: 'src', applyGitignore: false }))
+      .rejects.toThrow('Impossible de télécharger src/index.js');
   });
 });

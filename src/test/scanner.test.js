@@ -94,4 +94,26 @@ describe('scanDirectory progress', () => {
     expect(result.files.map((file) => file.path)).toEqual(['data.json', 'empty.json', 'table.csv']);
     expect(result.files.find((file) => file.path === 'table.csv')).toMatchObject({ lines: 3, content: 'nom;ville\r\nÉlodie;Poitiers\r\n' });
   });
+
+  it('attaches redacted potential-secret metadata while preserving content', async () => {
+    const root = directoryEntry('demo', [
+      fileEntry('config.js', 'const apiKey = "long-real-looking-value";'),
+    ]);
+
+    const result = await scanDirectory(root);
+    expect(result.files[0]).toMatchObject({
+      path: 'config.js',
+      content: 'const apiKey = "long-real-looking-value";',
+      potentialSecrets: [{ kind: 'credential-assignment', line: 1 }],
+    });
+    expect(result.files[0].potentialSecrets[0]).not.toHaveProperty('value');
+  });
+
+  it('rejects a local scan above the global file cap before reading content', async () => {
+    const entries = Array.from({ length: 1201 }, (_, index) => fileEntry(`file-${index}.js`, 'const value = 1;'));
+    const root = directoryEntry('demo', entries);
+
+    await expect(scanDirectory(root)).rejects.toThrow('Limite actuelle : 1200');
+    expect(entries[0].getFile).toHaveBeenCalledTimes(1);
+  });
 });

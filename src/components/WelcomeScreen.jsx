@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   FolderOpen,
   AlertTriangle,
@@ -21,6 +21,7 @@ const isSupported = typeof window !== 'undefined' && 'showDirectoryPicker' in wi
 const MAX_VISIBLE = 6;
 
 export default function WelcomeScreen({ onShowOnboarding }) {
+  const reduceMotion = useReducedMotion();
   const handleOpenLocal = useStore((s) => s.handleOpenLocal);
   const handleOpenGitHub = useStore((s) => s.handleOpenGitHub);
   const handleReopenLocal = useStore((s) => s.handleReopenLocal);
@@ -254,6 +255,22 @@ export default function WelcomeScreen({ onShowOnboarding }) {
 
   return (
     <div className="welcome-shell flex-1 flex items-center justify-center relative overflow-hidden" onDragEnter={handleDragEnter} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+      <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+        <motion.div
+          className="absolute -left-32 -top-28 h-[28rem] w-[28rem] rounded-full blur-3xl"
+          style={{ background: 'radial-gradient(circle, rgba(184, 237, 99, 0.12), transparent 68%)' }}
+          initial={{ x: 0, y: 0, scale: 1, opacity: 0.65 }}
+          animate={reduceMotion ? { x: 0, y: 0, scale: 1, opacity: 0.65 } : { x: 48, y: 26, scale: 1.08, opacity: [0.5, 0.75, 0.5] }}
+          transition={reduceMotion ? undefined : { duration: 21, ease: 'easeInOut', repeat: Infinity }}
+        />
+        <motion.div
+          className="absolute -bottom-40 -right-24 h-[30rem] w-[30rem] rounded-full blur-3xl"
+          style={{ background: 'radial-gradient(circle, rgba(83, 128, 93, 0.14), transparent 68%)' }}
+          initial={{ x: 0, y: 0, scale: 1, opacity: 0.55 }}
+          animate={reduceMotion ? { x: 0, y: 0, scale: 1, opacity: 0.55 } : { x: -42, y: -20, scale: 1.06, opacity: [0.42, 0.65, 0.42] }}
+          transition={reduceMotion ? undefined : { duration: 24, ease: 'easeInOut', repeat: Infinity }}
+        />
+      </div>
       <motion.div className="flex-1 flex items-center justify-center relative" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.5 }}>
         {isDragOver && (
           <div className="absolute inset-0 z-30 flex items-center justify-center bg-cyber-accent/[0.04] backdrop-blur-sm">

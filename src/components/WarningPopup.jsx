@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, X } from 'lucide-react';
 import { formatNumber } from '../utils/helpers';
 import { useStore } from '../store';
-import { isSelectableFile } from '../utils/securityPolicy';
+import { isSelectionAllowed } from '../utils/securityPolicy';
+import ModalPortal from './ModalPortal';
 
 export default function WarningPopup() {
   const isOpen = useStore((s) => s.showWarning);
@@ -17,13 +18,14 @@ export default function WarningPopup() {
   const cancelWarning = useStore((s) => s.cancelWarning);
   const warningKind = useStore((s) => s.warningKind);
   const isSettingsWarning = warningKind === 'settings';
+  const potentialSecretsAllowed = useStore((s) => s.potentialSecretsAllowed);
 
   const totalTokens = useMemo(() => {
     if (!pendingPaths) return 0;
     return files
-      .filter((f) => isSelectableFile(f) && pendingPaths.has(f.path))
+      .filter((f) => isSelectionAllowed(f, potentialSecretsAllowed) && pendingPaths.has(f.path))
       .reduce((sum, f) => sum + (minifyEnabled ? f.minifiedTokens : f.tokens), 0);
-  }, [pendingPaths, files, minifyEnabled]);
+  }, [pendingPaths, files, minifyEnabled, potentialSecretsAllowed]);
 
   const percentUsed = tokenLimit > 0 ? ((totalTokens / tokenLimit) * 100).toFixed(1) : '0.0';
   const reasons = [];
@@ -35,6 +37,7 @@ export default function WarningPopup() {
   }
 
   return (
+    <ModalPortal isOpen={isOpen} onClose={cancelWarning} zIndex={200}>
     <AnimatePresence>
       {isOpen && (
         <>
@@ -66,6 +69,7 @@ export default function WarningPopup() {
               </div>
               <button
                 onClick={cancelWarning}
+                aria-label="Fermer"
                 className="ml-auto p-1.5 rounded-lg hover:bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-text transition-colors"
               >
                 <X className="w-4 h-4" />
@@ -105,5 +109,6 @@ export default function WarningPopup() {
         </>
       )}
     </AnimatePresence>
+    </ModalPortal>
   );
 }

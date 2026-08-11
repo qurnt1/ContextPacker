@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Settings, X, Info, KeyRound } from 'lucide-react';
 import { DEFAULT_TOKEN_LIMITS } from '../constants';
 import { useStore } from '../store';
+import ModalPortal from './ModalPortal';
 
 export default function SettingsPanel() {
   const tokenLimit = useStore((s) => s.tokenLimit);
@@ -16,38 +16,7 @@ export default function SettingsPanel() {
   const setGithubToken = useStore((s) => s.setGithubToken);
 
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const triggerRef = useRef(null);
-  const panelRef = useRef(null);
-
-  useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
-  }, []);
-
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      triggerRef.current?.focus();
-      return undefined;
-    }
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') setIsOpen(false);
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    panelRef.current?.focus();
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
 
   const limits =
     DEFAULT_TOKEN_LIMITS && DEFAULT_TOKEN_LIMITS.length > 0
@@ -66,8 +35,7 @@ export default function SettingsPanel() {
         <span className="hidden sm:inline">Paramètres</span>
       </button>
 
-      {mounted &&
-        createPortal(
+      <ModalPortal isOpen={isOpen} onClose={() => setIsOpen(false)} zIndex={9998} restoreFocusRef={triggerRef}>
           <AnimatePresence>
             {isOpen ? (
               <>
@@ -89,7 +57,6 @@ export default function SettingsPanel() {
                   transition={{ type: 'spring', damping: 28, stiffness: 300 }}
                   className="fixed top-0 right-0 bottom-0 w-full max-w-[380px] bg-cyber-surface border-l border-cyber-border shadow-2xl flex flex-col"
                   style={{ zIndex: 9999 }}
-                  ref={panelRef}
                   role="dialog"
                   aria-modal="true"
                   tabIndex={-1}
@@ -266,9 +233,8 @@ export default function SettingsPanel() {
                 </motion.div>
               </>
             ) : null}
-          </AnimatePresence>,
-          document.body
-        )}
+          </AnimatePresence>
+      </ModalPortal>
     </>
   );
 }

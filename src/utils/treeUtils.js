@@ -1,13 +1,14 @@
-import { isSelectableFile } from './securityPolicy';
+import { isSelectionAllowed, isSelectableFile } from './securityPolicy';
 
-export function filterTreeForExport(node, selectedPaths = new Set(), includeFullTree = false) {
+export function filterTreeForExport(node, selectedPaths = new Set(), includeFullTree = false, potentialSecretsAllowed = false) {
   if (!node || node.blocked || node.selectable === false) return null;
+  if (node.potentialSecrets?.length && !potentialSecretsAllowed) return null;
   if (node.type === 'file') {
     return includeFullTree || selectedPaths.has(node.path) ? { ...node } : null;
   }
 
   const children = (node.children || [])
-    .map((child) => filterTreeForExport(child, selectedPaths, includeFullTree))
+    .map((child) => filterTreeForExport(child, selectedPaths, includeFullTree, potentialSecretsAllowed))
     .filter(Boolean);
   if (children.length === 0) return null;
   return { ...node, children };
@@ -41,13 +42,13 @@ export function getSearchResultPaths(node, query = '') {
   return [...new Set(paths)];
 }
 
-export function buildSelectionIndex(node, selectedPaths = new Set()) {
+export function buildSelectionIndex(node, selectedPaths = new Set(), potentialSecretsAllowed = false) {
   const index = new Map();
 
   function visit(current) {
     if (!current) return { selectableCount: 0, selectedCount: 0, paths: [] };
     if (current.type === 'file') {
-      const selectableCount = isSelectableFile(current) ? 1 : 0;
+      const selectableCount = isSelectionAllowed(current, potentialSecretsAllowed) ? 1 : 0;
       const selectedCount = selectableCount && selectedPaths.has(current.path) ? 1 : 0;
       const summary = { selectableCount, selectedCount, paths: selectableCount ? [current.path] : [] };
       index.set(current.path, summary);
@@ -123,6 +124,7 @@ export function buildTreeFromFiles(rootName, files, extraNodes = []) {
     selectable: file.selectable !== false,
     blocked: Boolean(file.blocked),
     blockedReason: file.blockedReason || null,
+    potentialSecrets: file.potentialSecrets || [],
     traversed: file.traversed !== false,
   })));
 

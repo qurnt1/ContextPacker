@@ -1,6 +1,5 @@
 import { useEffect, useCallback, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ThemeProvider } from './hooks/useTheme';
 import { useStore, selectHasProject } from './store';
 import WelcomeScreen from './components/WelcomeScreen';
 import Header from './components/Header';
@@ -27,7 +26,7 @@ function AppInner() {
 
   useEffect(() => {
     loadGithubHistory();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadGithubHistory]);
 
   const { showHelp, openHelp, closeHelp } = useKeyboardShortcuts();
 
@@ -65,6 +64,13 @@ function AppInner() {
     document.addEventListener('pointercancel', onUp);
   }, [setSidebarWidth]);
 
+  const handleResizeKeyDown = useCallback((event) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    const delta = event.key === 'ArrowRight' ? 16 : -16;
+    setSidebarWidth(useStore.getState().sidebarWidth + delta);
+  }, [setSidebarWidth]);
+
   return (
     <div className="app-shell h-screen flex flex-col bg-cyber-bg text-cyber-text font-sans overflow-hidden transition-colors duration-300">
       <AnimatePresence mode="wait">
@@ -85,7 +91,7 @@ function AppInner() {
                 <Sidebar />
               </div>
               {!sidebarCollapsed && (
-                <div className="w-1.5 flex-shrink-0 cursor-col-resize hover:bg-cyber-accent/30 active:bg-cyber-accent/50 transition-colors relative group" onPointerDown={handleResizeStart} role="separator" aria-label="Redimensionner le panneau latéral" aria-orientation="vertical" tabIndex={0}>
+                <div className="w-1.5 flex-shrink-0 cursor-col-resize hover:bg-cyber-accent/30 active:bg-cyber-accent/50 transition-colors relative group" onPointerDown={handleResizeStart} onKeyDown={handleResizeKeyDown} role="separator" aria-label="Redimensionner le panneau latéral" aria-orientation="vertical" aria-valuemin={180} aria-valuemax={600} aria-valuenow={sidebarWidth} tabIndex={0}>
                   <div className="absolute inset-y-0 -left-1 -right-1" />
                 </div>
               )}
@@ -108,9 +114,5 @@ function AppInner() {
 }
 
 export default function App() {
-  return (
-    <ThemeProvider>
-      <AppInner />
-    </ThemeProvider>
-  );
+  return <AppInner />;
 }
