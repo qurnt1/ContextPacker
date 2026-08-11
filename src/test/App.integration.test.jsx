@@ -21,6 +21,14 @@ beforeEach(() => {
 });
 
 describe('App modal entry points', () => {
+  it('renders the ambient color layer behind the welcome screen', () => {
+    const { container } = render(<App />);
+
+    const atmosphere = container.querySelector('.welcome-atmosphere');
+    expect(atmosphere).toHaveAttribute('aria-hidden', 'true');
+    expect(atmosphere.querySelectorAll('.welcome-orb')).toHaveLength(3);
+  });
+
   it('opens the onboarding guide from the welcome screen', async () => {
     render(<App />);
 

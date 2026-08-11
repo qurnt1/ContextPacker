@@ -117,6 +117,41 @@
     background: var(--cp-bg);
   }
 
+  .welcome-atmosphere {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .welcome-orb {
+    position: absolute;
+    width: clamp(12rem, 22vw, 22rem);
+    aspect-ratio: 1;
+    border-radius: 999px;
+    filter: blur(46px);
+    will-change: transform, opacity;
+  }
+
+  .welcome-orb-lime {
+    left: 8%;
+    top: 8%;
+    background: radial-gradient(circle, rgba(184, 237, 99, 0.24) 0%, rgba(184, 237, 99, 0.07) 44%, transparent 72%);
+  }
+
+  .welcome-orb-teal {
+    right: 10%;
+    bottom: 12%;
+    background: radial-gradient(circle, rgba(98, 230, 200, 0.2) 0%, rgba(98, 230, 200, 0.06) 44%, transparent 72%);
+  }
+
+  .welcome-orb-indigo {
+    right: 28%;
+    top: 18%;
+    width: clamp(10rem, 16vw, 17rem);
+    background: radial-gradient(circle, rgba(127, 156, 245, 0.16) 0%, rgba(127, 156, 245, 0.04) 44%, transparent 72%);
+  }
+
   .welcome-content {
     width: 100%;
     min-width: 0;
@@ -175,6 +210,27 @@
   @media (max-width: 640px) {
     .welcome-title {
       font-size: clamp(3.25rem, 18vw, 5rem);
+    }
+
+    .welcome-orb {
+      width: clamp(10rem, 42vw, 16rem);
+      filter: blur(34px);
+    }
+
+    .welcome-orb-lime {
+      left: -10%;
+      top: 12%;
+    }
+
+    .welcome-orb-teal {
+      right: -10%;
+      bottom: 10%;
+    }
+
+    .welcome-orb-indigo {
+      right: 20%;
+      top: 24%;
+      width: clamp(8rem, 32vw, 12rem);
     }
   }
 }

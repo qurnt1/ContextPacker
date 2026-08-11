@@ -255,20 +255,24 @@ export default function WelcomeScreen({ onShowOnboarding }) {
 
   return (
     <div className="welcome-shell flex-1 flex items-center justify-center relative overflow-hidden" onDragEnter={handleDragEnter} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
-      <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+      <div className="welcome-atmosphere" aria-hidden="true">
         <motion.div
-          className="absolute -left-32 -top-28 h-[28rem] w-[28rem] rounded-full blur-3xl"
-          style={{ background: 'radial-gradient(circle, rgba(184, 237, 99, 0.12), transparent 68%)' }}
+          className="welcome-orb welcome-orb-lime"
           initial={{ x: 0, y: 0, scale: 1, opacity: 0.65 }}
-          animate={reduceMotion ? { x: 0, y: 0, scale: 1, opacity: 0.65 } : { x: 48, y: 26, scale: 1.08, opacity: [0.5, 0.75, 0.5] }}
-          transition={reduceMotion ? undefined : { duration: 21, ease: 'easeInOut', repeat: Infinity }}
+          animate={reduceMotion ? { x: 0, y: 0, scale: 1, opacity: 0.65 } : { x: [0, 30, -12, 0], y: [0, -18, 26, 0], scale: [1, 1.08, 0.96, 1], opacity: [0.42, 0.68, 0.5, 0.42] }}
+          transition={reduceMotion ? undefined : { duration: 26, ease: 'easeInOut', repeat: Infinity }}
         />
         <motion.div
-          className="absolute -bottom-40 -right-24 h-[30rem] w-[30rem] rounded-full blur-3xl"
-          style={{ background: 'radial-gradient(circle, rgba(83, 128, 93, 0.14), transparent 68%)' }}
+          className="welcome-orb welcome-orb-teal"
           initial={{ x: 0, y: 0, scale: 1, opacity: 0.55 }}
-          animate={reduceMotion ? { x: 0, y: 0, scale: 1, opacity: 0.55 } : { x: -42, y: -20, scale: 1.06, opacity: [0.42, 0.65, 0.42] }}
-          transition={reduceMotion ? undefined : { duration: 24, ease: 'easeInOut', repeat: Infinity }}
+          animate={reduceMotion ? { x: 0, y: 0, scale: 1, opacity: 0.55 } : { x: [0, -24, 18, 0], y: [0, 26, -16, 0], scale: [1, 0.94, 1.08, 1], opacity: [0.32, 0.55, 0.4, 0.32] }}
+          transition={reduceMotion ? undefined : { duration: 31, ease: 'easeInOut', repeat: Infinity, delay: -9 }}
+        />
+        <motion.div
+          className="welcome-orb welcome-orb-indigo"
+          initial={{ x: 0, y: 0, scale: 1, opacity: 0.45 }}
+          animate={reduceMotion ? { x: 0, y: 0, scale: 1, opacity: 0.45 } : { x: [0, 18, -26, 0], y: [0, -24, 14, 0], scale: [1, 1.06, 0.95, 1], opacity: [0.22, 0.42, 0.3, 0.22] }}
+          transition={reduceMotion ? undefined : { duration: 23, ease: 'easeInOut', repeat: Infinity, delay: -5 }}
         />
       </div>
       <motion.div className="flex-1 flex items-center justify-center relative" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.5 }}>
