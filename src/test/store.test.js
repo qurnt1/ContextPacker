@@ -39,8 +39,14 @@ vi.mock('../utils/githubScanner', () => ({
   getRecentGitHubRepos: vi.fn().mockReturnValue([]),
 }));
 
-import { useStore } from '../store';
+import { isAboveWarningThreshold, useStore } from '../store';
 import { getHandle, deleteHandle } from '../utils/handleStorage';
+
+describe('Store defaults', () => {
+  it('starts with a 200k token limit', () => {
+    expect(useStore.getInitialState().tokenLimit).toBe(200_000);
+  });
+});
 
 describe('Store — local project identity', () => {
   beforeEach(() => {
@@ -144,6 +150,7 @@ describe('Store — visible selection behavior', () => {
       pendingPaths: null,
       warningAccepted: false,
       warningKind: null,
+      potentialSecretsAllowed: false,
     });
   });
 
@@ -159,6 +166,13 @@ describe('Store — visible selection behavior', () => {
     expect(useStore.getState().showWarning).toBe(true);
     expect(useStore.getState().selectedPaths).toEqual(new Set(['a.js']));
     expect(useStore.getState().pendingPaths).toEqual(new Set(['a.js', 'b.js', 'c.js']));
+  });
+
+  it('uses the configured percentage and manual threshold in one rule', () => {
+    expect(isAboveWarningThreshold(40, 100, 40)).toBe(false);
+    expect(isAboveWarningThreshold(41, 100, 40)).toBe(true);
+    expect(isAboveWarningThreshold(31, 100, 80, 30)).toBe(true);
+    expect(isAboveWarningThreshold(31, 100, 80, 0)).toBe(false);
   });
 
   it('does not warn when minification reduces an already selected context', () => {
@@ -191,6 +205,24 @@ describe('Store — visible selection behavior', () => {
     expect(useStore.getState().selectedPaths).toEqual(new Set(['public.js']));
   });
 
+  it('requires explicit confirmation before selecting potential secrets', () => {
+    useStore.setState({
+      files: [
+        { path: 'config.js', tokens: 10, minifiedTokens: 10, potentialSecrets: [{ kind: 'credential-assignment', line: 1 }] },
+        { path: 'public.js', tokens: 10, minifiedTokens: 10, potentialSecrets: [] },
+      ],
+      selectedPaths: new Set(),
+      potentialSecretsAllowed: false,
+    });
+
+    useStore.getState().selectAll();
+    expect(useStore.getState().selectedPaths).toEqual(new Set(['public.js']));
+
+    useStore.getState().acknowledgePotentialSecrets();
+    useStore.getState().selectAll();
+    expect(useStore.getState().selectedPaths).toEqual(new Set(['config.js', 'public.js']));
+  });
+
   it('accepts the selection warning once for the current session', () => {
     useStore.setState({ tokenLimit: 100, warningPercent: 50 });
     useStore.getState().selectRange('a.js', 'c.js', ['a.js', 'b.js', 'c.js']);
@@ -202,6 +234,28 @@ describe('Store — visible selection behavior', () => {
 
     expect(useStore.getState().showWarning).toBe(false);
     expect(useStore.getState().selectedPaths).toEqual(new Set(['a.js', 'b.js', 'c.js']));
+  });
+
+  it('scopes warning acceptance to the current project context', () => {
+    useStore.setState({
+      sourceMeta: { type: 'local', projectId: 'project-one' },
+      selectedPaths: new Set(),
+      tokenLimit: 100,
+      warningPercent: 50,
+      showWarning: false,
+      pendingPaths: null,
+      warningAccepted: false,
+      warningAcceptedKey: null,
+    });
+
+    useStore.getState().selectAll();
+    expect(useStore.getState().showWarning).toBe(true);
+    useStore.getState().confirmWarning();
+    useStore.getState().deselectAll();
+
+    useStore.setState({ sourceMeta: { type: 'local', projectId: 'project-two' } });
+    useStore.getState().selectAll();
+    expect(useStore.getState().showWarning).toBe(true);
   });
 
   it('does not attach a selection payload to settings warnings', () => {
@@ -240,6 +294,30 @@ describe('Store — visible selection behavior', () => {
     });
 
     expect(useStore.getState().selectedPaths).toEqual(new Set(['a.js']));
+  });
+
+  it('does not restore potential-secret selections after a fresh scan', () => {
+    useStore.setState({
+      projectLoaded: true,
+      sourceMeta: { type: 'local', projectId: 'refresh-secret-id' },
+      selectedPaths: new Set(['config.js']),
+      potentialSecretsAllowed: true,
+      savedSelection: null,
+    });
+
+    useStore.getState().completeScan({
+      name: 'test-project',
+      files: [
+        { path: 'config.js', selectable: true, blocked: false, potentialSecrets: [{ kind: 'credential-assignment', line: 1 }] },
+        { path: 'public.js', selectable: true, blocked: false, potentialSecrets: [] },
+      ],
+      tree: { name: 'test-project', path: '', type: 'directory', children: [] },
+      source: { type: 'local' },
+      projectId: 'refresh-secret-id',
+    });
+
+    expect(useStore.getState().selectedPaths).toEqual(new Set());
+    expect(useStore.getState().potentialSecretsAllowed).toBe(false);
   });
 });
 

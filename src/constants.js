@@ -50,5 +50,7 @@ export const BINARY_EXTENSIONS = new Set([
 export const DEFAULT_TOKEN_LIMITS = [32_000, 64_000, 128_000, 200_000, 500_000, 1_000_000];
 export const DEFAULT_WARNING_PERCENT = 40;
 export const MAX_FILE_SIZE = 1_000_000; // 1 MB
+export const MAX_SCAN_FILES = 1_200;
+export const MAX_SCAN_TOTAL_BYTES = 8_000_000;
 export const MAX_HIGHLIGHT_SIZE = 50_000; // 50 KB
 export const MAX_PREVIEW_FILES = 40;

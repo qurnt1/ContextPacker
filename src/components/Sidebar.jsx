@@ -13,11 +13,12 @@ import {
   X,
   PanelLeftClose,
   PanelLeftOpen,
+  ShieldAlert,
 } from 'lucide-react';
 import FileTree from './FileTree';
 import { formatNumber } from '../utils/helpers';
 import { useStore } from '../store';
-import { isSelectableFile } from '../utils/securityPolicy';
+import { hasPotentialSecrets, isSelectionAllowed } from '../utils/securityPolicy';
 import { buildSelectionIndex, getSearchResultPaths } from '../utils/treeUtils';
 
 function sortNodes(nodes) {
@@ -76,11 +77,14 @@ export default function Sidebar() {
   const toggleSidebar = useStore((s) => s.toggleSidebar);
   const includeFullTreeInExport = useStore((s) => s.includeFullTreeInExport);
   const setIncludeFullTreeInExport = useStore((s) => s.setIncludeFullTreeInExport);
+  const potentialSecretsAllowed = useStore((s) => s.potentialSecretsAllowed);
+  const acknowledgePotentialSecrets = useStore((s) => s.acknowledgePotentialSecrets);
 
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef(null);
   const [expandedPaths, setExpandedPaths] = useState(new Set());
   const [lastClickedPath, setLastClickedPath] = useState(null);
+  const fileByPath = useMemo(() => new Map(files.map((file) => [file.path, file])), [files]);
 
   useEffect(() => {
     setExpandedPaths(tree ? getDefaultExpandedPaths(tree) : new Set());
@@ -102,14 +106,14 @@ export default function Sidebar() {
       const paths = searchQuery
         ? getSearchResultPaths(tree, searchQuery)
         : collectVisibleFilePaths(tree, expandedPaths);
-      return paths.filter((path) => files.some((file) => file.path === path && isSelectableFile(file)));
+      return paths.filter((path) => isSelectionAllowed(fileByPath.get(path), potentialSecretsAllowed));
     },
-    [tree, expandedPaths, searchQuery, files]
+    [tree, expandedPaths, searchQuery, fileByPath, potentialSecretsAllowed]
   );
 
   const selectionIndex = useMemo(
-    () => (tree ? buildSelectionIndex(tree, selectedPaths) : new Map()),
-    [tree, selectedPaths]
+    () => (tree ? buildSelectionIndex(tree, selectedPaths, potentialSecretsAllowed) : new Map()),
+    [tree, selectedPaths, potentialSecretsAllowed]
   );
 
   const handleToggleExpanded = (path) => {
@@ -130,19 +134,20 @@ export default function Sidebar() {
     setLastClickedPath(path);
   };
 
-  const extensions = useMemo(() => {
-    const countMap = {};
-    files.filter(isSelectableFile).forEach((file) => {
+  const extensionStats = useMemo(() => {
+    const countMap = new Map();
+    files.filter((file) => isSelectionAllowed(file, potentialSecretsAllowed)).forEach((file) => {
       if (!file.extension) return;
-      countMap[file.extension] = (countMap[file.extension] || 0) + 1;
+      const current = countMap.get(file.extension) || { total: 0, selected: 0 };
+      current.total += 1;
+      if (selectedPaths.has(file.path)) current.selected += 1;
+      countMap.set(file.extension, current);
     });
-    return Object.entries(countMap)
-      .sort((a, b) => b[1] - a[1])
-      .map(([ext]) => ext);
-  }, [files]);
+    return [...countMap.entries()].sort((a, b) => b[1].total - a[1].total);
+  }, [files, selectedPaths, potentialSecretsAllowed]);
 
   const stats = useMemo(() => {
-    const selectableFiles = files.filter(isSelectableFile);
+    const selectableFiles = files.filter((file) => isSelectionAllowed(file, potentialSecretsAllowed));
     const selected = selectableFiles.filter((file) => selectedPaths.has(file.path));
     const totalTokens = selected.reduce(
       (sum, file) => sum + (minifyEnabled ? file.minifiedTokens : file.tokens), 0
@@ -150,7 +155,12 @@ export default function Sidebar() {
     const totalSize = selected.reduce((sum, file) => sum + file.size, 0);
     const totalLines = selected.reduce((sum, file) => sum + (file.lines || 0), 0);
     return { totalTokens, totalSize, totalLines, fileCount: selected.length, totalFiles: selectableFiles.length };
-  }, [files, selectedPaths, minifyEnabled]);
+  }, [files, selectedPaths, minifyEnabled, potentialSecretsAllowed]);
+
+  const potentialSecretFiles = useMemo(
+    () => files.filter(hasPotentialSecrets),
+    [files]
+  );
 
   const visibleCount = useMemo(() => {
     return visibleFilePaths.length;
@@ -285,7 +295,7 @@ export default function Sidebar() {
             <CheckSquare className="w-3 h-3" />Tout sélectionner
           </button>
           <button onClick={deselectAll} className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded-md bg-cyber-surface-2 hover:bg-red-500/8 text-cyber-text-2 hover:text-red-400 border border-transparent hover:border-red-500/20 transition-all">
-            <Square className="w-3 h-3" />Désélectionner
+            <Square className="w-3 h-3" />Tout désélectionner
           </button>
         </div>
         <div className="flex gap-1.5">
@@ -309,16 +319,40 @@ export default function Sidebar() {
           <span>Arborescence complète</span>
           {includeFullTreeInExport ? <ToggleRight className="w-4 h-4 text-cyber-accent" /> : <ToggleLeft className="w-4 h-4" />}
         </label>
+        {potentialSecretFiles.length > 0 ? (
+          <div className="rounded-md border border-amber-400/25 bg-amber-400/5 p-2 text-[10px] text-amber-200/90">
+            <div className="flex items-start gap-1.5">
+              <ShieldAlert className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-amber-300" aria-hidden="true" />
+              <div className="min-w-0">
+                <p>{potentialSecretFiles.length} fichier{potentialSecretFiles.length > 1 ? 's' : ''} avec secret potentiel</p>
+                {potentialSecretsAllowed ? (
+                  <p className="mt-1 text-amber-200/60">Sélection et export autorisés après confirmation.</p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Ces fichiers peuvent contenir des secrets. Les autoriser à la sélection et à l’export ?')) {
+                        acknowledgePotentialSecrets();
+                      }
+                    }}
+                    className="mt-1 font-medium text-amber-200 underline underline-offset-2 hover:text-amber-100"
+                  >
+                    Autoriser après confirmation
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {/* Extensions */}
-      {extensions.length > 0 && (
+      {extensionStats.length > 0 && (
         <div className="px-3 py-2.5 border-b border-cyber-border">
           <p className="text-[10px] uppercase tracking-wider text-cyber-text-3 mb-2 font-semibold">Extensions</p>
           <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
-            {extensions.map((ext) => {
-              const total = files.filter((file) => isSelectableFile(file) && file.extension === ext).length;
-              const selected = files.filter((file) => isSelectableFile(file) && file.extension === ext && selectedPaths.has(file.path)).length;
+            {extensionStats.map(([ext, counts]) => {
+              const { total, selected } = counts;
               const allSelected = selected === total;
               return (
                 <button key={ext} onClick={() => toggleExtension(ext)} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono transition-all ${allSelected ? 'bg-cyber-accent/15 text-cyber-accent border border-cyber-accent/25' : selected > 0 ? 'bg-cyber-accent/8 text-cyber-accent/70 border border-cyber-accent/15' : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:border-cyber-border'}`}>
@@ -343,7 +377,7 @@ export default function Sidebar() {
             ))}
           </div>
         ) : tree ? (
-          <FileTree node={tree} selectedPaths={selectedPaths} selectionIndex={selectionIndex} onToggleFolder={toggleFolder} minifyEnabled={minifyEnabled} depth={0} isRoot searchQuery={searchQuery} expandedPaths={expandedPaths} onToggleExpanded={handleToggleExpanded} onFileClick={handleFileClick} />
+          <FileTree node={tree} selectedPaths={selectedPaths} selectionIndex={selectionIndex} onToggleFolder={toggleFolder} minifyEnabled={minifyEnabled} depth={0} isRoot searchQuery={searchQuery} expandedPaths={expandedPaths} onToggleExpanded={handleToggleExpanded} onFileClick={handleFileClick} potentialSecretsAllowed={potentialSecretsAllowed} />
         ) : null}
       </div>
     </motion.aside>

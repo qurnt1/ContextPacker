@@ -6,6 +6,7 @@ import { countTokens, initEncoding } from './tokenCounter';
 import { MAX_FILE_SIZE } from '../constants';
 import { getSecurityMetadata } from './securityPolicy';
 import { buildTreeFromFiles } from './treeUtils';
+import { detectPotentialSecrets } from './secretDetector';
 
 const GITHUB_API_BASE = 'https://api.github.com';
 const RECENT_REPOS_KEY = 'cp-recent-github-repos';
@@ -260,7 +261,7 @@ export async function scanGitHubRepo({
   onFileStart,
   signal,
 } = {}) {
-  initEncoding();
+  await initEncoding();
   throwIfAborted(signal);
 
   const parsed = parseGitHubRepoInput(repoInput, subPath);
@@ -347,13 +348,11 @@ export async function scanGitHubRepo({
     const gitignoreEntry = blobEntries.find((entry) => entry.path === '.gitignore')
       || treeData.tree.find((entry) => entry.type === 'blob' && entry.path === '.gitignore');
     if (gitignoreEntry) {
-      gitignoreContent = await fetchBlobText(
+      gitignoreContent = await fetchRawFileText(
         parsed.owner,
         parsed.repo,
-        resolvedRef,
+        commitSha,
         gitignoreEntry.path,
-        gitignoreEntry.sha,
-        authToken,
         signal
       );
     }
@@ -432,13 +431,11 @@ export async function scanGitHubRepo({
 
   await mapConcurrent(candidates, DOWNLOAD_CONCURRENCY, async (entry) => {
     throwIfAborted(signal);
-    const content = await fetchBlobText(
+    const content = await fetchRawFileText(
       parsed.owner,
       parsed.repo,
-      resolvedRef,
+      commitSha,
       entry.path,
-      entry.sha,
-      authToken,
       signal
     );
 
@@ -455,6 +452,7 @@ export async function scanGitHubRepo({
     const tokens = countTokens(content);
     const minifiedContent = minifyCode(content, extension);
     const minifiedTokens = minifiedContent !== content ? countTokens(minifiedContent) : tokens;
+    const potentialSecrets = detectPotentialSecrets(content);
 
     files.push({
       name: entry.path.split('/').pop() || entry.path,
@@ -466,6 +464,7 @@ export async function scanGitHubRepo({
       lines,
       tokens,
       minifiedTokens,
+      potentialSecrets,
       selectable: true,
       blocked: false,
       blockedReason: null,
@@ -580,31 +579,15 @@ async function fetchGitHubJson(url, token, { signal } = {}) {
   throw new Error(message);
 }
 
-async function fetchBlobText(owner, repo, ref, path, sha, token, signal) {
-  if (sha) {
-    const blobData = await fetchGitHubJson(
-      `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/blobs/${sha}`,
-      token,
-      { signal }
-    );
-    if (!blobData || blobData.encoding !== 'base64' || typeof blobData.content !== 'string') {
-      throw new Error(`Blob invalide pour ${path}`);
-    }
-    return decodeBase64Utf8(blobData.content.replace(/\n/g, ''));
-  }
-
+async function fetchRawFileText(owner, repo, commitSha, path, signal) {
   const encodedPath = path
     .split('/')
     .map((part) => encodeURIComponent(part))
     .join('/');
-  const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${encodedPath}`;
+  const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${commitSha}/${encodedPath}`;
 
   try {
-    const rawHeaders = {};
-    if (token) {
-      rawHeaders.Authorization = `Bearer ${token}`;
-    }
-    const rawResponse = await fetch(rawUrl, { headers: rawHeaders, signal });
+    const rawResponse = await fetch(rawUrl, { signal });
     if (rawResponse.ok) {
       return await rawResponse.text();
     }
@@ -614,20 +597,7 @@ async function fetchBlobText(owner, repo, ref, path, sha, token, signal) {
     }
   }
 
-  if (!sha) {
-    throw new Error(`Impossible de télécharger ${path}`);
-  }
-
   throw new Error(`Impossible de télécharger ${path}`);
-}
-
-function decodeBase64Utf8(base64) {
-  const bin = atob(base64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i += 1) {
-    bytes[i] = bin.charCodeAt(i);
-  }
-  return new TextDecoder('utf-8', { fatal: false }).decode(bytes);
 }
 
 function normalizeSubPath(subPath) {

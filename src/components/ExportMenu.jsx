@@ -60,6 +60,7 @@ export default function ExportMenu({
   contentTokens,
   tokenLimit,
   includeFullTreeInExport = false,
+  potentialSecretsAllowed = false,
   disabled,
 }) {
   const [open, setOpen] = useState(false);
@@ -79,7 +80,8 @@ export default function ExportMenu({
         minifyEnabled,
         tree,
         selectedPaths,
-        includeFullTreeInExport
+        includeFullTreeInExport,
+        potentialSecretsAllowed
       );
     }
     return generatePlainOutput(
@@ -89,9 +91,10 @@ export default function ExportMenu({
       minifyEnabled,
       tree,
       selectedPaths,
-      includeFullTreeInExport
+      includeFullTreeInExport,
+      potentialSecretsAllowed
     );
-  }, [projectName, selectedFiles, contentTokens, minifyEnabled, tree, selectedPaths, includeFullTreeInExport]);
+  }, [projectName, selectedFiles, contentTokens, minifyEnabled, tree, selectedPaths, includeFullTreeInExport, potentialSecretsAllowed]);
 
   useEffect(() => {
     if (!open) return;
@@ -111,11 +114,11 @@ export default function ExportMenu({
     return () => document.removeEventListener('keydown', handler);
   }, [open]);
 
-  const prepareOutput = useCallback((format) => {
+  const prepareOutput = useCallback(async (format) => {
     const output = buildOutput(format);
     if (!output) return null;
 
-    const result = createExportResult(output);
+    const result = await createExportResult(output);
     const exportTokens = result.tokenCount;
     if (tokenLimit > 0 && exportTokens > tokenLimit) {
       const shouldContinue = window.confirm(
@@ -127,7 +130,7 @@ export default function ExportMenu({
   }, [buildOutput, tokenLimit]);
 
   const handleCopy = useCallback(async () => {
-    const output = prepareOutput('txt');
+    const output = await prepareOutput('txt');
     if (!output) return;
     const ok = await copyToClipboard(output.output);
     const exportTokens = output.tokenCount;
@@ -140,8 +143,8 @@ export default function ExportMenu({
     setOpen(false);
   }, [prepareOutput, showToast]);
 
-  const handleDownload = useCallback((format) => {
-    const output = prepareOutput(format);
+  const handleDownload = useCallback(async (format) => {
+    const output = await prepareOutput(format);
     if (!output) return;
     const ext = format === 'md' ? 'md' : 'txt';
     const mime = format === 'md' ? 'text/markdown;charset=utf-8' : 'text/plain;charset=utf-8';
@@ -162,14 +165,16 @@ export default function ExportMenu({
     setOpen(false);
   }, [prepareOutput, projectName, showToast]);
 
-  const handleLLM = useCallback((target) => {
-    const output = prepareOutput('txt');
-    if (!output) return;
+  const handleLLM = useCallback(async (target) => {
+    // Open during the user gesture so popup blockers do not reject the handoff.
+    const newWindow = window.open(target.url, '_blank', 'noopener,noreferrer');
+    const output = await prepareOutput('txt');
+    if (!output) {
+      newWindow?.close();
+      return;
+    }
     setActiveTargetKey(target.key);
     const copyPromise = copyToClipboard(output.output);
-    // Open directly during the user gesture. Some browsers return null for a
-    // successful noopener window, so the return value cannot identify blocking.
-    const newWindow = window.open(target.url, '_blank', 'noopener,noreferrer');
 
     copyPromise.then((ok) => {
       const exportTokens = output.tokenCount;
@@ -192,7 +197,7 @@ export default function ExportMenu({
 
   return (
     <>
-      <div className="relative flex-shrink-0" ref={menuRef}>
+      <div className="relative flex-shrink-0 justify-self-end" ref={menuRef}>
         <button
           ref={triggerRef}
           onClick={() => setOpen((v) => !v)}

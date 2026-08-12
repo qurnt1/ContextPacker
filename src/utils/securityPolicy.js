@@ -5,9 +5,9 @@ const ALLOWED_ENV_FILES = new Set([
   '.env.defaults',
 ]);
 
-const BLOCKED_DIRECTORY_NAMES = new Set(['.venv', 'venv']);
+const BLOCKED_DIRECTORY_NAMES = new Set(['.git', '.aws', '.ssh', '.venv', 'venv']);
 const BLOCKED_FILENAMES = new Set(['.npmrc', '.pypirc', 'id_rsa', 'id_ed25519']);
-const BLOCKED_EXTENSIONS = new Set(['.pem', '.key', '.p12', '.pfx']);
+const BLOCKED_EXTENSIONS = new Set(['.pem', '.key', '.p12', '.pfx', '.crt']);
 
 function normalizePath(path) {
   return String(path || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
@@ -53,6 +53,15 @@ export function getSecurityMetadata(path, type = 'file') {
 
 export function isSelectableFile(file) {
   return Boolean(file && file.selectable !== false && !file.blocked);
+}
+
+export function hasPotentialSecrets(file) {
+  return Boolean(file?.potentialSecrets?.length);
+}
+
+export function isSelectionAllowed(file, potentialSecretsAllowed = false) {
+  return isSelectableFile(file)
+    && (potentialSecretsAllowed || !hasPotentialSecrets(file));
 }
 
 export function getBlockedDirectoryNames() {

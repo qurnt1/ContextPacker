@@ -1,13 +1,13 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Eye } from 'lucide-react';
-import { getLangColor } from '../utils/languageBadge';
 import CodeBlock from './CodeBlock';
+import FileTypeIcon from './FileTypeIcon';
 import { generateTreeText } from '../utils/outputFormatter';
 import { formatNumber } from '../utils/helpers';
 import { useStore } from '../store';
 import { filterTreeForExport } from '../utils/treeUtils';
-import { isSelectableFile } from '../utils/securityPolicy';
+import { isSelectionAllowed } from '../utils/securityPolicy';
 import { MAX_PREVIEW_FILES } from '../constants';
 
 export default function MainPanel() {
@@ -18,13 +18,14 @@ export default function MainPanel() {
   const projectLoaded = useStore((s) => s.projectLoaded);
   const files = useStore((s) => s.files);
   const includeFullTreeInExport = useStore((s) => s.includeFullTreeInExport);
+  const potentialSecretsAllowed = useStore((s) => s.potentialSecretsAllowed);
 
   const selectedFiles = useMemo(
     () =>
       files
-        .filter((file) => isSelectableFile(file) && selectedPaths.has(file.path))
+        .filter((file) => isSelectionAllowed(file, potentialSecretsAllowed) && selectedPaths.has(file.path))
         .sort((a, b) => b.size - a.size),
-    [files, selectedPaths]
+    [files, selectedPaths, potentialSecretsAllowed]
   );
 
   const totalTokens = useMemo(
@@ -37,9 +38,9 @@ export default function MainPanel() {
   );
 
   const treeText = useMemo(() => {
-    const filtered = filterTreeForExport(tree, selectedPaths, includeFullTreeInExport);
+    const filtered = filterTreeForExport(tree, selectedPaths, includeFullTreeInExport, potentialSecretsAllowed);
     return filtered ? generateTreeText(filtered, '', true, true) : '';
-  }, [tree, selectedPaths, includeFullTreeInExport]);
+  }, [tree, selectedPaths, includeFullTreeInExport, potentialSecretsAllowed]);
 
   const previewFiles = selectedFiles.slice(0, MAX_PREVIEW_FILES);
   const previewLimited = selectedFiles.length > previewFiles.length;
@@ -127,8 +128,6 @@ export default function MainPanel() {
               const content = minifyEnabled ? file.minifiedContent : file.content;
               const tokens = minifyEnabled ? file.minifiedTokens : file.tokens;
               const lines = content.split('\n').length;
-              const langColor = getLangColor(file.extension);
-
               return (
                 <motion.div
                   key={file.path}
@@ -136,11 +135,10 @@ export default function MainPanel() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: Math.min(index * 0.02, 0.4) }}
                   className="card overflow-hidden"
-                  style={langColor ? { borderTopColor: langColor, borderTopWidth: '2px' } : undefined}
                 >
                   <div className="flex items-center justify-between px-4 py-2 bg-cyber-surface-2/50 border-b border-cyber-border">
                     <div className="flex items-center gap-2 min-w-0">
-                      {langColor ? <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: langColor }} title={file.extension} /> : null}
+                      <FileTypeIcon fileName={file.name || file.path.split('/').pop()} extension={file.extension} />
                       <span className="font-mono text-xs text-cyber-accent truncate">{file.path}</span>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0 ml-3">

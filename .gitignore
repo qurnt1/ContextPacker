@@ -8,6 +8,9 @@ dist/
 coverage/
 test-results/
 playwright-report/
+output/playwright/
+.playwright-cli/
+.playwright-mcp/
 vitest-report/
 
 # Environment & secrets

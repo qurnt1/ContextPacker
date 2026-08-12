@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion';
-import { Moon, Sun, Monitor, FolderOpen, Loader2, Home, Keyboard, RefreshCw } from 'lucide-react';
-import { useCallback, useState } from 'react';
-import { useTheme } from '../hooks/useTheme';
+import { FolderOpen, Loader2, Keyboard, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
 import { useStore } from '../store';
 import { useToast } from '../hooks/useToast';
 import SettingsPanel from './SettingsPanel';
@@ -9,22 +8,12 @@ import Toast from './Toast';
 import ContextPackerMark from './ContextPackerMark';
 
 export default function Header({ onShowHelp }) {
-  const { theme, setTheme, resolved } = useTheme();
   const handleOpenLocal = useStore((s) => s.handleOpenLocal);
   const resetProject = useStore((s) => s.resetProject);
   const isScanning = useStore((s) => s.isScanning);
   const handleRefresh = useStore((s) => s.handleRefresh);
   const [refreshing, setRefreshing] = useState(false);
   const [toast, showToast] = useToast();
-
-  const cycleTheme = useCallback(() => {
-    const order = ['system', 'dark', 'light'];
-    const idx = order.indexOf(theme);
-    setTheme(order[(idx + 1) % order.length]);
-  }, [theme, setTheme]);
-
-  const ThemeIcon = theme === 'system' ? Monitor : resolved === 'dark' ? Moon : Sun;
-  const themeLabel = theme === 'system' ? 'Système' : resolved === 'dark' ? 'Sombre' : 'Clair';
 
   const doRefresh = async () => {
     if (refreshing || isScanning) return;
@@ -95,16 +84,6 @@ export default function Header({ onShowHelp }) {
         </button>
 
         <button
-          onClick={resetProject}
-          disabled={isScanning}
-          title="Retour à la page d'accueil"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg text-cyber-text-2 hover:text-cyber-accent hover:bg-cyber-surface-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Home className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Accueil</span>
-        </button>
-
-        <button
           onClick={handleOpenLocal}
           disabled={isScanning}
           title="Ouvrir un dossier local"
@@ -112,15 +91,6 @@ export default function Header({ onShowHelp }) {
         >
           {isScanning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FolderOpen className="w-3.5 h-3.5" />}
           <span className="hidden sm:inline">Ouvrir local</span>
-        </button>
-
-        <button
-          onClick={cycleTheme}
-          title={`Thème: ${themeLabel}`}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg text-cyber-text-2 hover:text-cyber-accent hover:bg-cyber-surface-2 transition-colors"
-        >
-          <ThemeIcon className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">{themeLabel}</span>
         </button>
 
         <SettingsPanel />

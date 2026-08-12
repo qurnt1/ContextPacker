@@ -1,15 +1,16 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { copyToClipboard, generatePlainOutput, countTokens } = vi.hoisted(() => ({
+const { copyToClipboard, generatePlainOutput, countTokens, initEncoding } = vi.hoisted(() => ({
   copyToClipboard: vi.fn().mockResolvedValue(true),
   generatePlainOutput: vi.fn(() => 'generated context'),
   countTokens: vi.fn(() => 3),
+  initEncoding: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../utils/clipboard', () => ({ copyToClipboard }));
 vi.mock('../utils/outputFormatter', () => ({ generatePlainOutput }));
-vi.mock('../utils/tokenCounter', () => ({ countTokens }));
+vi.mock('../utils/tokenCounter', () => ({ countTokens, initEncoding }));
 
 import ExportMenu from '../components/ExportMenu';
 

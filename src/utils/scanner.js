@@ -3,12 +3,13 @@ import { isBinaryExtension, isBinaryContent } from './binaryDetector';
 import { getExtension } from './helpers';
 import { minifyCode } from './minifier';
 import { countTokens, initEncoding } from './tokenCounter';
-import { MAX_FILE_SIZE } from '../constants';
+import { MAX_FILE_SIZE, MAX_SCAN_FILES, MAX_SCAN_TOTAL_BYTES } from '../constants';
 import { getSecurityMetadata } from './securityPolicy';
+import { detectPotentialSecrets } from './secretDetector';
 
 export async function scanDirectory(dirHandle, onProgress, options = {}) {
   const { applyGitignore = true, onFileStart, signal } = options;
-  initEncoding();
+  await initEncoding();
 
   throwIfAborted(signal);
 
@@ -73,6 +74,7 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
           path: entryPath,
           type: 'file',
           size: null,
+          potentialSecrets: [],
           ...security,
         });
         continue;
@@ -107,6 +109,7 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
               path: entryPath,
               type: 'file',
               size: file.size,
+              potentialSecrets: [],
               selectable: false,
               blocked: false,
               blockedReason: 'size',
@@ -125,6 +128,13 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
   await scan(dirHandle, '', tree);
 
   const total = candidates.length;
+  const totalBytes = candidates.reduce((sum, candidate) => sum + candidate.file.size, 0);
+  if (total > MAX_SCAN_FILES) {
+    throw new Error(`Projet trop volumineux (${total} fichiers texte). Limite actuelle : ${MAX_SCAN_FILES}.`);
+  }
+  if (totalBytes > MAX_SCAN_TOTAL_BYTES) {
+    throw new Error(`Projet trop volumineux (${formatMegaBytes(totalBytes)}). Limite actuelle : ${formatMegaBytes(MAX_SCAN_TOTAL_BYTES)}.`);
+  }
   if (onProgress) onProgress(0, total);
 
   let count = 0;
@@ -141,6 +151,7 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
       const tokens = countTokens(content);
       const minified = minifyCode(content, extension);
       const minifiedTokens = minified !== content ? countTokens(minified) : tokens;
+      const potentialSecrets = detectPotentialSecrets(content);
 
       files.push({
         name: candidate.entry.name,
@@ -152,6 +163,7 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
         lines,
         tokens,
         minifiedTokens,
+        potentialSecrets,
         selectable: true,
         blocked: false,
         blockedReason: null,
@@ -167,6 +179,7 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
         lines,
         tokens,
         minifiedTokens,
+        potentialSecrets,
         selectable: true,
         blocked: false,
         blockedReason: null,
@@ -198,4 +211,8 @@ function throwIfAborted(signal) {
   const error = new Error('Analyse annulée.');
   error.name = 'AbortError';
   throw error;
+}
+
+function formatMegaBytes(bytes) {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

@@ -1,5 +1,6 @@
-import { countTokens } from './tokenCounter';
+import { countTokens, initEncoding } from './tokenCounter';
 
-export function createExportResult(output) {
+export async function createExportResult(output) {
+  await initEncoding();
   return { output, tokenCount: countTokens(output) };
 }

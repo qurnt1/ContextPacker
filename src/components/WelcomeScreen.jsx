@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   FolderOpen,
   AlertTriangle,
@@ -21,6 +21,7 @@ const isSupported = typeof window !== 'undefined' && 'showDirectoryPicker' in wi
 const MAX_VISIBLE = 6;
 
 export default function WelcomeScreen({ onShowOnboarding }) {
+  const reduceMotion = useReducedMotion();
   const handleOpenLocal = useStore((s) => s.handleOpenLocal);
   const handleOpenGitHub = useStore((s) => s.handleOpenGitHub);
   const handleReopenLocal = useStore((s) => s.handleReopenLocal);
@@ -254,6 +255,26 @@ export default function WelcomeScreen({ onShowOnboarding }) {
 
   return (
     <div className="welcome-shell flex-1 flex items-center justify-center relative overflow-hidden" onDragEnter={handleDragEnter} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+      <div className="welcome-atmosphere" aria-hidden="true">
+        <motion.div
+          className="welcome-orb welcome-orb-lime"
+          initial={{ x: 0, y: 0, scale: 1, opacity: 0.65 }}
+          animate={reduceMotion ? { x: 0, y: 0, scale: 1, opacity: 0.65 } : { x: [0, 96, -58, 0], y: [0, -62, 78, 0], scale: [1, 1.22, 0.88, 1], opacity: [0.4, 0.78, 0.42, 0.4] }}
+          transition={reduceMotion ? undefined : { duration: 15, ease: 'easeInOut', repeat: Infinity }}
+        />
+        <motion.div
+          className="welcome-orb welcome-orb-teal"
+          initial={{ x: 0, y: 0, scale: 1, opacity: 0.55 }}
+          animate={reduceMotion ? { x: 0, y: 0, scale: 1, opacity: 0.55 } : { x: [0, -88, 62, 0], y: [0, 74, -56, 0], scale: [1, 0.84, 1.2, 1], opacity: [0.28, 0.68, 0.34, 0.28] }}
+          transition={reduceMotion ? undefined : { duration: 18, ease: 'easeInOut', repeat: Infinity, delay: -6 }}
+        />
+        <motion.div
+          className="welcome-orb welcome-orb-indigo"
+          initial={{ x: 0, y: 0, scale: 1, opacity: 0.45 }}
+          animate={reduceMotion ? { x: 0, y: 0, scale: 1, opacity: 0.45 } : { x: [0, 74, -82, 0], y: [0, 58, -48, 0], scale: [1, 1.24, 0.82, 1], opacity: [0.16, 0.5, 0.22, 0.16] }}
+          transition={reduceMotion ? undefined : { duration: 13, ease: 'easeInOut', repeat: Infinity, delay: -4 }}
+        />
+      </div>
       <motion.div className="flex-1 flex items-center justify-center relative" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.5 }}>
         {isDragOver && (
           <div className="absolute inset-0 z-30 flex items-center justify-center bg-cyber-accent/[0.04] backdrop-blur-sm">

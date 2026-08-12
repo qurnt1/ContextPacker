@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FolderOpen, FileStack, ExternalLink, ChevronRight, ChevronLeft, X } from 'lucide-react';
 import ContextPackerMark from './ContextPackerMark';
+import ModalPortal from './ModalPortal';
 
 const STEPS = [
   {
@@ -108,7 +108,8 @@ export default function OnboardingWizard({ isOpen, onClose, onComplete }) {
 
   const CurrentIcon = STEPS[step].icon;
 
-  return createPortal(
+  return (
+    <ModalPortal isOpen={isOpen} onClose={onClose} zIndex={250}>
     <AnimatePresence>
       {isOpen && (
         <>
@@ -208,7 +209,7 @@ export default function OnboardingWizard({ isOpen, onClose, onComplete }) {
             </motion.div>
         </>
       )}
-    </AnimatePresence>,
-    document.body
+    </AnimatePresence>
+    </ModalPortal>
   );
 }

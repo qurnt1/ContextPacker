@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, cleanup } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Sidebar from '../components/Sidebar';
 import { useStore } from '../store';
 
@@ -69,5 +69,38 @@ describe('Sidebar controls', () => {
 
     expect(checkbox).toBeChecked();
     expect(control).toHaveClass('bg-cyber-accent/10');
+  });
+
+  it('keeps potential secrets disabled until explicit confirmation', () => {
+    const secretFile = {
+      name: 'config.js',
+      path: 'config.js',
+      type: 'file',
+      extension: '.js',
+      size: 1,
+      lines: 1,
+      tokens: 1,
+      minifiedTokens: 1,
+      selectable: true,
+      blocked: false,
+      potentialSecrets: [{ kind: 'credential-assignment', line: 1 }],
+    };
+    useStore.setState({
+      tree: { ...tree, children: [secretFile] },
+      files: [{ ...secretFile, content: 'const apiKey = "value";', minifiedContent: 'const apiKey = "value";' }],
+      selectedPaths: new Set(),
+      potentialSecretsAllowed: false,
+    });
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    render(<Sidebar />);
+
+    const secretCheckbox = screen.getByRole('button', { name: /secret potentiel, confirmation requise/i });
+    expect(secretCheckbox).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: /Autoriser après confirmation/i }));
+
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: /Sélectionner config\.js/i })).toBeEnabled();
+    confirmSpy.mockRestore();
   });
 });

@@ -49,6 +49,113 @@ const LANG_COLORS = {
   '.lua': '#000080',
 };
 
+const FILE_TYPE_INFO = {
+  docker: { label: 'Docker', color: '#2496ed' },
+  package: { label: 'Package', color: '#cb3837' },
+  git: { label: 'Git', color: '#f05032' },
+  javascript: { label: 'JavaScript', color: '#f7df1e' },
+  react: { label: 'React', color: '#61dafb' },
+  typescript: { label: 'TypeScript', color: '#3178c6' },
+  python: { label: 'Python', color: '#3776ab' },
+  rust: { label: 'Rust', color: '#dea584' },
+  go: { label: 'Go', color: '#00add8' },
+  java: { label: 'Java', color: '#b07219' },
+  vue: { label: 'Vue', color: '#4fc08d' },
+  svelte: { label: 'Svelte', color: '#ff3e00' },
+  terraform: { label: 'Terraform', color: '#5c4ee5' },
+  json: { label: 'JSON', color: '#a8b3a5' },
+  markdown: { label: 'Markdown', color: '#a8b3a5' },
+  yaml: { label: 'YAML', color: '#b493d6' },
+  css: { label: 'CSS', color: '#1572b6' },
+  scss: { label: 'SCSS', color: '#cc6699' },
+  less: { label: 'Less', color: '#1d365d' },
+  html: { label: 'HTML', color: '#e34f26' },
+  readme: { label: 'README', color: '#a8b3a5' },
+  license: { label: 'Licence', color: '#a8b3a5' },
+  tsconfig: { label: 'Configuration TypeScript', color: '#3178c6' },
+  vite: { label: 'Vite', color: '#646cff' },
+  vitest: { label: 'Vitest', color: '#6e9f18' },
+  text: { label: 'Text', color: '#a8b3a5' },
+  config: { label: 'Configuration', color: '#d19a66' },
+  generic: { label: 'Fichier', color: '#778579' },
+};
+
+const FILENAME_FILE_TYPES = {
+  dockerfile: 'docker',
+  'package.json': 'package',
+  'package-lock.json': 'package',
+  'pnpm-lock.yaml': 'package',
+  'yarn.lock': 'package',
+  'readme.md': 'readme',
+  'readme': 'readme',
+  'license': 'license',
+  'license.md': 'license',
+  'tsconfig.json': 'tsconfig',
+  'tsconfig.base.json': 'tsconfig',
+  'vite.config.js': 'vite',
+  'vite.config.ts': 'vite',
+  'vitest.config.js': 'vitest',
+  'vitest.config.ts': 'vitest',
+  '.gitignore': 'git',
+  '.gitattributes': 'git',
+  '.gitmodules': 'git',
+};
+
+const EXTENSION_FILE_TYPES = {
+  '.dockerfile': 'docker',
+  '.js': 'javascript',
+  '.mjs': 'javascript',
+  '.cjs': 'javascript',
+  '.jsx': 'react',
+  '.ts': 'typescript',
+  '.tsx': 'react',
+  '.py': 'python',
+  '.rs': 'rust',
+  '.go': 'go',
+  '.java': 'java',
+  '.vue': 'vue',
+  '.svelte': 'svelte',
+  '.tf': 'terraform',
+  '.json': 'json',
+  '.jsonc': 'json',
+  '.md': 'markdown',
+  '.mdx': 'markdown',
+  '.yml': 'yaml',
+  '.yaml': 'yaml',
+  '.css': 'css',
+  '.scss': 'scss',
+  '.sass': 'scss',
+  '.less': 'less',
+  '.html': 'html',
+  '.htm': 'html',
+  '.txt': 'text',
+  '.text': 'text',
+  '.log': 'text',
+  '.ini': 'config',
+  '.cfg': 'config',
+  '.conf': 'config',
+  '.config': 'config',
+  '.toml': 'config',
+  '.properties': 'config',
+  '.env': 'config',
+};
+
+function getBasename(fileName) {
+  return String(fileName || '').split(/[\\/]/).pop().toLowerCase();
+}
+
+function normalizeExtension(extension) {
+  const value = String(extension || '').trim().toLowerCase();
+  return value && value.startsWith('.') ? value : value ? `.${value}` : '';
+}
+
+export function getFileTypeInfo(fileName, extension) {
+  const filenameType = FILENAME_FILE_TYPES[getBasename(fileName)];
+  const extensionType = EXTENSION_FILE_TYPES[normalizeExtension(extension)];
+  const type = filenameType || extensionType || 'generic';
+  return { type, ...FILE_TYPE_INFO[type] };
+}
+
 export function getLangColor(ext) {
   if (!ext) return null;
   return LANG_COLORS[ext.toLowerCase()] || null;

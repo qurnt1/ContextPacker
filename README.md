@@ -19,12 +19,12 @@ Pour l’import local, utilisez Chrome, Edge, Brave ou un autre navigateur Chrom
 - Export TXT, Markdown, presse-papier et ouverture vers ChatGPT, Claude, Gemini ou Perplexity.
 - Option persistante « Inclure toute l’arborescence à l’export » : la structure complète peut être exportée, mais le contenu reste limité aux fichiers sélectionnés.
 - Support des fichiers JavaScript, TypeScript, JSON, JSONC, CSV, TSV et autres formats texte.
-- Comptage indicatif des tokens avec `js-tiktoken` (`o200k_base`, puis `cl100k_base`).
+- Comptage indicatif des tokens avec `js-tiktoken` (`o200k_base`, puis `cl100k_base` en secours), chargé à la demande.
 - Historique local/GitHub, favoris et réouverture d’un dossier local via IndexedDB.
 
 ## Sécurité et fichiers sensibles
 
-Les fichiers secrets sont affichés pour rendre leur présence explicite, mais restent bloqués et ne sont jamais lus ni exportés. Cela inclut notamment `.env`, `.env.local`, les certificats et clés privées, `.npmrc`, `.pypirc`, `credentials*.json`, `service-account*.json`, ainsi que `.venv` et `venv`.
+Les fichiers secrets sont affichés pour rendre leur présence explicite, mais restent bloqués et ne sont jamais lus ni exportés. Cela inclut notamment `.env`, `.env.local`, les certificats et clés privées, `.npmrc`, `.pypirc`, `credentials*.json`, `service-account*.json`, ainsi que `.git`, `.aws`, `.ssh`, `.venv` et `venv`.
 
 Les modèles `.env.example`, `.env.sample`, `.env.template` et `.env.defaults` restent sélectionnables. Les fichiers trop volumineux sont visibles mais non sélectionnables.
 
@@ -32,7 +32,7 @@ Le token GitHub est utilisé uniquement en mémoire pour la session. Il n’est 
 
 ## Source et export
 
-Le contrôle « Formatage compact » est conservé pour compatibilité, mais la transformation est volontairement désactivée : le contenu source exporté reste inchangé. Le comptage affiché dans le tableau de bord correspond aux tokens du contenu sélectionné. L’export recalcule séparément son estimation finale, qui inclut sa structure et ses métadonnées.
+Le contrôle « Formatage compact » réduit l’enveloppe et les métadonnées de l’export. Le contenu source reste inchangé, sauf pour les fichiers JSON valides qui peuvent être sérialisés sans espaces. En cas d’échec de lecture JSON, la source originale est conservée. Le comptage affiché dans le tableau de bord correspond aux tokens du contenu sélectionné. L’export recalcule séparément son estimation finale, qui inclut sa structure et ses métadonnées.
 
 Les exports utilisent un snapshot GitHub immuable lorsque le dépôt est distant. Les caches sont bornés et séparés entre session authentifiée et anonyme. Les réponses GitHub tronquées, les erreurs API et les limites de taille sont signalées au lieu d’être masquées.
 
@@ -55,6 +55,8 @@ Tests :
 
 ```bash
 npm test
+npm run lint
+npm run e2e
 ```
 
 ## Paramètres
@@ -77,8 +79,8 @@ npm test
 
 ## Confidentialité
 
-ContextPacker est une application client-side. Les fichiers sont lus et traités localement dans le navigateur. Les seuls appels externes attendus sont les appels GitHub nécessaires au scan distant et les ouvertures explicites vers les services LLM. L’interface charge également sa police via Google Fonts.
+ContextPacker est une application client-side. Les fichiers sont lus et traités localement dans le navigateur. Les seuls appels externes attendus sont les appels GitHub nécessaires au scan distant et les ouvertures explicites vers les services LLM. L’interface n’utilise pas de police distante.
 
 ## Licence
 
-Aucun fichier `LICENSE` n’est actuellement inclus dans ce dépôt. L’absence de licence explicite doit être résolue avant de présenter le projet comme MIT.
+ContextPacker est distribué sous licence MIT. Voir le fichier [`LICENSE`](./LICENSE).
