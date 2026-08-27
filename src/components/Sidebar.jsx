@@ -15,7 +15,6 @@ import {
   PanelLeftOpen,
 } from 'lucide-react';
 import FileTree from './FileTree';
-import { formatNumber } from '../utils/helpers';
 import { useStore } from '../store';
 import { isSelectionAllowed } from '../utils/securityPolicy';
 import { buildSelectionIndex, getSearchResultPaths } from '../utils/treeUtils';

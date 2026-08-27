@@ -45,14 +45,20 @@ export default function WarningPopup() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200]"
-            onClick={cancelWarning}
+            aria-hidden="true"
           />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+          <div
+            className="fixed inset-0 z-[201] grid place-items-center p-4"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) cancelWarning();
+            }}
+          >
+            <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
             transition={{ type: 'spring', damping: 25, stiffness: 400 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] max-w-[90vw] bg-cyber-surface border border-cyber-border rounded-2xl shadow-2xl z-[201] overflow-hidden"
+            className="w-full max-w-[420px] overflow-hidden rounded-2xl border border-cyber-border bg-cyber-surface shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-labelledby="warning-popup-title"
@@ -104,7 +110,8 @@ export default function WarningPopup() {
                 {isSettingsWarning ? 'Fermer' : 'Continuer'}
               </button>
             </div>
-          </motion.div>
+            </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>
