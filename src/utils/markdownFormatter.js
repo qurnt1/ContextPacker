@@ -1,12 +1,18 @@
-import { generateCompactTreeText, generateTreeText, getExportFileData } from './outputFormatter';
+import {
+  generateCompactTreeText,
+  generateTreeText,
+  getExportFileData,
+  getExportSummary,
+} from './outputFormatter';
 import { filterTreeForExport } from './treeUtils';
 
-export function generateMarkdownOutput(projectName, selectedFiles, totalTokens, minifyEnabled, tree, selectedPaths, includeFullTree = false, potentialSecretsAllowed = false) {
+export function generateMarkdownOutput(projectName, selectedFiles, totalTokens, minifyEnabled, tree, selectedPaths, includeFullTree = false) {
+  const exportSummary = getExportSummary(selectedFiles, totalTokens, minifyEnabled);
   let md = minifyEnabled
-    ? `# CP: ${projectName}\n\n> ${JSON.stringify({ tokens: totalTokens, source: 'preserved', files: selectedFiles.length })}\n\n`
-    : `# ContextPacker — ${projectName}\n\n> **Tokens contenu** : ${totalTokens.toLocaleString('fr-FR')} | **Source préservée** : oui | **Fichiers** : ${selectedFiles.length}\n\n`;
+    ? `# CP: ${projectName}\n\n> ${JSON.stringify({ tokens: exportSummary.totalTokens, source: 'preserved', files: exportSummary.files.length })}\n\n`
+    : `# ContextPacker — ${projectName}\n\n> **Tokens contenu** : ${exportSummary.totalTokens.toLocaleString('fr-FR')} | **Source préservée** : oui | **Fichiers** : ${exportSummary.files.length}\n\n`;
 
-  const filteredTree = filterTreeForExport(tree, selectedPaths, includeFullTree, potentialSecretsAllowed);
+  const filteredTree = filterTreeForExport(tree, selectedPaths, includeFullTree);
   if (filteredTree) {
     md += '## Structure\n\n```\n';
     md += minifyEnabled
@@ -15,7 +21,7 @@ export function generateMarkdownOutput(projectName, selectedFiles, totalTokens, 
     md += '```\n\n';
   }
 
-  const sortedFiles = [...selectedFiles].sort((a, b) => b.size - a.size);
+  const sortedFiles = [...exportSummary.files].sort((a, b) => b.size - a.size);
 
   sortedFiles.forEach((file) => {
     const { content, tokens } = getExportFileData(file, minifyEnabled);
