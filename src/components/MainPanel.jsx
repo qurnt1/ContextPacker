@@ -18,14 +18,13 @@ export default function MainPanel() {
   const projectLoaded = useStore((s) => s.projectLoaded);
   const files = useStore((s) => s.files);
   const includeFullTreeInExport = useStore((s) => s.includeFullTreeInExport);
-  const potentialSecretsAllowed = useStore((s) => s.potentialSecretsAllowed);
 
   const selectedFiles = useMemo(
     () =>
       files
-        .filter((file) => isSelectionAllowed(file, potentialSecretsAllowed) && selectedPaths.has(file.path))
+        .filter((file) => isSelectionAllowed(file) && selectedPaths.has(file.path))
         .sort((a, b) => b.size - a.size),
-    [files, selectedPaths, potentialSecretsAllowed]
+    [files, selectedPaths]
   );
 
   const totalTokens = useMemo(
@@ -38,9 +37,9 @@ export default function MainPanel() {
   );
 
   const treeText = useMemo(() => {
-    const filtered = filterTreeForExport(tree, selectedPaths, includeFullTreeInExport, potentialSecretsAllowed);
+    const filtered = filterTreeForExport(tree, selectedPaths, includeFullTreeInExport);
     return filtered ? generateTreeText(filtered, '', true, true) : '';
-  }, [tree, selectedPaths, includeFullTreeInExport, potentialSecretsAllowed]);
+  }, [tree, selectedPaths, includeFullTreeInExport]);
 
   const previewFiles = selectedFiles.slice(0, MAX_PREVIEW_FILES);
   const previewLimited = selectedFiles.length > previewFiles.length;

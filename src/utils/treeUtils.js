@@ -1,14 +1,14 @@
-import { isSelectionAllowed, isSelectableFile } from './securityPolicy';
+import { hasPotentialSecrets, isSelectionAllowed, isSelectableFile } from './securityPolicy';
 
-export function filterTreeForExport(node, selectedPaths = new Set(), includeFullTree = false, potentialSecretsAllowed = false) {
+export function filterTreeForExport(node, selectedPaths = new Set(), includeFullTree = false) {
   if (!node || node.blocked || node.selectable === false) return null;
-  if (node.potentialSecrets?.length && !potentialSecretsAllowed) return null;
+  if (hasPotentialSecrets(node)) return null;
   if (node.type === 'file') {
     return includeFullTree || selectedPaths.has(node.path) ? { ...node } : null;
   }
 
   const children = (node.children || [])
-    .map((child) => filterTreeForExport(child, selectedPaths, includeFullTree, potentialSecretsAllowed))
+    .map((child) => filterTreeForExport(child, selectedPaths, includeFullTree))
     .filter(Boolean);
   if (children.length === 0) return null;
   return { ...node, children };
@@ -42,13 +42,13 @@ export function getSearchResultPaths(node, query = '') {
   return [...new Set(paths)];
 }
 
-export function buildSelectionIndex(node, selectedPaths = new Set(), potentialSecretsAllowed = false) {
+export function buildSelectionIndex(node, selectedPaths = new Set()) {
   const index = new Map();
 
   function visit(current) {
     if (!current) return { selectableCount: 0, selectedCount: 0, paths: [] };
     if (current.type === 'file') {
-      const selectableCount = isSelectionAllowed(current, potentialSecretsAllowed) ? 1 : 0;
+      const selectableCount = isSelectionAllowed(current) ? 1 : 0;
       const selectedCount = selectableCount && selectedPaths.has(current.path) ? 1 : 0;
       const summary = { selectableCount, selectedCount, paths: selectableCount ? [current.path] : [] };
       index.set(current.path, summary);
@@ -118,6 +118,7 @@ export function buildTreeFromFiles(rootName, files, extraNodes = []) {
     type: 'file',
     extension: file.extension,
     size: file.size,
+    lastModified: file.lastModified ?? null,
     lines: file.lines,
     tokens: file.tokens,
     minifiedTokens: file.minifiedTokens,

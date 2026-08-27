@@ -4,7 +4,7 @@ import { getExtension } from './helpers';
 import { minifyCode } from './minifier';
 import { countTokens, initEncoding } from './tokenCounter';
 import { MAX_FILE_SIZE, MAX_SCAN_FILES, MAX_SCAN_TOTAL_BYTES } from '../constants';
-import { getSecurityMetadata } from './securityPolicy';
+import { getPotentialSecretMetadata, getSecurityMetadata } from './securityPolicy';
 import { detectPotentialSecrets } from './secretDetector';
 
 export async function scanDirectory(dirHandle, onProgress, options = {}) {
@@ -74,6 +74,7 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
           path: entryPath,
           type: 'file',
           size: null,
+          lastModified: null,
           potentialSecrets: [],
           ...security,
         });
@@ -109,6 +110,7 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
               path: entryPath,
               type: 'file',
               size: file.size,
+              lastModified: getLastModified(file),
               potentialSecrets: [],
               selectable: false,
               blocked: false,
@@ -152,6 +154,8 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
       const minified = minifyCode(content, extension);
       const minifiedTokens = minified !== content ? countTokens(minified) : tokens;
       const potentialSecrets = detectPotentialSecrets(content);
+      const potentialSecretSecurity = getPotentialSecretMetadata(potentialSecrets);
+      const lastModified = getLastModified(candidate.file);
 
       files.push({
         name: candidate.entry.name,
@@ -160,14 +164,12 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
         content,
         minifiedContent: minified,
         size: candidate.file.size,
+        lastModified,
         lines,
         tokens,
         minifiedTokens,
         potentialSecrets,
-        selectable: true,
-        blocked: false,
-        blockedReason: null,
-        traversed: true,
+        ...potentialSecretSecurity,
       });
 
       candidate.parentNode.children.push({
@@ -176,14 +178,12 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
         type: 'file',
         extension,
         size: candidate.file.size,
+        lastModified,
         lines,
         tokens,
         minifiedTokens,
         potentialSecrets,
-        selectable: true,
-        blocked: false,
-        blockedReason: null,
-        traversed: true,
+        ...potentialSecretSecurity,
       });
     } catch (e) {
       console.warn(`Skipped ${candidate.entryPath}:`, e.message);
@@ -204,6 +204,10 @@ function pruneEmptyDirectories(node) {
     pruneEmptyDirectories(child);
     return child.children.length > 0 || child.blocked || child.selectable === false;
   });
+}
+
+function getLastModified(file) {
+  return Number.isFinite(file?.lastModified) ? file.lastModified : null;
 }
 
 function throwIfAborted(signal) {

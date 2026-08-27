@@ -60,7 +60,6 @@ export default function ExportMenu({
   contentTokens,
   tokenLimit,
   includeFullTreeInExport = false,
-  potentialSecretsAllowed = false,
   disabled,
 }) {
   const [open, setOpen] = useState(false);
@@ -80,8 +79,7 @@ export default function ExportMenu({
         minifyEnabled,
         tree,
         selectedPaths,
-        includeFullTreeInExport,
-        potentialSecretsAllowed
+        includeFullTreeInExport
       );
     }
     return generatePlainOutput(
@@ -91,10 +89,9 @@ export default function ExportMenu({
       minifyEnabled,
       tree,
       selectedPaths,
-      includeFullTreeInExport,
-      potentialSecretsAllowed
+      includeFullTreeInExport
     );
-  }, [projectName, selectedFiles, contentTokens, minifyEnabled, tree, selectedPaths, includeFullTreeInExport, potentialSecretsAllowed]);
+  }, [projectName, selectedFiles, contentTokens, minifyEnabled, tree, selectedPaths, includeFullTreeInExport]);
 
   useEffect(() => {
     if (!open) return;

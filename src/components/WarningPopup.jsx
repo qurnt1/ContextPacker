@@ -18,14 +18,13 @@ export default function WarningPopup() {
   const cancelWarning = useStore((s) => s.cancelWarning);
   const warningKind = useStore((s) => s.warningKind);
   const isSettingsWarning = warningKind === 'settings';
-  const potentialSecretsAllowed = useStore((s) => s.potentialSecretsAllowed);
 
   const totalTokens = useMemo(() => {
     if (!pendingPaths) return 0;
     return files
-      .filter((f) => isSelectionAllowed(f, potentialSecretsAllowed) && pendingPaths.has(f.path))
+      .filter((f) => isSelectionAllowed(f) && pendingPaths.has(f.path))
       .reduce((sum, f) => sum + (minifyEnabled ? f.minifiedTokens : f.tokens), 0);
-  }, [pendingPaths, files, minifyEnabled, potentialSecretsAllowed]);
+  }, [pendingPaths, files, minifyEnabled]);
 
   const percentUsed = tokenLimit > 0 ? ((totalTokens / tokenLimit) * 100).toFixed(1) : '0.0';
   const reasons = [];

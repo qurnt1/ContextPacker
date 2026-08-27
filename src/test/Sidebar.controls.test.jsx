@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, cleanup } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import Sidebar from '../components/Sidebar';
 import { useStore } from '../store';
 
@@ -55,7 +55,18 @@ describe('Sidebar controls', () => {
     render(<Sidebar />);
 
     expect(screen.getByRole('button', { name: /Formatage compact/i })).toHaveAttribute('aria-pressed', 'false');
+    const gitignoreToggle = screen.getByRole('button', { name: /Désactiver \.gitignore/i });
+    expect(gitignoreToggle.getAttribute('title')).toMatch(/actualiser immédiatement/i);
     expect(screen.getByRole('checkbox', { name: /Arborescence complète/i })).not.toBeChecked();
+  });
+
+  it('disables the .gitignore action while a scan is running', () => {
+    useStore.setState({ isScanning: true });
+    render(<Sidebar />);
+
+    const gitignoreToggle = screen.getByRole('button', { name: /Actualisation du projet en cours/i });
+    expect(gitignoreToggle).toBeDisabled();
+    expect(gitignoreToggle).toHaveAttribute('aria-busy', 'true');
   });
 
   it('uses the shared active style for the full-tree export toggle', () => {
@@ -71,7 +82,7 @@ describe('Sidebar controls', () => {
     expect(control).toHaveClass('bg-cyber-accent/10');
   });
 
-  it('keeps potential secrets disabled until explicit confirmation', () => {
+  it('keeps potential secrets permanently disabled', () => {
     const secretFile = {
       name: 'config.js',
       path: 'config.js',
@@ -89,18 +100,14 @@ describe('Sidebar controls', () => {
       tree: { ...tree, children: [secretFile] },
       files: [{ ...secretFile, content: 'const apiKey = "value";', minifiedContent: 'const apiKey = "value";' }],
       selectedPaths: new Set(),
-      potentialSecretsAllowed: false,
     });
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     render(<Sidebar />);
 
-    const secretCheckbox = screen.getByRole('button', { name: /secret potentiel, confirmation requise/i });
+    const secretCheckbox = screen.getByRole('button', { name: /secret potentiel bloqué et non sélectionnable/i });
     expect(secretCheckbox).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: /Autoriser après confirmation/i }));
-
-    expect(confirmSpy).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('button', { name: /Sélectionner config\.js/i })).toBeEnabled();
-    confirmSpy.mockRestore();
+    expect(screen.queryByRole('button', { name: /autoriser/i })).not.toBeInTheDocument();
+    fireEvent.click(secretCheckbox);
+    expect(useStore.getState().selectedPaths).toEqual(new Set());
   });
 });

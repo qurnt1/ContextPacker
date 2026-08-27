@@ -59,9 +59,21 @@ export function hasPotentialSecrets(file) {
   return Boolean(file?.potentialSecrets?.length);
 }
 
-export function isSelectionAllowed(file, potentialSecretsAllowed = false) {
-  return isSelectableFile(file)
-    && (potentialSecretsAllowed || !hasPotentialSecrets(file));
+export function getPotentialSecretMetadata(potentialSecrets) {
+  if (!potentialSecrets?.length) {
+    return { selectable: true, blocked: false, blockedReason: null, traversed: true };
+  }
+
+  return {
+    selectable: false,
+    blocked: true,
+    blockedReason: 'potential-secret',
+    traversed: true,
+  };
+}
+
+export function isSelectionAllowed(file) {
+  return isSelectableFile(file) && !hasPotentialSecrets(file);
 }
 
 export function getBlockedDirectoryNames() {

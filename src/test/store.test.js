@@ -169,7 +169,6 @@ describe('Store — visible selection behavior', () => {
       pendingPaths: null,
       warningAccepted: false,
       warningKind: null,
-      potentialSecretsAllowed: false,
     });
   });
 
@@ -224,22 +223,20 @@ describe('Store — visible selection behavior', () => {
     expect(useStore.getState().selectedPaths).toEqual(new Set(['public.js']));
   });
 
-  it('requires explicit confirmation before selecting potential secrets', () => {
+  it('never selects potential secrets', () => {
     useStore.setState({
       files: [
         { path: 'config.js', tokens: 10, minifiedTokens: 10, potentialSecrets: [{ kind: 'credential-assignment', line: 1 }] },
         { path: 'public.js', tokens: 10, minifiedTokens: 10, potentialSecrets: [] },
       ],
       selectedPaths: new Set(),
-      potentialSecretsAllowed: false,
     });
 
     useStore.getState().selectAll();
     expect(useStore.getState().selectedPaths).toEqual(new Set(['public.js']));
 
-    useStore.getState().acknowledgePotentialSecrets();
-    useStore.getState().selectAll();
-    expect(useStore.getState().selectedPaths).toEqual(new Set(['config.js', 'public.js']));
+    useStore.getState().requestSelection(new Set(['config.js', 'public.js']));
+    expect(useStore.getState().selectedPaths).toEqual(new Set(['public.js']));
   });
 
   it('accepts the selection warning once for the current session', () => {
@@ -320,7 +317,6 @@ describe('Store — visible selection behavior', () => {
       projectLoaded: true,
       sourceMeta: { type: 'local', projectId: 'refresh-secret-id' },
       selectedPaths: new Set(['config.js']),
-      potentialSecretsAllowed: true,
       savedSelection: null,
     });
 
@@ -336,7 +332,7 @@ describe('Store — visible selection behavior', () => {
     });
 
     expect(useStore.getState().selectedPaths).toEqual(new Set());
-    expect(useStore.getState().potentialSecretsAllowed).toBe(false);
+    expect(useStore.getState()).not.toHaveProperty('potentialSecretsAllowed');
   });
 });
 

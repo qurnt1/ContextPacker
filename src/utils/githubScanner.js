@@ -4,7 +4,7 @@ import { getExtension } from './helpers';
 import { minifyCode } from './minifier';
 import { countTokens, initEncoding } from './tokenCounter';
 import { MAX_FILE_SIZE } from '../constants';
-import { getSecurityMetadata } from './securityPolicy';
+import { getPotentialSecretMetadata, getSecurityMetadata } from './securityPolicy';
 import { buildTreeFromFiles } from './treeUtils';
 import { detectPotentialSecrets } from './secretDetector';
 
@@ -453,6 +453,7 @@ export async function scanGitHubRepo({
     const minifiedContent = minifyCode(content, extension);
     const minifiedTokens = minifiedContent !== content ? countTokens(minifiedContent) : tokens;
     const potentialSecrets = detectPotentialSecrets(content);
+    const potentialSecretSecurity = getPotentialSecretMetadata(potentialSecrets);
 
     files.push({
       name: entry.path.split('/').pop() || entry.path,
@@ -465,10 +466,7 @@ export async function scanGitHubRepo({
       tokens,
       minifiedTokens,
       potentialSecrets,
-      selectable: true,
-      blocked: false,
-      blockedReason: null,
-      traversed: true,
+      ...potentialSecretSecurity,
     });
 
     processed += 1;

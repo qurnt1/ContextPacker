@@ -71,6 +71,8 @@ describe('detectPotentialSecrets', () => {
     expect(blockedNode.potentialSecrets).toEqual([]);
     expect(file.potentialSecrets).toEqual([{ kind: 'credential-assignment', line: 1 }]);
     expect(treeNode.potentialSecrets).toEqual(file.potentialSecrets);
+    expect(file).toMatchObject({ selectable: false, blocked: true, blockedReason: 'potential-secret' });
+    expect(treeNode).toMatchObject({ selectable: false, blocked: true, blockedReason: 'potential-secret' });
     expect(JSON.stringify({
       fileMetadata: file.potentialSecrets,
       treeMetadata: treeNode.potentialSecrets,
