@@ -72,6 +72,19 @@ async function openGithubProject(page, branch = '') {
   await expect(page.getByText('src')).toBeVisible();
 }
 
+test('accepts a session-only GitHub token from the welcome screen', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Projet GitHub' }).click();
+
+  const tokenInput = page.getByLabel('Token GitHub (optionnel)');
+  await expect(tokenInput).toHaveAttribute('type', 'password');
+  await tokenInput.fill('test-session-token');
+  await expect(tokenInput).toHaveValue('test-session-token');
+
+  const persisted = await page.evaluate(() => JSON.parse(localStorage.getItem('cp-store-settings')));
+  expect(persisted.state.githubToken).toBeUndefined();
+});
+
 test('opens a mocked GitHub project and keeps the workbench usable', async ({ page }) => {
   await openGithubProject(page);
   await expect(page.getByText('Formatage compact')).toBeVisible();

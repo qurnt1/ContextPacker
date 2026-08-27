@@ -17,6 +17,7 @@ beforeEach(() => {
     selectedPaths: new Set(),
     isScanning: false,
     onboardingDone: true,
+    githubToken: '',
   });
 });
 
@@ -35,6 +36,19 @@ describe('App modal entry points', () => {
     fireEvent.click(screen.getByTestId('welcome-guide-button'));
 
     await waitFor(() => expect(screen.getByTestId('onboarding-dialog')).toBeVisible());
+  });
+
+  it('accepts a GitHub token from the welcome screen without persisting it', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Projet GitHub' }));
+    fireEvent.change(screen.getByLabelText('Token GitHub (optionnel)'), {
+      target: { value: 'test-session-token' },
+    });
+
+    expect(useStore.getState().githubToken).toBe('test-session-token');
+    const persisted = JSON.parse(localStorage.getItem('cp-store-settings'));
+    expect(persisted.state).not.toHaveProperty('githubToken');
   });
 
   it('opens the keyboard shortcuts dialog from the project header', async () => {

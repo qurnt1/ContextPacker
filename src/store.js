@@ -49,6 +49,13 @@ function warningAcceptanceKey(state) {
   ].join('|');
 }
 
+const DEFAULT_TOKEN_LIMIT = 1_000_000;
+
+function normalizeTokenLimit(value, fallback = DEFAULT_TOKEN_LIMIT) {
+  const limit = Number(value);
+  return Number.isFinite(limit) && limit > 0 ? limit : fallback;
+}
+
 /**
  * Pure function — compute token sum for a given set of paths.
  * Testable independently of the store.
@@ -566,7 +573,7 @@ const MAX_RECENT_PROJECTS = 10;
 const createSettingsSlice = (set, get) => ({
   minifyEnabled: false,
   gitignoreEnabled: true,
-  tokenLimit: 200_000,
+  tokenLimit: DEFAULT_TOKEN_LIMIT,
   warningPercent: 40,
   customThreshold: 0,
   githubToken: '',
@@ -597,7 +604,8 @@ const createSettingsSlice = (set, get) => ({
   setGitignoreEnabled: (v) =>
     set({ gitignoreEnabled: typeof v === 'function' ? v(get().gitignoreEnabled) : v }),
   setTokenLimit: (v) => {
-    const newLimit = typeof v === 'function' ? v(get().tokenLimit) : v;
+    const requestedLimit = typeof v === 'function' ? v(get().tokenLimit) : v;
+    const newLimit = normalizeTokenLimit(requestedLimit, get().tokenLimit);
     set({ tokenLimit: newLimit, warningAccepted: false, warningAcceptedKey: null });
     // Re-evaluate current selection when limit is lowered
     const { selectedPaths, files, minifyEnabled, warningPercent, customThreshold, potentialSecretsAllowed } = get();
@@ -758,9 +766,16 @@ export const useStore = create(
     }),
     {
       name: 'cp-store-settings',
-      version: 1,
+      version: 2,
       migrate: (persistedState) => ({
         ...persistedState,
+        tokenLimit: normalizeTokenLimit(persistedState?.tokenLimit),
+        githubToken: '',
+      }),
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...persistedState,
+        tokenLimit: normalizeTokenLimit(persistedState?.tokenLimit, currentState.tokenLimit),
         githubToken: '',
       }),
       partialize: (state) => ({

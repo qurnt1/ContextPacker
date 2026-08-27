@@ -43,8 +43,27 @@ import { isAboveWarningThreshold, useStore } from '../store';
 import { getHandle, deleteHandle } from '../utils/handleStorage';
 
 describe('Store defaults', () => {
-  it('starts with a 200k token limit', () => {
-    expect(useStore.getInitialState().tokenLimit).toBe(200_000);
+  it('starts with a 1M token limit', () => {
+    expect(useStore.getInitialState().tokenLimit).toBe(1_000_000);
+  });
+
+  it('persists a saved 1M token limit', () => {
+    useStore.getState().setTokenLimit(1_000_000);
+
+    const persisted = JSON.parse(localStorage.getItem('cp-store-settings'));
+    expect(persisted.state.tokenLimit).toBe(1_000_000);
+  });
+
+  it('restores a saved 1M token limit during hydration', async () => {
+    useStore.setState({ tokenLimit: 200_000 });
+    localStorage.setItem('cp-store-settings', JSON.stringify({
+      state: { tokenLimit: 1_000_000 },
+      version: 2,
+    }));
+
+    await useStore.persist.rehydrate();
+
+    expect(useStore.getState().tokenLimit).toBe(1_000_000);
   });
 });
 
