@@ -50,6 +50,8 @@ export const LLM_TARGETS = [
   { key: 'perplexity', label: 'Perplexity', url: 'https://www.perplexity.ai/', path: BRAND_PATHS.perplexity, color: '#20b8cd', surface: 'rgba(32, 184, 205, 0.14)' },
 ];
 
+const AI_HANDOFF_DELAY_MS = 900;
+
 // ── Component ───────────────────────────────────────────────
 export default function ExportMenu({
   projectName,
@@ -163,32 +165,36 @@ export default function ExportMenu({
   }, [prepareOutput, projectName, showToast]);
 
   const handleLLM = useCallback(async (target) => {
-    // Open during the user gesture so popup blockers do not reject the handoff.
-    const newWindow = window.open(target.url, '_blank', 'noopener,noreferrer');
     const output = await prepareOutput('txt');
-    if (!output) {
-      newWindow?.close();
+    if (!output) return;
+
+    setActiveTargetKey(target.key);
+    const copied = await copyToClipboard(output.output);
+    if (!copied) {
+      showToast(`Échec de la copie. Le lien vers ${target.label} n'a pas été ouvert.`, 'error');
+      setActiveTargetKey(null);
       return;
     }
-    setActiveTargetKey(target.key);
-    const copyPromise = copyToClipboard(output.output);
 
-    copyPromise.then((ok) => {
-      const exportTokens = output.tokenCount;
+    showToast(
+      `Contexte copié (${formatNumber(output.tokenCount)} tokens). Collez dans ${target.label}.`,
+      'success'
+    );
+
+    // Leave the confirmation visible before the new tab takes focus.
+    await new Promise((resolve) => setTimeout(resolve, AI_HANDOFF_DELAY_MS));
+
+    const newWindow = window.open(target.url, '_blank', 'noopener,noreferrer');
+    if (newWindow?.closed) {
       showToast(
-        ok
-          ? `Contexte copié (${formatNumber(exportTokens)} tokens). Collez dans ${target.label}.`
-          : 'Échec de la copie.',
-        ok ? 'success' : 'error'
+        `Contexte copié (${formatNumber(output.tokenCount)} tokens), mais l'ouverture de ${target.label} a été bloquée.`,
+        'error'
       );
-      if (newWindow && newWindow.closed) {
-        showToast(
-          `Popup bloquée. Ouvrez ${target.label} manuellement.`,
-          'error'
-        );
-      }
       setActiveTargetKey(null);
-    });
+      return;
+    }
+
+    setActiveTargetKey(null);
     setOpen(false);
   }, [prepareOutput, showToast]);
 

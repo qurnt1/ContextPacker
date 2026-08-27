@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { copyToClipboard, generatePlainOutput, countTokens, initEncoding } = vi.hoisted(() => ({
@@ -79,8 +79,21 @@ describe('ExportMenu behavior', () => {
     expect(copyToClipboard).not.toHaveBeenCalled();
   });
 
-  it('copies the context before navigating to an AI destination', async () => {
+  it('opens an AI destination only after the context is copied', async () => {
     const open = vi.spyOn(window, 'open').mockReturnValue({ closed: false });
+    const nativeSetTimeout = globalThis.setTimeout;
+    let completeHandoff;
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout').mockImplementation((callback, delay, ...args) => {
+      if (delay === 900) {
+        completeHandoff = () => callback(...args);
+        return 0;
+      }
+      return nativeSetTimeout(callback, delay, ...args);
+    });
+    let resolveCopy;
+    copyToClipboard.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveCopy = resolve;
+    }));
     render(
       <ExportMenu
         projectName="demo"
@@ -99,11 +112,25 @@ describe('ExportMenu behavior', () => {
     expect(chatgpt).toBeEnabled();
 
     fireEvent.click(chatgpt);
-    expect(open).toHaveBeenCalledWith('https://chatgpt.com/', '_blank', 'noopener,noreferrer');
     await waitFor(() => expect(copyToClipboard).toHaveBeenCalledWith('generated context'));
+    expect(open).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveCopy(true);
+    });
+
+    expect(screen.getByText(/Contexte copié/i)).toBeInTheDocument();
+    expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 900);
+    expect(open).not.toHaveBeenCalled();
+
+    await act(async () => {
+      completeHandoff();
+    });
+
+    await waitFor(() => expect(open).toHaveBeenCalledWith('https://chatgpt.com/', '_blank', 'noopener,noreferrer'));
   });
 
-  it('reports a copy failure after attempting the AI handoff', async () => {
+  it('does not open an AI destination when copying fails', async () => {
     const open = vi.spyOn(window, 'open').mockReturnValue({ closed: false });
     copyToClipboard.mockResolvedValueOnce(false);
 
@@ -124,6 +151,6 @@ describe('ExportMenu behavior', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: /ChatGPT/i }));
 
     await waitFor(() => expect(copyToClipboard).toHaveBeenCalledWith('generated context'));
-    expect(open).toHaveBeenCalledWith('https://chatgpt.com/', '_blank', 'noopener,noreferrer');
+    expect(open).not.toHaveBeenCalled();
   });
 });
