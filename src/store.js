@@ -321,35 +321,43 @@ const createScanSlice = (set, get) => ({
    */
   handleRefresh: async () => {
     try {
-      const { sourceMeta, scanFromHandle, handleOpenGitHub } = get();
-    if (!sourceMeta) return { ok: false, error: new Error('No project loaded'), aborted: false };
+      const { sourceMeta, scanFromHandle, handleOpenGitHub, files } = get();
+      if (!sourceMeta) return { ok: false, error: new Error('No project loaded'), aborted: false };
 
-    if (sourceMeta.type === 'github') {
-      const src = sourceMeta;
-      return await handleOpenGitHub({
-        repoInput: src.input || `https://github.com/${src.owner}/${src.repo}`,
-        ref: src.followDefaultBranch ? '' : src.requestedRef,
-        subPath: src.subPath || '',
-      });
-    }
+      if (sourceMeta.type === 'github') {
+        const src = sourceMeta;
+        return await handleOpenGitHub({
+          repoInput: src.input || `https://github.com/${src.owner}/${src.repo}`,
+          ref: src.followDefaultBranch ? '' : src.requestedRef,
+          subPath: src.subPath || '',
+        });
+      }
 
-    // Local: re-scan using stored projectId from sourceMeta
-    const projectId = sourceMeta.projectId;
-    if (projectId) {
-      const handle = await getHandle(projectId);
-      if (handle) {
-        const opts = { mode: 'read' };
-        let perm = await handle.queryPermission(opts);
-        if (perm !== 'granted') {
-          perm = await handle.requestPermission(opts);
-        }
-        if (perm === 'granted') {
-          return await scanFromHandle(handle);
+      // Keep the previous local scan only for the duration of this refresh.
+      const previousFiles = files;
+      const projectId = sourceMeta.projectId;
+      if (projectId) {
+        const handle = await getHandle(projectId);
+        if (handle) {
+          const options = { mode: 'read' };
+          let permission = await handle.queryPermission(options);
+          if (permission !== 'granted') {
+            permission = await handle.requestPermission(options);
+          }
+          if (permission === 'granted') {
+            const result = await scanFromHandle(handle);
+            if (!result.ok) return result;
+            const { createRefreshSummary } = await import('./utils/refreshDiff');
+            return {
+              ...result,
+              refreshSummary: createRefreshSummary(previousFiles, result.value.files),
+            };
+          }
         }
       }
-    }
-    const err = new Error("Impossible d'accéder au dossier. Réessayez depuis l'écran d'accueil.");
-    return { ok: false, error: err, aborted: false };
+
+      const error = new Error("Impossible d'accéder au dossier. Réessayez depuis l'écran d'accueil.");
+      return { ok: false, error, aborted: false };
     } catch (err) {
       if (err.name === 'AbortError') {
         set({ isScanning: false });

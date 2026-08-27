@@ -41,6 +41,7 @@ vi.mock('../utils/githubScanner', () => ({
 
 import { isAboveWarningThreshold, useStore } from '../store';
 import { getHandle, deleteHandle } from '../utils/handleStorage';
+import { scanDirectory } from '../utils/scanner';
 
 describe('Store defaults', () => {
   it('starts with a 1M token limit', () => {
@@ -149,6 +150,83 @@ describe('Store — local project identity', () => {
 
     expect(result).toMatchObject({ ok: false, aborted: false });
     expect(result.error).toHaveProperty('message', 'refresh permission failure');
+  });
+
+  it('returns an in-memory line diff after refreshing a local project', async () => {
+    const refreshedFiles = [
+      {
+        name: 'index.js', path: 'index.js', extension: '.js', size: 100, lines: 1,
+        tokens: 50, minifiedTokens: 50, content: 'const refreshed = true;\n', minifiedContent: 'const refreshed = true;\n',
+        selectable: true, blocked: false, lastModified: 2_000,
+      },
+      {
+        name: 'new.js', path: 'new.js', extension: '.js', size: 100, lines: 2,
+        tokens: 50, minifiedTokens: 50, content: 'one\ntwo\n', minifiedContent: 'one\ntwo\n',
+        selectable: true, blocked: false, lastModified: 2_500,
+      },
+    ];
+    scanDirectory.mockResolvedValueOnce({
+      name: 'test-project',
+      files: refreshedFiles,
+      tree: { name: 'test-project', path: '', type: 'directory', children: [] },
+    });
+    getHandle.mockResolvedValueOnce(mockDirHandle('refresh-project'));
+    useStore.setState({
+      projectLoaded: true,
+      sourceMeta: { type: 'local', projectId: 'refresh-id' },
+      files: [{
+        name: 'index.js', path: 'index.js', extension: '.js', size: 100, lines: 1,
+        tokens: 50, minifiedTokens: 50, content: 'const before = true;\n', minifiedContent: 'const before = true;\n',
+        selectable: true, blocked: false, lastModified: 1_000,
+      }],
+      selectedPaths: new Set(['index.js']),
+    });
+
+    const result = await useStore.getState().handleRefresh();
+
+    expect(result).toMatchObject({ ok: true });
+    expect(result.refreshSummary).toMatchObject({
+      totalChanged: 2,
+      addedFileCount: 1,
+      modifiedFileCount: 1,
+      removedFileCount: 0,
+      latestModifiedAt: 2_500,
+    });
+    expect(result.refreshSummary.changes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: 'index.js', kind: 'modified', addedLines: 1, removedLines: 1 }),
+      expect.objectContaining({ path: 'new.js', kind: 'added', addedLines: 2, removedLines: 0 }),
+    ]));
+    expect(useStore.getState()).not.toHaveProperty('refreshSummary');
+  });
+
+  it('immediately refreshes an open project when .gitignore changes', async () => {
+    const handle = mockDirHandle('gitignore-refresh');
+    getHandle.mockResolvedValue(handle);
+    useStore.setState({
+      projectLoaded: true,
+      sourceMeta: { type: 'local', projectId: 'gitignore-refresh-id' },
+      files: [],
+      gitignoreEnabled: true,
+      isScanning: false,
+    });
+
+    await useStore.getState().setGitignoreEnabled(false);
+
+    expect(useStore.getState().gitignoreEnabled).toBe(false);
+    expect(scanDirectory).toHaveBeenLastCalledWith(
+      handle,
+      expect.any(Function),
+      expect.objectContaining({ applyGitignore: false })
+    );
+
+    await useStore.getState().setGitignoreEnabled(true);
+
+    expect(useStore.getState().gitignoreEnabled).toBe(true);
+    expect(scanDirectory).toHaveBeenLastCalledWith(
+      handle,
+      expect.any(Function),
+      expect.objectContaining({ applyGitignore: true })
+    );
   });
 });
 
