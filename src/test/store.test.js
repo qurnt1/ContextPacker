@@ -41,10 +41,30 @@ vi.mock('../utils/githubScanner', () => ({
 
 import { isAboveWarningThreshold, useStore } from '../store';
 import { getHandle, deleteHandle } from '../utils/handleStorage';
+import { scanDirectory } from '../utils/scanner';
 
 describe('Store defaults', () => {
-  it('starts with a 200k token limit', () => {
-    expect(useStore.getInitialState().tokenLimit).toBe(200_000);
+  it('starts with a 1M token limit', () => {
+    expect(useStore.getInitialState().tokenLimit).toBe(1_000_000);
+  });
+
+  it('persists a saved 1M token limit', () => {
+    useStore.getState().setTokenLimit(1_000_000);
+
+    const persisted = JSON.parse(localStorage.getItem('cp-store-settings'));
+    expect(persisted.state.tokenLimit).toBe(1_000_000);
+  });
+
+  it('restores a saved 1M token limit during hydration', async () => {
+    useStore.setState({ tokenLimit: 200_000 });
+    localStorage.setItem('cp-store-settings', JSON.stringify({
+      state: { tokenLimit: 1_000_000 },
+      version: 2,
+    }));
+
+    await useStore.persist.rehydrate();
+
+    expect(useStore.getState().tokenLimit).toBe(1_000_000);
   });
 });
 
@@ -131,6 +151,83 @@ describe('Store — local project identity', () => {
     expect(result).toMatchObject({ ok: false, aborted: false });
     expect(result.error).toHaveProperty('message', 'refresh permission failure');
   });
+
+  it('returns an in-memory line diff after refreshing a local project', async () => {
+    const refreshedFiles = [
+      {
+        name: 'index.js', path: 'index.js', extension: '.js', size: 100, lines: 1,
+        tokens: 50, minifiedTokens: 50, content: 'const refreshed = true;\n', minifiedContent: 'const refreshed = true;\n',
+        selectable: true, blocked: false, lastModified: 2_000,
+      },
+      {
+        name: 'new.js', path: 'new.js', extension: '.js', size: 100, lines: 2,
+        tokens: 50, minifiedTokens: 50, content: 'one\ntwo\n', minifiedContent: 'one\ntwo\n',
+        selectable: true, blocked: false, lastModified: 2_500,
+      },
+    ];
+    scanDirectory.mockResolvedValueOnce({
+      name: 'test-project',
+      files: refreshedFiles,
+      tree: { name: 'test-project', path: '', type: 'directory', children: [] },
+    });
+    getHandle.mockResolvedValueOnce(mockDirHandle('refresh-project'));
+    useStore.setState({
+      projectLoaded: true,
+      sourceMeta: { type: 'local', projectId: 'refresh-id' },
+      files: [{
+        name: 'index.js', path: 'index.js', extension: '.js', size: 100, lines: 1,
+        tokens: 50, minifiedTokens: 50, content: 'const before = true;\n', minifiedContent: 'const before = true;\n',
+        selectable: true, blocked: false, lastModified: 1_000,
+      }],
+      selectedPaths: new Set(['index.js']),
+    });
+
+    const result = await useStore.getState().handleRefresh();
+
+    expect(result).toMatchObject({ ok: true });
+    expect(result.refreshSummary).toMatchObject({
+      totalChanged: 2,
+      addedFileCount: 1,
+      modifiedFileCount: 1,
+      removedFileCount: 0,
+      latestModifiedAt: 2_500,
+    });
+    expect(result.refreshSummary.changes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: 'index.js', kind: 'modified', addedLines: 1, removedLines: 1 }),
+      expect.objectContaining({ path: 'new.js', kind: 'added', addedLines: 2, removedLines: 0 }),
+    ]));
+    expect(useStore.getState()).not.toHaveProperty('refreshSummary');
+  });
+
+  it('immediately refreshes an open project when .gitignore changes', async () => {
+    const handle = mockDirHandle('gitignore-refresh');
+    getHandle.mockResolvedValue(handle);
+    useStore.setState({
+      projectLoaded: true,
+      sourceMeta: { type: 'local', projectId: 'gitignore-refresh-id' },
+      files: [],
+      gitignoreEnabled: true,
+      isScanning: false,
+    });
+
+    await useStore.getState().setGitignoreEnabled(false);
+
+    expect(useStore.getState().gitignoreEnabled).toBe(false);
+    expect(scanDirectory).toHaveBeenLastCalledWith(
+      handle,
+      expect.any(Function),
+      expect.objectContaining({ applyGitignore: false })
+    );
+
+    await useStore.getState().setGitignoreEnabled(true);
+
+    expect(useStore.getState().gitignoreEnabled).toBe(true);
+    expect(scanDirectory).toHaveBeenLastCalledWith(
+      handle,
+      expect.any(Function),
+      expect.objectContaining({ applyGitignore: true })
+    );
+  });
 });
 
 describe('Store — visible selection behavior', () => {
@@ -150,7 +247,6 @@ describe('Store — visible selection behavior', () => {
       pendingPaths: null,
       warningAccepted: false,
       warningKind: null,
-      potentialSecretsAllowed: false,
     });
   });
 
@@ -205,22 +301,20 @@ describe('Store — visible selection behavior', () => {
     expect(useStore.getState().selectedPaths).toEqual(new Set(['public.js']));
   });
 
-  it('requires explicit confirmation before selecting potential secrets', () => {
+  it('never selects potential secrets', () => {
     useStore.setState({
       files: [
         { path: 'config.js', tokens: 10, minifiedTokens: 10, potentialSecrets: [{ kind: 'credential-assignment', line: 1 }] },
         { path: 'public.js', tokens: 10, minifiedTokens: 10, potentialSecrets: [] },
       ],
       selectedPaths: new Set(),
-      potentialSecretsAllowed: false,
     });
 
     useStore.getState().selectAll();
     expect(useStore.getState().selectedPaths).toEqual(new Set(['public.js']));
 
-    useStore.getState().acknowledgePotentialSecrets();
-    useStore.getState().selectAll();
-    expect(useStore.getState().selectedPaths).toEqual(new Set(['config.js', 'public.js']));
+    useStore.getState().requestSelection(new Set(['config.js', 'public.js']));
+    expect(useStore.getState().selectedPaths).toEqual(new Set(['public.js']));
   });
 
   it('accepts the selection warning once for the current session', () => {
@@ -301,7 +395,6 @@ describe('Store — visible selection behavior', () => {
       projectLoaded: true,
       sourceMeta: { type: 'local', projectId: 'refresh-secret-id' },
       selectedPaths: new Set(['config.js']),
-      potentialSecretsAllowed: true,
       savedSelection: null,
     });
 
@@ -317,7 +410,7 @@ describe('Store — visible selection behavior', () => {
     });
 
     expect(useStore.getState().selectedPaths).toEqual(new Set());
-    expect(useStore.getState().potentialSecretsAllowed).toBe(false);
+    expect(useStore.getState()).not.toHaveProperty('potentialSecretsAllowed');
   });
 });
 

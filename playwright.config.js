@@ -17,7 +17,7 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
   webServer: {
-    command: `npm run dev -- --host 127.0.0.1 --port ${e2ePort}`,
+    command: `npx vite --host 127.0.0.1 --port ${e2ePort}`,
     url: `http://127.0.0.1:${e2ePort}/ContextPacker/`,
     reuseExistingServer: !process.env.CI,
   },

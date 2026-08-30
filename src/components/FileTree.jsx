@@ -34,11 +34,10 @@ const FileTree = memo(function FileTree({
   expandedPaths,
   onToggleExpanded,
   onFileClick,
-  potentialSecretsAllowed = false,
 }) {
   const isDirectory = node.type === 'directory';
   const expanded = isRoot || expandedPaths?.has(node.path) || (Boolean(searchQuery) && isDirectory && matchesSearch(node, searchQuery));
-  const isPotentialSecret = Boolean(node.potentialSecrets?.length) && !potentialSecretsAllowed;
+  const isPotentialSecret = Boolean(node.potentialSecrets?.length);
   const isBlocked = Boolean(node.blocked || node.selectable === false || isPotentialSecret);
 
   const selectionState = useMemo(() => {
@@ -94,7 +93,6 @@ const FileTree = memo(function FileTree({
             expandedPaths={expandedPaths}
             onToggleExpanded={onToggleExpanded}
             onFileClick={onFileClick}
-            potentialSecretsAllowed={potentialSecretsAllowed}
           />
         ))}
       </div>
@@ -147,8 +145,8 @@ const FileTree = memo(function FileTree({
         <button
           onClick={handleCheckboxClick}
           disabled={isBlocked}
-          aria-label={isBlocked ? `${node.name}, ${isPotentialSecret ? 'secret potentiel, confirmation requise' : 'bloqué et non sélectionnable'}` : `Sélectionner ${node.name}`}
-          title={isBlocked ? (isPotentialSecret ? 'Secret potentiel : confirmation requise avant sélection' : `Bloqué : ${node.blockedReason || 'fichier sensible'}`) : undefined}
+          aria-label={isBlocked ? `${node.name}, ${isPotentialSecret ? 'secret potentiel bloqué et non sélectionnable' : 'bloqué et non sélectionnable'}` : `Sélectionner ${node.name}`}
+          title={isBlocked ? (isPotentialSecret ? 'Secret potentiel : bloqué par sécurité' : `Bloqué : ${node.blockedReason || 'fichier sensible'}`) : undefined}
           className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-colors border ${
             selectionState === 'all'
               ? 'bg-cyber-accent/25 border-cyber-accent/50 text-cyber-accent'
@@ -168,7 +166,7 @@ const FileTree = memo(function FileTree({
         <span className="text-[12px] truncate flex-1 text-cyber-text-2 group-hover:text-cyber-text transition-colors" title={node.path}>
           {node.name}
         </span>
-        {isPotentialSecret ? <span className="text-[9px] text-amber-300/80 uppercase">secret potentiel</span> : null}
+        {isPotentialSecret ? <span className="text-[9px] text-amber-300/80 uppercase">secret bloqué</span> : null}
         {isBlocked && !isPotentialSecret ? <span className="text-[9px] text-red-300/80 uppercase">bloqué</span> : null}
 
         {!isDirectory ? (
@@ -215,7 +213,6 @@ const FileTree = memo(function FileTree({
                   expandedPaths={expandedPaths}
                   onToggleExpanded={onToggleExpanded}
                   onFileClick={onFileClick}
-                  potentialSecretsAllowed={potentialSecretsAllowed}
                 />
               ))}
             </motion.div>

@@ -1,4 +1,5 @@
 import { filterTreeForExport, sortTreeChildren } from './treeUtils';
+import { isSelectionAllowed } from './securityPolicy';
 
 export function getExportFileData(file, compact) {
   const content = compact ? (file.minifiedContent ?? file.content ?? '') : (file.content ?? '');
@@ -6,25 +7,42 @@ export function getExportFileData(file, compact) {
   return { content, tokens };
 }
 
-export function generatePlainOutput(projectName, selectedFiles, totalTokens, minifyEnabled, tree, selectedPaths, includeFullTree = false, potentialSecretsAllowed = false) {
+export function getExportSummary(selectedFiles, totalTokens, compact) {
+  const sourceFiles = Array.isArray(selectedFiles) ? selectedFiles : [];
+  const files = sourceFiles.filter(isSelectionAllowed);
+  const computedTokens = files.reduce(
+    (sum, file) => sum + getExportFileData(file, compact).tokens,
+    0
+  );
+
+  return {
+    files,
+    totalTokens: files.length === sourceFiles.length && Number.isFinite(totalTokens)
+      ? totalTokens
+      : computedTokens,
+  };
+}
+
+export function generatePlainOutput(projectName, selectedFiles, totalTokens, minifyEnabled, tree, selectedPaths, includeFullTree = false) {
+  const exportSummary = getExportSummary(selectedFiles, totalTokens, minifyEnabled);
   let output = '';
 
   if (minifyEnabled) {
-    output += `[CP] ${JSON.stringify({ project: projectName, tokens: totalTokens, files: selectedFiles.length, source: 'preserved' })}\n\n`;
+    output += `[CP] ${JSON.stringify({ project: projectName, tokens: exportSummary.totalTokens, files: exportSummary.files.length, source: 'preserved' })}\n`;
   } else {
-    output += `[CONTEXTPACKER - PROJET: ${projectName}] | TOKENS CONTENU: ${totalTokens} | SOURCE PRESERVEE: OUI\n\n`;
+    output += `[CONTEXTPACKER - PROJET: ${projectName}] | TOKENS CONTENU: ${exportSummary.totalTokens} | SOURCE PRESERVEE: OUI\n\n`;
   }
 
   output += minifyEnabled ? '[TREE]\n' : '[STRUCTURE]\n';
-  const filteredTree = filterTreeForExport(tree, selectedPaths, includeFullTree, potentialSecretsAllowed);
+  const filteredTree = filterTreeForExport(tree, selectedPaths, includeFullTree);
   if (filteredTree) {
     output += minifyEnabled
       ? generateCompactTreeText(filteredTree)
       : generateTreeText(filteredTree, '', true, true);
   }
-  output += '\n';
+  if (!minifyEnabled) output += '\n';
 
-  const sortedFiles = [...selectedFiles].sort((a, b) => b.size - a.size);
+  const sortedFiles = [...exportSummary.files].sort((a, b) => b.size - a.size);
 
   sortedFiles.forEach((file) => {
     const { content, tokens } = getExportFileData(file, minifyEnabled);
@@ -36,7 +54,12 @@ export function generatePlainOutput(projectName, selectedFiles, totalTokens, min
       output += `[FILE: ${file.path}] | [LINES: ${lines}] | [TOKENS: ${tokens}]\n`;
       output += `${'─'.repeat(60)}\n`;
     }
-    output += content + '\n\n';
+    if (minifyEnabled) {
+      output += content;
+      if (!content.endsWith('\n')) output += '\n';
+    } else {
+      output += content + '\n\n';
+    }
   });
 
   return output;

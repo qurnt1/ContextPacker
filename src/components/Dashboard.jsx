@@ -17,14 +17,13 @@ export default function Dashboard() {
   const customThreshold = useStore((s) => s.customThreshold);
   const tree = useStore((s) => s.tree);
   const includeFullTreeInExport = useStore((s) => s.includeFullTreeInExport);
-  const potentialSecretsAllowed = useStore((s) => s.potentialSecretsAllowed);
 
   const selectedFiles = useMemo(
     () =>
       files
-        .filter((file) => isSelectionAllowed(file, potentialSecretsAllowed) && selectedPaths.has(file.path))
+        .filter((file) => isSelectionAllowed(file) && selectedPaths.has(file.path))
         .sort((a, b) => b.size - a.size),
-    [files, selectedPaths, potentialSecretsAllowed]
+    [files, selectedPaths]
   );
 
   const stats = useMemo(() => {
@@ -39,9 +38,9 @@ export default function Dashboard() {
       totalSize,
       totalLines,
       fileCount: selectedFiles.length,
-      totalFiles: files.filter((file) => isSelectionAllowed(file, potentialSecretsAllowed)).length,
+      totalFiles: files.filter((file) => isSelectionAllowed(file)).length,
     };
-  }, [selectedFiles, minifyEnabled, files, potentialSecretsAllowed]);
+  }, [selectedFiles, minifyEnabled, files]);
 
   const { totalTokens, fileCount, totalFiles, totalLines } = stats;
   const isWarning = isAboveWarningThreshold(totalTokens, tokenLimit, warningPercent, customThreshold);
@@ -118,8 +117,7 @@ export default function Dashboard() {
         contentTokens={totalTokens}
         tokenLimit={tokenLimit}
         includeFullTreeInExport={includeFullTreeInExport}
-        disabled={files.filter((file) => isSelectionAllowed(file, potentialSecretsAllowed)).length === 0}
-        potentialSecretsAllowed={potentialSecretsAllowed}
+        disabled={files.filter((file) => isSelectionAllowed(file)).length === 0}
       />
     </motion.div>
   );

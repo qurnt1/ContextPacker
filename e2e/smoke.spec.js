@@ -72,9 +72,26 @@ async function openGithubProject(page, branch = '') {
   await expect(page.getByText('src')).toBeVisible();
 }
 
+test('accepts a session-only GitHub token from the welcome screen', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Projet GitHub' }).click();
+
+  const tokenInput = page.getByLabel('Token GitHub (optionnel)');
+  await expect(tokenInput).toHaveAttribute('type', 'password');
+  await tokenInput.fill('test-session-token');
+  await expect(tokenInput).toHaveValue('test-session-token');
+
+  const persisted = await page.evaluate(() => JSON.parse(localStorage.getItem('cp-store-settings')));
+  expect(persisted.state.githubToken).toBeUndefined();
+});
+
 test('opens a mocked GitHub project and keeps the workbench usable', async ({ page }) => {
   await openGithubProject(page);
   await expect(page.getByText('Formatage compact')).toBeVisible();
+
+  const gitignoreToggle = page.getByRole('button', { name: /Désactiver \.gitignore/i }).first();
+  await gitignoreToggle.hover();
+  await expect(gitignoreToggle).toHaveAttribute('title', /actualiser immédiatement/);
 
   const statusBar = page.locator('.status-bar');
   const statusBarBox = await statusBar.boundingBox();
@@ -93,9 +110,15 @@ test('opens a mocked GitHub project and keeps the workbench usable', async ({ pa
   await expect(page.getByText('Prévisualisation')).toBeVisible();
 
   await page.getByTestId('shortcut-help-button').click();
-  await expect(page.getByTestId('shortcut-dialog')).toBeVisible();
+  const shortcutDialog = page.getByTestId('shortcut-dialog');
+  await expect(shortcutDialog).toBeVisible();
+  const shortcutBox = await shortcutDialog.boundingBox();
+  const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
+  expect(shortcutBox).not.toBeNull();
+  expect(Math.abs((shortcutBox.x + shortcutBox.width / 2) - viewport.width / 2)).toBeLessThan(3);
+  expect(Math.abs((shortcutBox.y + shortcutBox.height / 2) - viewport.height / 2)).toBeLessThan(3);
   await page.keyboard.press('Escape');
-  await expect(page.getByTestId('shortcut-dialog')).toBeHidden();
+  await expect(shortcutDialog).toBeHidden();
 });
 
 test('covers branch selection, compact mode, responsive layout, exports, and return home', async ({ page }) => {
@@ -154,6 +177,11 @@ test('keeps the welcome modal keyboard accessible', async ({ page }) => {
   const dialog = page.getByTestId('onboarding-dialog');
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('button', { name: /Fermer/ })).toBeFocused();
+  const dialogBox = await dialog.boundingBox();
+  const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
+  expect(dialogBox).not.toBeNull();
+  expect(Math.abs((dialogBox.x + dialogBox.width / 2) - viewport.width / 2)).toBeLessThan(3);
+  expect(Math.abs((dialogBox.y + dialogBox.height / 2) - viewport.height / 2)).toBeLessThan(3);
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
 });

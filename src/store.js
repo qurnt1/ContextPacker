@@ -49,14 +49,21 @@ function warningAcceptanceKey(state) {
   ].join('|');
 }
 
+const DEFAULT_TOKEN_LIMIT = 1_000_000;
+
+function normalizeTokenLimit(value, fallback = DEFAULT_TOKEN_LIMIT) {
+  const limit = Number(value);
+  return Number.isFinite(limit) && limit > 0 ? limit : fallback;
+}
+
 /**
  * Pure function — compute token sum for a given set of paths.
  * Testable independently of the store.
  */
-export function calculateSelectionTokens(files, paths, minifyEnabled, potentialSecretsAllowed = false) {
+export function calculateSelectionTokens(files, paths, minifyEnabled) {
   let sum = 0;
   for (const f of files) {
-    if (paths.has(f.path) && isSelectionAllowed(f, potentialSecretsAllowed)) {
+    if (paths.has(f.path) && isSelectionAllowed(f)) {
       sum += minifyEnabled ? (f.minifiedTokens || 0) : (f.tokens || 0);
     }
   }
@@ -83,7 +90,6 @@ const createScanSlice = (set, get) => ({
   currentFile: '',
   scanRequestId: 0,
   scanController: null,
-  potentialSecretsAllowed: false,
 
   startScan: (mode) => {
     get().scanController?.abort();
@@ -122,7 +128,7 @@ const createScanSlice = (set, get) => ({
       ? state.selectedPaths
       : (canRestoreSaved ? new Set(saved.paths) : new Set());
     const validPaths = new Set(
-      files.filter((file) => isSelectionAllowed(file, false)).map((file) => file.path)
+      files.filter(isSelectionAllowed).map((file) => file.path)
     );
     const restorePaths = new Set([...pathsToRestore].filter((path) => validPaths.has(path)));
 
@@ -139,7 +145,6 @@ const createScanSlice = (set, get) => ({
       scanTotal: 0,
       currentFile: '',
       scanController: null,
-      potentialSecretsAllowed: false,
       savedSelection: sameProject || canRestoreSaved ? null : saved,
       showWarning: false,
       pendingPaths: null,
@@ -244,7 +249,6 @@ const createScanSlice = (set, get) => ({
       scanMode: 'local',
       currentFile: '',
       scanController: null,
-      potentialSecretsAllowed: false,
       showWarning: false,
       pendingPaths: null,
       warningKind: null,
@@ -317,35 +321,43 @@ const createScanSlice = (set, get) => ({
    */
   handleRefresh: async () => {
     try {
-      const { sourceMeta, scanFromHandle, handleOpenGitHub } = get();
-    if (!sourceMeta) return { ok: false, error: new Error('No project loaded'), aborted: false };
+      const { sourceMeta, scanFromHandle, handleOpenGitHub, files } = get();
+      if (!sourceMeta) return { ok: false, error: new Error('No project loaded'), aborted: false };
 
-    if (sourceMeta.type === 'github') {
-      const src = sourceMeta;
-      return await handleOpenGitHub({
-        repoInput: src.input || `https://github.com/${src.owner}/${src.repo}`,
-        ref: src.followDefaultBranch ? '' : src.requestedRef,
-        subPath: src.subPath || '',
-      });
-    }
+      if (sourceMeta.type === 'github') {
+        const src = sourceMeta;
+        return await handleOpenGitHub({
+          repoInput: src.input || `https://github.com/${src.owner}/${src.repo}`,
+          ref: src.followDefaultBranch ? '' : src.requestedRef,
+          subPath: src.subPath || '',
+        });
+      }
 
-    // Local: re-scan using stored projectId from sourceMeta
-    const projectId = sourceMeta.projectId;
-    if (projectId) {
-      const handle = await getHandle(projectId);
-      if (handle) {
-        const opts = { mode: 'read' };
-        let perm = await handle.queryPermission(opts);
-        if (perm !== 'granted') {
-          perm = await handle.requestPermission(opts);
-        }
-        if (perm === 'granted') {
-          return await scanFromHandle(handle);
+      // Keep the previous local scan only for the duration of this refresh.
+      const previousFiles = files;
+      const projectId = sourceMeta.projectId;
+      if (projectId) {
+        const handle = await getHandle(projectId);
+        if (handle) {
+          const options = { mode: 'read' };
+          let permission = await handle.queryPermission(options);
+          if (permission !== 'granted') {
+            permission = await handle.requestPermission(options);
+          }
+          if (permission === 'granted') {
+            const result = await scanFromHandle(handle);
+            if (!result.ok) return result;
+            const { createRefreshSummary } = await import('./utils/refreshDiff');
+            return {
+              ...result,
+              refreshSummary: createRefreshSummary(previousFiles, result.value.files),
+            };
+          }
         }
       }
-    }
-    const err = new Error("Impossible d'accéder au dossier. Réessayez depuis l'écran d'accueil.");
-    return { ok: false, error: err, aborted: false };
+
+      const error = new Error("Impossible d'accéder au dossier. Réessayez depuis l'écran d'accueil.");
+      return { ok: false, error, aborted: false };
     } catch (err) {
       if (err.name === 'AbortError') {
         set({ isScanning: false });
@@ -460,13 +472,13 @@ const createSelectionSlice = (set, get) => ({
    * Deselecting never triggers a popup.
    */
   requestSelection: (nextPaths) => {
-    const { files, minifyEnabled, tokenLimit, warningPercent, customThreshold, selectedPaths, warningAccepted, warningAcceptedKey, potentialSecretsAllowed } = get();
+    const { files, minifyEnabled, tokenLimit, warningPercent, customThreshold, selectedPaths, warningAccepted, warningAcceptedKey } = get();
     const requestedPaths = nextPaths instanceof Set ? nextPaths : new Set(nextPaths);
-    const selectablePaths = new Set(files.filter((file) => isSelectionAllowed(file, potentialSecretsAllowed)).map((file) => file.path));
+    const selectablePaths = new Set(files.filter(isSelectionAllowed).map((file) => file.path));
     const paths = new Set([...requestedPaths].filter((path) => selectablePaths.has(path)));
 
-    const currentTokens = calculateSelectionTokens(files, selectedPaths, minifyEnabled, potentialSecretsAllowed);
-    const nextTokens = calculateSelectionTokens(files, paths, minifyEnabled, potentialSecretsAllowed);
+    const currentTokens = calculateSelectionTokens(files, selectedPaths, minifyEnabled);
+    const nextTokens = calculateSelectionTokens(files, paths, minifyEnabled);
 
     // Deselecting — always allow immediately
     if (nextTokens <= currentTokens) {
@@ -495,7 +507,7 @@ const createSelectionSlice = (set, get) => ({
     const state = get();
     const next = new Set(state.selectedPaths);
     const folderFiles = state.files.filter(
-      (file) => isSelectionAllowed(file, state.potentialSecretsAllowed) &&
+      (file) => isSelectionAllowed(file) &&
         (file.path.startsWith(folderPath + '/') || file.path === folderPath)
     );
     const allSelected = folderFiles.every((f) => next.has(f.path));
@@ -509,7 +521,7 @@ const createSelectionSlice = (set, get) => ({
   toggleExtension: (ext) => {
     const state = get();
     const next = new Set(state.selectedPaths);
-    const extFiles = state.files.filter((f) => isSelectionAllowed(f, state.potentialSecretsAllowed) && f.extension === ext);
+    const extFiles = state.files.filter((file) => isSelectionAllowed(file) && file.extension === ext);
     const allSelected = extFiles.every((f) => next.has(f.path));
     extFiles.forEach((f) => {
       if (allSelected) next.delete(f.path);
@@ -520,13 +532,11 @@ const createSelectionSlice = (set, get) => ({
 
   selectAll: () => {
     const { files } = get();
-    const allPaths = new Set(files.filter((file) => isSelectionAllowed(file, get().potentialSecretsAllowed)).map((f) => f.path));
+    const allPaths = new Set(files.filter(isSelectionAllowed).map((file) => file.path));
     get().requestSelection(allPaths);
   },
 
   deselectAll: () => set({ selectedPaths: new Set(), pendingPaths: null, showWarning: false, warningKind: null }),
-
-  acknowledgePotentialSecrets: () => set({ potentialSecretsAllowed: true }),
 
   confirmWarning: () =>
     set((state) => ({
@@ -541,7 +551,7 @@ const createSelectionSlice = (set, get) => ({
   cancelWarning: () => set({ pendingPaths: null, showWarning: false, warningKind: null }),
 
   selectRange: (fromPath, toPath, visiblePaths) => {
-    const { selectedPaths, files, potentialSecretsAllowed } = get();
+    const { selectedPaths, files } = get();
     const fileByPath = new Map(files.map((file) => [file.path, file]));
     // visiblePaths: ordered list as displayed in the tree (respects search & collapse).
     const paths = visiblePaths || files.map((f) => f.path);
@@ -552,7 +562,7 @@ const createSelectionSlice = (set, get) => ({
     const end = Math.max(idxA, idxB);
     const next = new Set(selectedPaths);
     for (let i = start; i <= end; i++) {
-      if (isSelectionAllowed(fileByPath.get(paths[i]), potentialSecretsAllowed)) {
+      if (isSelectionAllowed(fileByPath.get(paths[i]))) {
         next.add(paths[i]);
       }
     }
@@ -566,7 +576,7 @@ const MAX_RECENT_PROJECTS = 10;
 const createSettingsSlice = (set, get) => ({
   minifyEnabled: false,
   gitignoreEnabled: true,
-  tokenLimit: 200_000,
+  tokenLimit: DEFAULT_TOKEN_LIMIT,
   warningPercent: 40,
   customThreshold: 0,
   githubToken: '',
@@ -580,12 +590,12 @@ const createSettingsSlice = (set, get) => ({
   setMinifyEnabled: (v) => {
     const state = get();
     const newVal = typeof v === 'function' ? v(state.minifyEnabled) : v;
-    const previousTokens = calculateSelectionTokens(state.files, state.selectedPaths, state.minifyEnabled, state.potentialSecretsAllowed);
+    const previousTokens = calculateSelectionTokens(state.files, state.selectedPaths, state.minifyEnabled);
     set({ minifyEnabled: newVal, warningAccepted: false, warningAcceptedKey: null });
     // Re-evaluate current selection against thresholds when minification changes
     const { selectedPaths, files } = get();
     if (selectedPaths.size > 0) {
-      const nextTokens = calculateSelectionTokens(files, selectedPaths, newVal, get().potentialSecretsAllowed);
+      const nextTokens = calculateSelectionTokens(files, selectedPaths, newVal);
       const { tokenLimit, warningPercent, customThreshold } = get();
       if (nextTokens > previousTokens && isAboveWarningThreshold(nextTokens, tokenLimit, warningPercent, customThreshold)) {
         set({ pendingPaths: null, showWarning: true, warningKind: 'settings' });
@@ -594,15 +604,27 @@ const createSettingsSlice = (set, get) => ({
       }
     }
   },
-  setGitignoreEnabled: (v) =>
-    set({ gitignoreEnabled: typeof v === 'function' ? v(get().gitignoreEnabled) : v }),
+  setGitignoreEnabled: async (v) => {
+    const state = get();
+    const nextValue = typeof v === 'function' ? v(state.gitignoreEnabled) : v;
+    if (nextValue === state.gitignoreEnabled) return { ok: true, refreshed: false };
+    if (state.isScanning) {
+      return { ok: false, error: new Error('SCAN_IN_PROGRESS'), aborted: false };
+    }
+
+    set({ gitignoreEnabled: nextValue });
+    if (!state.projectLoaded) return { ok: true, refreshed: false };
+
+    return get().handleRefresh();
+  },
   setTokenLimit: (v) => {
-    const newLimit = typeof v === 'function' ? v(get().tokenLimit) : v;
+    const requestedLimit = typeof v === 'function' ? v(get().tokenLimit) : v;
+    const newLimit = normalizeTokenLimit(requestedLimit, get().tokenLimit);
     set({ tokenLimit: newLimit, warningAccepted: false, warningAcceptedKey: null });
     // Re-evaluate current selection when limit is lowered
-    const { selectedPaths, files, minifyEnabled, warningPercent, customThreshold, potentialSecretsAllowed } = get();
+    const { selectedPaths, files, minifyEnabled, warningPercent, customThreshold } = get();
     if (selectedPaths.size > 0) {
-      const tokens = calculateSelectionTokens(files, selectedPaths, minifyEnabled, potentialSecretsAllowed);
+      const tokens = calculateSelectionTokens(files, selectedPaths, minifyEnabled);
       if (isAboveWarningThreshold(tokens, newLimit, warningPercent, customThreshold)) {
         set({ pendingPaths: null, showWarning: true, warningKind: 'settings' });
       } else {
@@ -614,9 +636,9 @@ const createSettingsSlice = (set, get) => ({
     const newPct = typeof v === 'function' ? v(get().warningPercent) : v;
     set({ warningPercent: newPct, warningAccepted: false, warningAcceptedKey: null });
     // Re-evaluate
-    const { selectedPaths, files, minifyEnabled, tokenLimit, customThreshold, potentialSecretsAllowed } = get();
+    const { selectedPaths, files, minifyEnabled, tokenLimit, customThreshold } = get();
     if (selectedPaths.size > 0) {
-      const tokens = calculateSelectionTokens(files, selectedPaths, minifyEnabled, potentialSecretsAllowed);
+      const tokens = calculateSelectionTokens(files, selectedPaths, minifyEnabled);
       if (isAboveWarningThreshold(tokens, tokenLimit, newPct, customThreshold)) {
         set({ pendingPaths: null, showWarning: true, warningKind: 'settings' });
       } else {
@@ -627,9 +649,9 @@ const createSettingsSlice = (set, get) => ({
   setCustomThreshold: (v) => {
     const newThresh = typeof v === 'function' ? v(get().customThreshold) : v;
     set({ customThreshold: newThresh, warningAccepted: false, warningAcceptedKey: null });
-    const { selectedPaths, files, minifyEnabled, tokenLimit, warningPercent, potentialSecretsAllowed } = get();
+    const { selectedPaths, files, minifyEnabled, tokenLimit, warningPercent } = get();
     if (selectedPaths.size > 0) {
-      const tokens = calculateSelectionTokens(files, selectedPaths, minifyEnabled, potentialSecretsAllowed);
+      const tokens = calculateSelectionTokens(files, selectedPaths, minifyEnabled);
       if (isAboveWarningThreshold(tokens, tokenLimit, warningPercent, newThresh)) {
         set({ pendingPaths: null, showWarning: true, warningKind: 'settings' });
       } else {
@@ -758,9 +780,16 @@ export const useStore = create(
     }),
     {
       name: 'cp-store-settings',
-      version: 1,
+      version: 2,
       migrate: (persistedState) => ({
         ...persistedState,
+        tokenLimit: normalizeTokenLimit(persistedState?.tokenLimit),
+        githubToken: '',
+      }),
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...persistedState,
+        tokenLimit: normalizeTokenLimit(persistedState?.tokenLimit, currentState.tokenLimit),
         githubToken: '',
       }),
       partialize: (state) => ({
@@ -782,7 +811,7 @@ export const useStore = create(
 // ── Selectors ───────────────────────────────────────────────
 export const selectExtensions = (state) => {
   const countMap = {};
-  state.files.filter((file) => isSelectionAllowed(file, state.potentialSecretsAllowed)).forEach((file) => {
+  state.files.filter(isSelectionAllowed).forEach((file) => {
     if (!file.extension) return;
     countMap[file.extension] = (countMap[file.extension] || 0) + 1;
   });
@@ -793,11 +822,11 @@ export const selectExtensions = (state) => {
 
 export const selectSelectedFiles = (state) =>
   state.files
-    .filter((file) => isSelectionAllowed(file, state.potentialSecretsAllowed) && state.selectedPaths.has(file.path))
+    .filter((file) => isSelectionAllowed(file) && state.selectedPaths.has(file.path))
     .sort((a, b) => b.size - a.size);
 
 export const selectStats = (state) => {
-  const selected = state.files.filter((file) => isSelectionAllowed(file, state.potentialSecretsAllowed) && state.selectedPaths.has(file.path));
+  const selected = state.files.filter((file) => isSelectionAllowed(file) && state.selectedPaths.has(file.path));
   const totalTokens = selected.reduce(
     (sum, file) => sum + (state.minifyEnabled ? file.minifiedTokens : file.tokens),
     0
@@ -809,7 +838,7 @@ export const selectStats = (state) => {
     totalSize,
     totalLines,
     fileCount: selected.length,
-    totalFiles: state.files.filter((file) => isSelectionAllowed(file, state.potentialSecretsAllowed)).length,
+    totalFiles: state.files.filter(isSelectionAllowed).length,
   };
 };
 
@@ -823,8 +852,7 @@ export const selectOutputText = (state) => {
     state.minifyEnabled,
     state.tree,
     state.selectedPaths,
-    state.includeFullTreeInExport,
-    state.potentialSecretsAllowed
+    state.includeFullTreeInExport
   );
 };
 
@@ -832,7 +860,7 @@ export const selectHasProject = (state) => state.projectLoaded;
 
 export const selectWarningTokens = (state) => {
   if (!state.pendingPaths) return 0;
-    return state.files
-    .filter((f) => isSelectionAllowed(f, state.potentialSecretsAllowed) && state.pendingPaths.has(f.path))
+  return state.files
+    .filter((file) => isSelectionAllowed(file) && state.pendingPaths.has(file.path))
     .reduce((sum, f) => sum + (state.minifyEnabled ? f.minifiedTokens : f.tokens), 0);
 };

@@ -61,6 +61,7 @@ describe('exported tree and content safety', () => {
     expect(compact).not.toContain('other.json');
     expect(compactFullTree).toContain('other.json');
     expect(compactFullTree).not.toContain('const other');
+    expect(compact).not.toContain('\n\n[F]');
     expect(compact.length).toBeLessThan(regular.length);
   });
 
@@ -74,7 +75,7 @@ describe('exported tree and content safety', () => {
     expect(output).toContain('*1L · 2t*');
   });
 
-  it('does not export potential-secret nodes before confirmation', () => {
+  it('never exports potential-secret nodes', () => {
     const treeWithPotentialSecret = {
       ...tree,
       children: [
@@ -83,10 +84,10 @@ describe('exported tree and content safety', () => {
       ],
     };
     const output = generatePlainOutput('demo', selectedFiles, 2, false, treeWithPotentialSecret, new Set(['selected.js']), true);
-    const allowed = generatePlainOutput('demo', selectedFiles, 2, false, treeWithPotentialSecret, new Set(['selected.js', 'config.js']), true, true);
+    const attempted = generatePlainOutput('demo', selectedFiles, 2, false, treeWithPotentialSecret, new Set(['selected.js', 'config.js']), true);
 
     expect(output).not.toContain('config.js');
-    expect(allowed).toContain('config.js');
+    expect(attempted).not.toContain('config.js');
   });
 
   it('counts an export result once and sanitizes download names', async () => {
@@ -136,6 +137,7 @@ describe('safe minification', () => {
     expect(minifyCode('{\n  "key": "value"\n}\n', 'json')).toBe('{"key":"value"}');
     expect(minifyCode('{\n  "id": 9007199254740993,\n  "negativeZero": -0\n}\n', 'json'))
       .toBe('{"id":9007199254740993,"negativeZero":-0}');
+    expect(minifyCode('\uFEFF{\n  "key": "value"\n}\n', 'json')).toBe('{"key":"value"}');
     const invalidJson = '{\n  "key": value\n}\n';
     expect(minifyCode(invalidJson, '.json')).toBe(invalidJson);
   });

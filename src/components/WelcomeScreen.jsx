@@ -32,6 +32,7 @@ export default function WelcomeScreen({ onShowOnboarding }) {
   const currentFile = useStore((s) => s.currentFile);
   const scanError = useStore((s) => s.scanError);
   const githubToken = useStore((s) => s.githubToken);
+  const setGithubToken = useStore((s) => s.setGithubToken);
   const recentProjects = useStore((s) => s.recentProjects);
   const removeRecentProject = useStore((s) => s.removeRecentProject);
   const favoriteProjects = useStore((s) => s.favoriteProjects || []);
@@ -374,6 +375,23 @@ export default function WelcomeScreen({ onShowOnboarding }) {
                 <div>
                   <label className="text-xs text-cyber-text-3 uppercase tracking-wider font-semibold">URL GitHub ou owner/repo</label>
                   <input type="text" value={repoInput} onChange={(e) => setRepoInput(e.target.value)} disabled={isScanning} placeholder="https://github.com/owner/repo" className="mt-1.5 w-full px-3.5 py-2.5 rounded-lg bg-cyber-surface-2 border border-cyber-border text-cyber-text text-sm focus:outline-none focus:border-cyber-accent/50 focus:ring-1 focus:ring-cyber-accent/20 transition-colors placeholder:text-cyber-text-3/50" />
+                </div>
+                <div>
+                  <label htmlFor="welcome-github-token" className="text-xs text-cyber-text-3 uppercase tracking-wider font-semibold">Token GitHub (optionnel)</label>
+                  <input
+                    id="welcome-github-token"
+                    type="password"
+                    autoComplete="off"
+                    value={githubToken || ''}
+                    onChange={(event) => setGithubToken(event.target.value)}
+                    disabled={isScanning}
+                    placeholder="ghp_..."
+                    aria-describedby="welcome-github-token-help"
+                    className="mt-1.5 w-full px-3.5 py-2.5 rounded-lg bg-cyber-surface-2 border border-cyber-border text-cyber-text text-sm font-mono focus:outline-none focus:border-cyber-accent/50 focus:ring-1 focus:ring-cyber-accent/20 transition-colors placeholder:text-cyber-text-3/50"
+                  />
+                  <p id="welcome-github-token-help" className="mt-1.5 text-[10px] leading-relaxed text-cyber-text-3">
+                    Augmente la limite GitHub pour les scans fréquents. Conservé uniquement pendant cette session.
+                  </p>
                 </div>
                 <div>
                   <label className="text-xs text-cyber-text-3 uppercase tracking-wider font-semibold">Branche</label>

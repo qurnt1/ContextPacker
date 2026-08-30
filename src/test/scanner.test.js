@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { scanDirectory } from '../utils/scanner';
 
-function fileEntry(name, content, size = content.length) {
+function fileEntry(name, content, size = content.length, lastModified = 0) {
   return {
     kind: 'file',
     name,
     getFile: vi.fn().mockResolvedValue({
       size,
+      lastModified,
       text: vi.fn().mockResolvedValue(content),
     }),
   };
@@ -95,7 +96,7 @@ describe('scanDirectory progress', () => {
     expect(result.files.find((file) => file.path === 'table.csv')).toMatchObject({ lines: 3, content: 'nom;ville\r\nÉlodie;Poitiers\r\n' });
   });
 
-  it('attaches redacted potential-secret metadata while preserving content', async () => {
+  it('attaches redacted potential-secret metadata while keeping the file blocked', async () => {
     const root = directoryEntry('demo', [
       fileEntry('config.js', 'const apiKey = "long-real-looking-value";'),
     ]);
@@ -105,8 +106,23 @@ describe('scanDirectory progress', () => {
       path: 'config.js',
       content: 'const apiKey = "long-real-looking-value";',
       potentialSecrets: [{ kind: 'credential-assignment', line: 1 }],
+      selectable: false,
+      blocked: true,
+      blockedReason: 'potential-secret',
     });
     expect(result.files[0].potentialSecrets[0]).not.toHaveProperty('value');
+  });
+
+  it('propagates File.lastModified to scan records and tree nodes', async () => {
+    const lastModified = 1_725_000_000_000;
+    const root = directoryEntry('demo', [
+      fileEntry('settings.json', '{\n  "theme": "dark"\n}', undefined, lastModified),
+    ]);
+
+    const result = await scanDirectory(root);
+
+    expect(result.files[0]).toMatchObject({ path: 'settings.json', lastModified });
+    expect(result.tree.children[0]).toMatchObject({ path: 'settings.json', lastModified });
   });
 
   it('rejects a local scan above the global file cap before reading content', async () => {

@@ -1,42 +1,45 @@
 # ContextPacker
 
-Transformez un dossier local ou un dépôt GitHub en contexte structuré pour votre IA. Le traitement se fait dans le navigateur.
+ContextPacker prépare le contexte utile de votre projet pour travailler plus efficacement avec une IA. Ouvrez un dossier local ou un dépôt GitHub public, choisissez les fichiers qui comptent, puis obtenez un export clair à coller dans votre outil préféré.
 
-![Accueil](./assets/accueil.png)
+![Écran d’accueil de ContextPacker pour ouvrir un projet local ou GitHub](./assets/accueil.png)
 
-## Accéder au site
+## Pourquoi ContextPacker ?
 
-[Accéder au site](https://qurnt1.github.io/ContextPacker/)
+Donner un projet entier à une IA est rarement pertinent : le contexte devient trop lourd, du bruit s’ajoute et les fichiers sensibles ne doivent pas quitter votre machine. ContextPacker vous aide à composer un contexte ciblé, lisible et adapté à la limite de tokens de votre modèle.
 
-Pour l’import local, utilisez Chrome, Edge, Brave ou un autre navigateur Chromium compatible avec la File System Access API.
+Il s’adresse aux développeurs, étudiants et équipes qui utilisent ChatGPT, Claude, Gemini, Perplexity ou un autre assistant IA pour comprendre, corriger, documenter ou faire évoluer un projet.
 
-## Fonctionnalités
+## En trois étapes
 
-- Scan local par glisser-déposer ou sélection de dossier.
-- Scan GitHub public par dépôt, branche et sous-dossier.
-- Sélection par fichier, dossier, extension, `Ctrl+A` et `Shift+Clic`.
-- Recherche qui ouvre automatiquement les dossiers contenant les résultats.
-- Export TXT, Markdown, presse-papier et ouverture vers ChatGPT, Claude, Gemini ou Perplexity.
-- Option persistante « Inclure toute l’arborescence à l’export » : la structure complète peut être exportée, mais le contenu reste limité aux fichiers sélectionnés.
-- Support des fichiers JavaScript, TypeScript, JSON, JSONC, CSV, TSV et autres formats texte.
-- Comptage indicatif des tokens avec `js-tiktoken` (`o200k_base`, puis `cl100k_base` en secours), chargé à la demande.
-- Historique local/GitHub, favoris et réouverture d’un dossier local via IndexedDB.
+1. **Ouvrez votre source** : sélectionnez un dossier local, glissez-déposez-le, ou indiquez un dépôt GitHub public.
+2. **Choisissez le bon contexte** : parcourez l’arborescence, recherchez des fichiers, sélectionnez par dossier ou extension, et suivez l’estimation de tokens.
+3. **Exportez et travaillez** : copiez le contexte, téléchargez-le en TXT ou Markdown, ou ouvrez votre assistant IA après la copie.
 
-## Sécurité et fichiers sensibles
+## Ce que l’application permet
 
-Les fichiers secrets sont affichés pour rendre leur présence explicite, mais restent bloqués et ne sont jamais lus ni exportés. Cela inclut notamment `.env`, `.env.local`, les certificats et clés privées, `.npmrc`, `.pypirc`, `credentials*.json`, `service-account*.json`, ainsi que `.git`, `.aws`, `.ssh`, `.venv` et `venv`.
+- Analyser un dossier local ou un dépôt GitHub public, y compris une branche et un sous-dossier.
+- Retrouver rapidement les fichiers utiles avec la recherche, les sélections par dossier, extension, plage ou raccourci clavier.
+- Respecter `.gitignore` lors du chargement et choisir si l’arborescence complète accompagne l’export.
+- Estimer le volume de contexte et régler une limite de tokens ainsi que des alertes.
+- Générer des exports TXT ou Markdown, avec un formatage compact optionnel.
+- Retrouver les projets récents et les favoris dans le navigateur.
 
-Les modèles `.env.example`, `.env.sample`, `.env.template` et `.env.defaults` restent sélectionnables. Les fichiers trop volumineux sont visibles mais non sélectionnables.
+## Confidentialité et sécurité
 
-Le token GitHub est utilisé uniquement en mémoire pour la session. Il n’est pas sauvegardé dans `localStorage` ni dans les réglages persistés. Les données de dépôt sont demandées directement à GitHub depuis le navigateur, sans serveur applicatif ContextPacker.
+ContextPacker fonctionne côté client : vos dossiers locaux sont lus et traités dans votre navigateur, sans serveur applicatif ContextPacker. Les appels externes servent uniquement à lire le dépôt GitHub demandé ou à ouvrir explicitement un service IA après la copie.
 
-## Source et export
+Les fichiers sensibles et les répertoires protégés, par exemple les fichiers `.env`, les clés privées et les dossiers de configuration d’identifiants, restent exclus de la lecture et de l’export. Les modèles tels que `.env.example` restent utilisables. Les fichiers trop volumineux restent visibles, mais ne sont pas sélectionnables.
 
-Le contrôle « Formatage compact » réduit l’enveloppe et les métadonnées de l’export. Le contenu source reste inchangé, sauf pour les fichiers JSON valides qui peuvent être sérialisés sans espaces. En cas d’échec de lecture JSON, la source originale est conservée. Le comptage affiché dans le tableau de bord correspond aux tokens du contenu sélectionné. L’export recalcule séparément son estimation finale, qui inclut sa structure et ses métadonnées.
+Un token GitHub est facultatif pour améliorer la limite d’appels GitHub. Il reste uniquement en mémoire pendant la session et n’est jamais enregistré dans les réglages du navigateur.
 
-Les exports utilisent un snapshot GitHub immuable lorsque le dépôt est distant. Les caches sont bornés et séparés entre session authentifiée et anonyme. Les réponses GitHub tronquées, les erreurs API et les limites de taille sont signalées au lieu d’être masquées.
+## Utiliser ContextPacker
 
-## Installation
+[Ouvrir ContextPacker](https://qurnt1.github.io/ContextPacker/)
+
+Pour ouvrir un dossier local, utilisez Chrome, Edge, Brave ou un autre navigateur Chromium compatible avec la File System Access API. Le chargement d’un dépôt GitHub public peut se faire directement depuis l’écran d’accueil.
+
+## Développement et contribution
 
 ```bash
 git clone https://github.com/qurnt1/ContextPacker.git
@@ -45,41 +48,7 @@ npm install
 npm run dev
 ```
 
-Build production :
-
-```bash
-npm run build
-```
-
-Tests :
-
-```bash
-npm test
-npm run lint
-npm run e2e
-```
-
-## Paramètres
-
-- Limite de tokens cible, de 32k à 1M.
-- Pourcentage d’alerte et seuil manuel.
-- Token GitHub facultatif, uniquement en mémoire.
-- Activation de `.gitignore`.
-- Option d’arborescence complète à l’export.
-
-## Raccourcis clavier
-
-| Raccourci | Action |
-|---|---|
-| `Ctrl+A` | Tout sélectionner |
-| `Ctrl+Shift+A` | Tout désélectionner |
-| `Ctrl+F` | Rechercher un fichier |
-| `Shift+Clic` | Sélectionner une plage de fichiers |
-| `?` | Afficher l’aide |
-
-## Confidentialité
-
-ContextPacker est une application client-side. Les fichiers sont lus et traités localement dans le navigateur. Les seuls appels externes attendus sont les appels GitHub nécessaires au scan distant et les ouvertures explicites vers les services LLM. L’interface n’utilise pas de police distante.
+Avant une contribution, exécutez `npm test`, `npm run lint` et `npm run build`. Les tests end-to-end sont disponibles avec `npm run e2e`.
 
 ## Licence
 

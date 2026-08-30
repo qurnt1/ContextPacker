@@ -119,21 +119,28 @@ export default function OnboardingWizard({ isOpen, onClose, onComplete }) {
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm"
             style={{ zIndex: 250 }}
-            onClick={() => { onClose(); onComplete?.(); }}
+            aria-hidden="true"
           />
-          <motion.div
+          <div
+            className="fixed inset-0 z-[251] grid place-items-center p-4"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                onClose();
+                onComplete?.();
+              }
+            }}
+          >
+            <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 flex items-center justify-center"
-              style={{ zIndex: 251 }}
+              className="max-h-[85vh] w-full max-w-[440px] overflow-y-auto rounded-2xl border border-cyber-border bg-cyber-surface shadow-2xl"
               data-testid="onboarding-dialog"
               role="dialog"
               aria-modal="true"
               aria-label="Présentation de ContextPacker"
             >
-              <div className="w-[440px] max-w-[92vw] max-h-[85vh] overflow-y-auto bg-cyber-surface border border-cyber-border rounded-2xl shadow-2xl">
                 {/* Header */}
                 <div className="flex items-center gap-3 px-5 py-4 border-b border-cyber-border">
                   <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-cyber-accent/10">
@@ -205,8 +212,8 @@ export default function OnboardingWizard({ isOpen, onClose, onComplete }) {
                     </button>
                   </div>
                 </div>
-              </div>
             </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>

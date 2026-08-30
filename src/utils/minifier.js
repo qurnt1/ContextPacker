@@ -36,8 +36,11 @@ export function minifyCode(code, extension) {
   if (normalizedExtension !== 'json') return code;
 
   try {
-    JSON.parse(code);
-    return compactJsonSource(code);
+    // A UTF-8 BOM is an encoding marker, not JSON content. Browsers expose it
+    // in some local files, while JSON.parse rejects it.
+    const jsonSource = code.charCodeAt(0) === 0xFEFF ? code.slice(1) : code;
+    JSON.parse(jsonSource);
+    return compactJsonSource(jsonSource);
   } catch {
     return code;
   }

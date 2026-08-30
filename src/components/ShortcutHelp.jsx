@@ -38,16 +38,20 @@ export default function ShortcutHelp({ isOpen, onClose }) {
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm"
             style={{ zIndex: 200 }}
-            onClick={onClose}
             aria-hidden="true"
           />
-          <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+          <div
+            className="fixed inset-0 z-[201] grid place-items-center p-4"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) onClose();
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
               transition={{ type: 'spring', damping: 25, stiffness: 400 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] max-w-[90vw] bg-cyber-surface border border-cyber-border rounded-2xl shadow-2xl overflow-hidden"
-              style={{ zIndex: 201 }}
+              className="w-full max-w-[420px] overflow-hidden rounded-2xl border border-cyber-border bg-cyber-surface shadow-2xl"
               data-testid="shortcut-dialog"
               role="dialog"
               aria-modal="true"
@@ -94,6 +98,7 @@ export default function ShortcutHelp({ isOpen, onClose }) {
                 </p>
               </div>
             </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>
