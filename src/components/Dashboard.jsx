@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Hash, FileStack, AlignLeft, AlertTriangle } from 'lucide-react';
 import { formatNumber } from '../utils/helpers';
 import { isAboveWarningThreshold, useStore } from '../store';
 import ExportMenu from './ExportMenu';
 import LinearTokenProgress from './LinearTokenProgress';
-import { isSelectionAllowed } from '../utils/securityPolicy';
+import { isSelectionAllowed } from '../utils/filePolicy';
 
 export default function Dashboard() {
   const tokenLimit = useStore((s) => s.tokenLimit);
@@ -14,7 +14,6 @@ export default function Dashboard() {
   const selectedPaths = useStore((s) => s.selectedPaths);
   const minifyEnabled = useStore((s) => s.minifyEnabled);
   const warningPercent = useStore((s) => s.warningPercent);
-  const customThreshold = useStore((s) => s.customThreshold);
   const tree = useStore((s) => s.tree);
   const includeFullTreeInExport = useStore((s) => s.includeFullTreeInExport);
 
@@ -43,7 +42,7 @@ export default function Dashboard() {
   }, [selectedFiles, minifyEnabled, files]);
 
   const { totalTokens, fileCount, totalFiles, totalLines } = stats;
-  const isWarning = isAboveWarningThreshold(totalTokens, tokenLimit, warningPercent, customThreshold);
+  const isWarning = isAboveWarningThreshold(totalTokens, tokenLimit, warningPercent);
   const isOverflow = totalTokens > tokenLimit;
   const percentage = tokenLimit > 0 ? (totalTokens / tokenLimit) * 100 : 0;
 
@@ -62,8 +61,8 @@ export default function Dashboard() {
       {/* Stats */}
       <div className="flex items-center gap-4 flex-shrink-0">
         <div className="flex items-center gap-2" title="Tokens de contenu (hors structure et métadonnées)">
-          <Hash className={`w-3.5 h-3.5 ${isOverflow ? 'text-red-400' : 'text-cyber-accent'}`} />
-          <span className={`font-mono text-sm font-bold tabular-nums ${isOverflow ? 'text-red-400' : 'text-cyber-text'}`}>
+          <Hash className={`w-3.5 h-3.5 ${isOverflow ? 'text-red-700' : 'text-cyber-accent'}`} />
+          <span className={`font-mono text-sm font-bold tabular-nums ${isOverflow ? 'text-red-700' : 'text-cyber-text'}`}>
             {formatNumber(totalTokens)}
           </span>
           <span className="text-[10px] text-cyber-text-3 font-medium uppercase tracking-wider">tokens contenu</span>
@@ -96,11 +95,11 @@ export default function Dashboard() {
           {limitLabel}
         </span>
         <LinearTokenProgress current={totalTokens} limit={tokenLimit} isWarning={isWarning} warningPercent={warningPercent} />
-        <span className={`text-[10px] font-mono font-bold tabular-nums flex-shrink-0 ${percentage > 100 ? 'text-red-400' : isWarning ? 'text-amber-400' : 'text-cyber-text-2'}`}>
+        <span className={`text-[10px] font-mono font-bold tabular-nums flex-shrink-0 ${percentage > 100 ? 'text-red-700' : isWarning ? 'text-amber-700' : 'text-cyber-text-2'}`}>
           {percentage.toFixed(0)}%
         </span>
         {isOverflow && (
-          <div className="flex items-center gap-1 text-red-400 flex-shrink-0">
+          <div className="flex items-center gap-1 text-red-700 flex-shrink-0">
             <AlertTriangle className="w-3 h-3" />
             <span className="text-[10px] font-bold">OVERFLOW</span>
           </div>

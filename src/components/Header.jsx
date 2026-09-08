@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { FolderOpen, Loader2, Keyboard, RefreshCw } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useStore } from '../store';
@@ -192,11 +192,11 @@ export default function Header({ onShowHelp }) {
           className="flex items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-cyber-surface-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <div className="flex items-center justify-center w-6 h-6 rounded-md bg-cyber-accent/10">
-            <ContextPackerMark className="w-3.5 h-3.5 text-cyber-accent" />
+            <ContextPackerMark className="h-3.5 w-3.5 text-cyber-accent" />
           </div>
           <span className="text-sm font-bold tracking-tight whitespace-nowrap">
-            <span className="text-cyber-text">Context</span>
-            <span className="text-cyber-accent">Packer</span>
+            <span className="text-cyber-text">Copy</span>
+            <span className="text-cyber-accent">ForAI</span>
           </span>
         </button>
       </div>

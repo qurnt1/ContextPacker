@@ -1,5 +1,5 @@
 import { diffLines } from 'diff';
-import { isSelectionAllowed } from './securityPolicy';
+import { isSelectableFile } from './filePolicy';
 
 const MAX_EDIT_LENGTH = 20_000;
 
@@ -49,7 +49,7 @@ function indexFiles(files) {
 
 function latestModifiedAt(files) {
   const timestamps = (Array.isArray(files) ? files : [])
-    .filter(isSelectionAllowed)
+    .filter(isSelectableFile)
     .map((file) => file.lastModified)
     .filter(Number.isFinite);
   return timestamps.length > 0 ? Math.max(...timestamps) : null;
@@ -68,7 +68,7 @@ function createChange(path, kind, previousContent, currentContent) {
 
 /**
  * Build a local, in-memory summary of a successful refresh.
- * Sensitive and non-selectable files never contribute to this view.
+ * Non-selectable files never contribute to this view.
  */
 export function createRefreshSummary(previousFiles, currentFiles) {
   const previousByPath = indexFiles(previousFiles);
@@ -83,8 +83,8 @@ export function createRefreshSummary(previousFiles, currentFiles) {
     const previous = previousByPath.get(path);
     const current = currentByPath.get(path);
 
-    // Do not reveal a path that is classified as blocked in either snapshot.
-    if ((previous && !isSelectionAllowed(previous)) || (current && !isSelectionAllowed(current))) continue;
+    // Keep the refresh summary aligned with the exportable file set.
+    if ((previous && !isSelectableFile(previous)) || (current && !isSelectableFile(current))) continue;
 
     if (!previous) {
       addedFileCount += 1;

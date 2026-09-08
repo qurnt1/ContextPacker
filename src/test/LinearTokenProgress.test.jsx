@@ -8,7 +8,7 @@ describe('LinearTokenProgress', () => {
       <LinearTokenProgress current={50} limit={100} warningPercent={40} />
     );
 
-    expect(getByRole('progressbar').firstElementChild).toHaveStyle({ background: 'var(--cp-warning, #f59e0b)' });
+    expect(getByRole('progressbar').firstElementChild).toHaveStyle({ backgroundColor: 'var(--cp-warning)' });
   });
 
   it('keeps the normal color below the configured warning percentage', () => {
@@ -16,6 +16,6 @@ describe('LinearTokenProgress', () => {
       <LinearTokenProgress current={30} limit={100} warningPercent={40} />
     );
 
-    expect(getByRole('progressbar').firstElementChild).toHaveStyle({ background: 'var(--cp-accent, #22c55e)' });
+    expect(getByRole('progressbar').firstElementChild).toHaveStyle({ backgroundColor: 'var(--cp-accent)' });
   });
 });

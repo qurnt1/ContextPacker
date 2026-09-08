@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { useStore, selectHasProject } from './store';
 import WelcomeScreen from './components/WelcomeScreen';
 import Header from './components/Header';
@@ -14,7 +14,6 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 function AppInner() {
   const hasProject = useStore(selectHasProject);
   const isScanning = useStore((s) => s.isScanning);
-  const loadGithubHistory = useStore((s) => s.loadGithubHistory);
   const sidebarWidth = useStore((s) => s.sidebarWidth);
   const setSidebarWidth = useStore((s) => s.setSidebarWidth);
   const sidebarCollapsed = useStore((s) => s.sidebarCollapsed);
@@ -23,10 +22,6 @@ function AppInner() {
   const effectiveSidebarWidth = sidebarCollapsed ? 52 : sidebarWidth;
 
   const [showOnboarding, setShowOnboarding] = useState(false);
-
-  useEffect(() => {
-    loadGithubHistory();
-  }, [loadGithubHistory]);
 
   const { showHelp, openHelp, closeHelp } = useKeyboardShortcuts();
 
@@ -72,7 +67,7 @@ function AppInner() {
   }, [setSidebarWidth]);
 
   return (
-    <div className="app-shell h-screen flex flex-col bg-cyber-bg text-cyber-text font-sans overflow-hidden transition-colors duration-300">
+    <div className="app-shell h-screen flex flex-col bg-cyber-bg text-cyber-text font-sans overflow-hidden">
       <AnimatePresence mode="wait">
         {!hasProject ? (
           <WelcomeScreen key="welcome" onShowOnboarding={() => setShowOnboarding(true)} />

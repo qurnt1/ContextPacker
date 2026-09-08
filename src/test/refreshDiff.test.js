@@ -43,17 +43,13 @@ describe('createRefreshSummary', () => {
     ]));
   });
 
-  it('returns every sorted change and ignores blocked files', () => {
+  it('returns every sorted change and ignores excluded files', () => {
     const previous = [
-      file('secret.js', 'const key = "old";\n', 1, {
-        potentialSecrets: [{ kind: 'credential-assignment', line: 1 }],
-      }),
+      file('.git/config', 'do not include\n', 1, { selectable: false, blocked: true }),
       ...Array.from({ length: 6 }, (_, index) => file(`old-${index}.js`, 'old\n', index + 2)),
     ];
     const current = [
-      file('secret.js', 'const key = "new";\n', 20, {
-        potentialSecrets: [{ kind: 'credential-assignment', line: 1 }],
-      }),
+      file('.git/config', 'still excluded\n', 20, { selectable: false, blocked: true }),
       ...Array.from({ length: 6 }, (_, index) => file(`old-${index}.js`, `${'line\n'.repeat(index + 1)}`, index + 30)),
     ];
 
@@ -61,7 +57,7 @@ describe('createRefreshSummary', () => {
 
     expect(summary.totalChanged).toBe(6);
     expect(summary.changes).toHaveLength(6);
-    expect(summary.changes.map((change) => change.path)).not.toContain('secret.js');
+    expect(summary.changes.map((change) => change.path)).not.toContain('.git/config');
     expect(summary.changes[0]).toMatchObject({ path: 'old-5.js', changedLines: 7 });
     expect(summary.changes.at(-1)).toMatchObject({ path: 'old-0.js', changedLines: 2 });
   });

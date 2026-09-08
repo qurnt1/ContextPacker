@@ -1,26 +1,27 @@
-/* Workbench design system: dark-only, dense, and intentionally restrained. */
+/* ContextPacker interface tokens: a calm, daylight code workbench. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --cp-bg: #0d110f;
-    --cp-surface: #151a17;
-    --cp-surface-2: #1d2520;
-    --cp-border: rgba(226, 239, 224, 0.12);
-    --cp-text: #edf2eb;
-    --cp-text-2: #b4c0b4;
-    --cp-text-3: #78867b;
-    --cp-accent: #b8ed63;
-    --cp-accent-soft: rgba(184, 237, 99, 0.12);
-    --cp-warning: #f3bd63;
-    --cp-danger: #f27b72;
-    --cp-radius: 8px;
-    --cp-radius-lg: 10px;
-    --cp-radius-sm: 6px;
-    --cp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
-    --cp-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+    --cp-bg: #eef3f8;
+    --cp-surface: #ffffff;
+    --cp-surface-2: #f5f8fb;
+    --cp-border: #d7e1eb;
+    --cp-text: #172b45;
+    --cp-text-2: #405770;
+    --cp-text-3: #71849a;
+    --cp-accent: #087f98;
+    --cp-accent-soft: rgba(8, 127, 152, 0.12);
+    --cp-warning: #b86b08;
+    --cp-danger: #c43f4a;
+    --cp-success: #18794e;
+    --cp-radius: 7px;
+    --cp-radius-lg: 9px;
+    --cp-radius-sm: 5px;
+    --cp-shadow-sm: 0 1px 2px rgba(23, 43, 69, 0.08);
+    --cp-shadow: 0 8px 24px rgba(23, 43, 69, 0.08);
     --cp-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
@@ -30,17 +31,17 @@
   }
 
   html {
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(184, 237, 99, 0.22) transparent;
+    scrollbar-color: #b8c8d8 transparent;
   }
 
   *::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
   }
 
   *::-webkit-scrollbar-track {
@@ -48,12 +49,12 @@
   }
 
   *::-webkit-scrollbar-thumb {
-    background: rgba(184, 237, 99, 0.22);
-    border-radius: 3px;
+    background: #b8c8d8;
+    border-radius: 4px;
   }
 
   *::-webkit-scrollbar-thumb:hover {
-    background: rgba(184, 237, 99, 0.38);
+    background: #8ea5b9;
   }
 
   ::selection {
@@ -68,6 +69,23 @@
     font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     overflow: hidden;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  button,
+  input {
+    touch-action: manipulation;
+  }
+
+  button:focus-visible,
+  input:focus-visible,
+  [role='button']:focus-visible,
+  [role='separator']:focus-visible {
+    outline: 2px solid var(--cp-accent);
+    outline-offset: 2px;
+  }
+
+  button:active {
+    transform: scale(0.985);
   }
 }
 
@@ -84,19 +102,14 @@
   }
 
   .card-hover:hover {
-    border-color: rgba(184, 237, 99, 0.36);
-    box-shadow: var(--cp-shadow);
+    border-color: #9ab3c7;
+    box-shadow: 0 10px 28px rgba(23, 43, 69, 0.12);
     transform: translateY(-1px);
-  }
-
-  .focus-ring {
-    outline: none;
   }
 
   .focus-ring:focus-visible {
     outline: 2px solid var(--cp-accent);
     outline-offset: 2px;
-    border-radius: 4px;
   }
 
   .app-shell {
@@ -117,39 +130,8 @@
     background: var(--cp-bg);
   }
 
-  .welcome-atmosphere {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-    pointer-events: none;
-  }
-
-  .welcome-orb {
-    position: absolute;
-    width: clamp(12rem, 22vw, 22rem);
-    aspect-ratio: 1;
-    border-radius: 999px;
-    filter: blur(40px);
-    will-change: transform, opacity;
-  }
-
-  .welcome-orb-lime {
-    left: 8%;
-    top: 8%;
-    background: radial-gradient(circle, rgba(184, 237, 99, 0.32) 0%, rgba(184, 237, 99, 0.1) 44%, transparent 72%);
-  }
-
-  .welcome-orb-teal {
-    right: 10%;
-    bottom: 12%;
-    background: radial-gradient(circle, rgba(98, 230, 200, 0.28) 0%, rgba(98, 230, 200, 0.08) 44%, transparent 72%);
-  }
-
-  .welcome-orb-indigo {
-    right: 28%;
-    top: 18%;
-    width: clamp(10rem, 16vw, 17rem);
-    background: radial-gradient(circle, rgba(127, 156, 245, 0.22) 0%, rgba(127, 156, 245, 0.06) 44%, transparent 72%);
+  .welcome-shell {
+    overflow-y: auto;
   }
 
   .welcome-content {
@@ -159,14 +141,15 @@
   }
 
   .welcome-mark {
-    background: var(--cp-surface-2);
+    background: var(--cp-accent-soft);
+    border: 1px solid rgba(8, 127, 152, 0.2);
     border-radius: var(--cp-radius-lg);
     box-shadow: var(--cp-shadow-sm);
   }
 
   .welcome-title {
-    letter-spacing: -0.04em;
-    line-height: 0.96;
+    letter-spacing: -0.035em;
+    line-height: 0.98;
     min-width: 0;
     overflow-wrap: anywhere;
     text-wrap: balance;
@@ -183,17 +166,59 @@
   }
 
   .welcome-dropzone {
-    border-color: rgba(184, 237, 99, 0.32);
+    border-color: #adc0d1;
     background: var(--cp-surface-2);
   }
 
-  button,
-  input {
-    touch-action: manipulation;
+  .scan-stage {
+    border: 1px solid var(--cp-border);
+    background: var(--cp-surface-2);
+    border-radius: var(--cp-radius);
   }
 
-  button:active {
-    transform: scale(0.98);
+  .scan-track {
+    position: relative;
+    height: 9px;
+    overflow: hidden;
+    background: #dce7f0;
+    border-radius: 5px;
+  }
+
+  .scan-fill {
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--cp-accent);
+    transform-origin: left center;
+    transition: transform 240ms var(--cp-ease-out);
+  }
+
+  .scan-fill-indeterminate {
+    width: 34%;
+    animation: scan-slide 1.3s var(--cp-ease-out) infinite;
+  }
+
+  .scan-step-active {
+    color: var(--cp-accent);
+  }
+
+  .scan-step-done {
+    color: var(--cp-success);
+  }
+
+  .token-progress-track {
+    background: #dce7f0;
+  }
+
+  .token-progress-fill {
+    width: 100%;
+    transform-origin: left center;
+    transition: transform 360ms var(--cp-ease-out), background-color 180ms ease;
+  }
+
+  @keyframes scan-slide {
+    0% { transform: translateX(-115%); }
+    100% { transform: translateX(315%); }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -205,6 +230,10 @@
       scroll-behavior: auto !important;
       transition-duration: 0.01ms !important;
     }
+
+    .card-hover:hover {
+      transform: none;
+    }
   }
 
   @media (max-width: 640px) {
@@ -212,25 +241,9 @@
       font-size: clamp(3.25rem, 18vw, 5rem);
     }
 
-    .welcome-orb {
-      width: clamp(10rem, 42vw, 16rem);
-      filter: blur(30px);
-    }
-
-    .welcome-orb-lime {
-      left: -10%;
-      top: 12%;
-    }
-
-    .welcome-orb-teal {
-      right: -10%;
-      bottom: 10%;
-    }
-
-    .welcome-orb-indigo {
-      right: 20%;
-      top: 24%;
-      width: clamp(8rem, 32vw, 12rem);
+    .welcome-content {
+      padding-left: 1rem;
+      padding-right: 1rem;
     }
   }
 }

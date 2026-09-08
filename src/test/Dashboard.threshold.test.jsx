@@ -14,7 +14,6 @@ describe('Dashboard threshold and layout', () => {
     useStore.setState({
       tokenLimit: 100,
       warningPercent: 40,
-      customThreshold: 0,
       projectName: 'demo',
       files: [{ path: 'index.js', size: 1, lines: 1, tokens: 50, minifiedTokens: 50 }],
       selectedPaths: new Set(['index.js']),
@@ -27,7 +26,7 @@ describe('Dashboard threshold and layout', () => {
   it('shows the warning state at the configured percentage', () => {
     render(<Dashboard />);
 
-    expect(screen.getByText('50%')).toHaveClass('text-amber-400');
+    expect(screen.getByText('50%')).toHaveClass('text-amber-700');
     expect(screen.queryByText('OVERFLOW')).not.toBeInTheDocument();
   });
 

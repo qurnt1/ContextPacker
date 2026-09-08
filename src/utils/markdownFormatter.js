@@ -9,8 +9,8 @@ import { filterTreeForExport } from './treeUtils';
 export function generateMarkdownOutput(projectName, selectedFiles, totalTokens, minifyEnabled, tree, selectedPaths, includeFullTree = false) {
   const exportSummary = getExportSummary(selectedFiles, totalTokens, minifyEnabled);
   let md = minifyEnabled
-    ? `# CP: ${projectName}\n\n> ${JSON.stringify({ tokens: exportSummary.totalTokens, source: 'preserved', files: exportSummary.files.length })}\n\n`
-    : `# ContextPacker — ${projectName}\n\n> **Tokens contenu** : ${exportSummary.totalTokens.toLocaleString('fr-FR')} | **Source préservée** : oui | **Fichiers** : ${exportSummary.files.length}\n\n`;
+    ? `# ContextPacker: ${projectName}\n\n> ${JSON.stringify({ tokens: exportSummary.totalTokens, source: 'preserved', files: exportSummary.files.length })}\n\n`
+    : `# ContextPacker - ${projectName}\n\n> **Tokens contenu** : ${exportSummary.totalTokens.toLocaleString('fr-FR')} | **Source préservée** : oui | **Fichiers** : ${exportSummary.files.length}\n\n`;
 
   const filteredTree = filterTreeForExport(tree, selectedPaths, includeFullTree);
   if (filteredTree) {

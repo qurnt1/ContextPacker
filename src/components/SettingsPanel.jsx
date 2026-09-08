@@ -1,239 +1,156 @@
-import { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, X, Info, KeyRound } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { FolderCog, Settings, X } from 'lucide-react';
 import { DEFAULT_TOKEN_LIMITS } from '../constants';
 import { useStore } from '../store';
 import ModalPortal from './ModalPortal';
 
 export default function SettingsPanel() {
-  const tokenLimit = useStore((s) => s.tokenLimit);
-  const setTokenLimit = useStore((s) => s.setTokenLimit);
-  const warningPercent = useStore((s) => s.warningPercent);
-  const setWarningPercent = useStore((s) => s.setWarningPercent);
-  const customThreshold = useStore((s) => s.customThreshold);
-  const setCustomThreshold = useStore((s) => s.setCustomThreshold);
-  const githubToken = useStore((s) => s.githubToken);
-  const setGithubToken = useStore((s) => s.setGithubToken);
-
+  const tokenLimit = useStore((state) => state.tokenLimit);
+  const setTokenLimit = useStore((state) => state.setTokenLimit);
+  const warningPercent = useStore((state) => state.warningPercent);
+  const setWarningPercent = useStore((state) => state.setWarningPercent);
+  const gitignoreEnabled = useStore((state) => state.gitignoreEnabled);
+  const setGitignoreEnabled = useStore((state) => state.setGitignoreEnabled);
+  const isScanning = useStore((state) => state.isScanning);
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef(null);
-
-  const limits =
-    DEFAULT_TOKEN_LIMITS && DEFAULT_TOKEN_LIMITS.length > 0
-      ? DEFAULT_TOKEN_LIMITS
-      : [32000, 64000, 128000, 200000, 500000, 1000000];
+  const limits = DEFAULT_TOKEN_LIMITS?.length
+    ? DEFAULT_TOKEN_LIMITS
+    : [32_000, 64_000, 128_000, 200_000, 500_000, 1_000_000];
 
   return (
     <>
       <button
         ref={triggerRef}
+        type="button"
         onClick={() => setIsOpen(true)}
         title="Paramètres"
-        className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg text-cyber-text-2 hover:text-cyber-accent hover:bg-cyber-surface-2 transition-colors"
+        className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-cyber-text-2 transition-colors hover:bg-cyber-surface-2 hover:text-cyber-accent"
       >
-        <Settings className="w-3.5 h-3.5" />
+        <Settings className="h-3.5 w-3.5" aria-hidden="true" />
         <span className="hidden sm:inline">Paramètres</span>
       </button>
 
       <ModalPortal isOpen={isOpen} onClose={() => setIsOpen(false)} zIndex={9998} restoreFocusRef={triggerRef}>
-          <AnimatePresence>
-            {isOpen ? (
-              <>
-                <motion.div
-                  key="backdrop"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  onClick={() => setIsOpen(false)}
-                  className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-                  style={{ zIndex: 9998 }}
-                />
-
-                <motion.div
-                  key="panel"
-                  initial={{ x: '100%' }}
-                  animate={{ x: 0 }}
-                  exit={{ x: '100%' }}
-                  transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-                  className="fixed top-0 right-0 bottom-0 w-full max-w-[380px] bg-cyber-surface border-l border-cyber-border shadow-2xl flex flex-col"
-                  style={{ zIndex: 9999 }}
-                  role="dialog"
-                  aria-modal="true"
-                  tabIndex={-1}
-                >
-                  {/* Header */}
-                  <div className="flex items-center justify-between px-5 py-4 border-b border-cyber-border flex-shrink-0">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 rounded-lg bg-cyber-accent/10 text-cyber-accent">
-                        <Settings className="w-4 h-4" />
-                      </div>
-                      <h2 className="text-sm font-semibold text-cyber-text">Paramètres</h2>
+        <AnimatePresence>
+          {isOpen ? (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsOpen(false)}
+                className="fixed inset-0 z-[9998] bg-slate-900/25 backdrop-blur-sm"
+              />
+              <motion.aside
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                className="fixed bottom-0 right-0 top-0 z-[9999] flex w-full max-w-[380px] flex-col border-l border-cyber-border bg-cyber-surface shadow-2xl"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="settings-title"
+              >
+                <div className="flex items-center justify-between border-b border-cyber-border px-5 py-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="rounded-lg bg-cyber-accent/10 p-1.5 text-cyber-accent">
+                      <Settings className="h-4 w-4" aria-hidden="true" />
                     </div>
-                    <button
-                      onClick={() => setIsOpen(false)}
-                      className="p-1.5 -mr-1.5 rounded-lg hover:bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-text transition-colors"
-                      aria-label="Fermer"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
+                    <h2 id="settings-title" className="text-sm font-semibold text-cyber-text">Paramètres</h2>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsOpen(false)}
+                    aria-label="Fermer"
+                    className="rounded-lg p-1.5 text-cyber-text-3 transition-colors hover:bg-cyber-surface-2 hover:text-cyber-text"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
 
-                  <div className="flex-1 overflow-y-auto p-5 space-y-7">
-                    {/* Token limit */}
-                    <section>
-                      <label className="text-xs font-bold uppercase tracking-wider text-cyber-text font-mono">
-                        Limite de tokens
-                      </label>
-                      <p className="text-[11px] text-cyber-text-3 mt-1 mb-3 leading-normal">
-                        Capacité maximale de la fenêtre de contexte cible.
-                      </p>
-                      <div className="grid grid-cols-3 gap-2">
-                        {limits.map((limit) => {
-                          const label =
-                            limit >= 1_000_000 ? `${limit / 1_000_000}M` : `${limit / 1_000}k`;
-                          const isActive = tokenLimit === limit;
-                          return (
-                            <button
-                              key={limit}
-                              onClick={() => setTokenLimit(limit)}
-                              className={`px-3 py-2 rounded-lg text-xs font-mono font-medium transition-all border ${
-                                isActive
-                                  ? 'bg-cyber-accent/12 text-cyber-accent border-cyber-accent/25'
-                                  : 'bg-cyber-surface-2 text-cyber-text-2 border-transparent hover:border-cyber-border'
-                              }`}
-                            >
-                              {label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </section>
-
-                    <div className="h-px bg-cyber-border/50" />
-
-                    {/* Warning threshold */}
-                    <section>
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <label className="text-xs font-bold uppercase tracking-wider text-cyber-text font-mono">
-                            Seuil d'alerte (%)
-                          </label>
-                          <p className="text-[11px] text-cyber-text-3 mt-1 max-w-[200px]">
-                            Avertissement quand le total dépasse ce pourcentage.
-                          </p>
-                        </div>
-                        <span className="font-mono text-sm font-bold text-cyber-accent bg-cyber-accent/10 px-2 py-1 rounded">
-                          {warningPercent}%
-                        </span>
-                      </div>
-                      <div className="relative h-6 flex items-center">
-                        <input
-                          type="range"
-                          min={10}
-                          max={100}
-                          step={5}
-                          value={warningPercent}
-                          onChange={(event) => setWarningPercent(Number(event.target.value))}
-                          className="w-full h-1.5 bg-cyber-surface-2 rounded-lg appearance-none cursor-pointer accent-cyber-accent"
-                        />
-                      </div>
-                    </section>
-
-                    <div className="h-px bg-cyber-border/50" />
-
-                    {/* Manual threshold */}
-                    <section>
-                      <label className="text-xs font-bold uppercase tracking-wider text-cyber-text font-mono">
-                        Seuil manuel (tokens)
-                      </label>
-                      <div className="flex items-center gap-1.5 mt-1 mb-3 text-cyber-text-3">
-                        <Info className="w-3 h-3" />
-                        <span className="text-[10px]">0 = désactivé</span>
-                      </div>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          min={0}
-                          step={1000}
-                          value={customThreshold}
-                          onChange={(event) => setCustomThreshold(Math.max(0, Number(event.target.value)))}
-                          className="w-full pl-4 pr-14 py-2.5 rounded-lg text-xs font-mono bg-cyber-surface-2 border border-cyber-border text-cyber-text placeholder:text-cyber-text-3/50 focus:outline-none focus:border-cyber-accent/50 transition-colors"
-                          placeholder="Ex: 50000"
-                        />
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-cyber-text-3 font-mono pointer-events-none">
-                          tokens
-                        </div>
-                      </div>
-                    </section>
-
-                    <div className="h-px bg-cyber-border/50" />
-
-                    {/* GitHub token */}
-                    <section>
-                      <label className="text-xs font-bold uppercase tracking-wider text-cyber-text font-mono flex items-center gap-1.5">
-                        <KeyRound className="w-3.5 h-3.5 text-cyber-accent" />
-                        GitHub token
-                      </label>
-                      <p className="text-[11px] text-cyber-text-3 mt-1 mb-3">
-                        Améliore le rate-limit pour les scans fréquents.
-                      </p>
-                      <p className="text-[10px] text-cyber-text-3 mb-3">
-                        Conservé en mémoire uniquement, jamais dans les réglages persistés.
-                      </p>
-                      <div className="space-y-2">
-                        <input
-                          type="password"
-                          autoComplete="off"
-                          value={githubToken || ''}
-                          onChange={(event) => setGithubToken(event.target.value)}
-                          className="w-full px-4 py-2.5 rounded-lg text-xs font-mono bg-cyber-surface-2 border border-cyber-border text-cyber-text placeholder:text-cyber-text-3/50 focus:outline-none focus:border-cyber-accent/50 transition-colors"
-                          placeholder="ghp_..."
-                        />
-                        <button
-                          onClick={() => setGithubToken('')}
-                          className="text-[11px] text-cyber-text-3 hover:text-cyber-accent transition-colors"
-                        >
-                          Effacer le token
-                        </button>
-                      </div>
-                    </section>
-
-                    {/* Info box */}
-                    <div className="bg-cyber-accent/[0.04] border border-cyber-accent/10 rounded-xl p-4">
-                      <p className="text-[11px] text-cyber-text-2 leading-relaxed">
-                        <strong className="text-cyber-accent font-semibold block mb-1">
-                          Popup de confirmation
-                        </strong>
-                        Une alerte apparaît quand la sélection dépasse{' '}
-                        <span className="font-mono text-cyber-accent font-bold bg-cyber-accent/10 px-1 rounded">
-                          {warningPercent}%
-                        </span>{' '}
-                        de la limite.
-                        {customThreshold > 0 ? (
-                          <>
-                            {' '}
-                            Ou si le total dépasse{' '}
-                            <span className="font-mono text-cyber-accent font-bold bg-cyber-accent/10 px-1 rounded">
-                              {customThreshold.toLocaleString('fr-FR')}
-                            </span>{' '}
-                            tokens.
-                          </>
-                        ) : null}
-                      </p>
+                <div className="flex-1 space-y-7 overflow-y-auto p-5">
+                  <section>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-cyber-text">Limite de tokens</h3>
+                    <p className="mb-3 mt-1 text-[11px] leading-normal text-cyber-text-3">
+                      Capacité maximale du contexte que vous préparez.
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {limits.map((limit) => {
+                        const label = limit >= 1_000_000 ? `${limit / 1_000_000}M` : `${limit / 1_000}k`;
+                        const active = tokenLimit === limit;
+                        return (
+                          <button
+                            key={limit}
+                            type="button"
+                            onClick={() => setTokenLimit(limit)}
+                            className={`rounded-lg border px-3 py-2 text-xs font-mono font-medium transition-colors ${active
+                              ? 'border-cyber-accent/25 bg-cyber-accent/10 text-cyber-accent'
+                              : 'border-transparent bg-cyber-surface-2 text-cyber-text-2 hover:border-cyber-border'}`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
                     </div>
-                  </div>
+                  </section>
 
-                  {/* Footer */}
-                  <div className="p-4 border-t border-cyber-border flex-shrink-0">
-                    <p className="text-[10px] text-cyber-text-3 text-center flex items-center justify-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/50" />
-                      Sauvegardés automatiquement
+                  <section className="border-t border-cyber-border/60 pt-6">
+                    <div className="mb-3 flex items-center justify-between gap-4">
+                      <div>
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-cyber-text">Seuil d'alerte</h3>
+                        <p className="mt-1 max-w-[220px] text-[11px] text-cyber-text-3">Afficher une confirmation avant de dépasser ce pourcentage.</p>
+                      </div>
+                      <output className="rounded bg-cyber-accent/10 px-2 py-1 font-mono text-sm font-bold text-cyber-accent">{warningPercent}%</output>
+                    </div>
+                    <input
+                      type="range"
+                      min="10"
+                      max="100"
+                      step="5"
+                      value={warningPercent}
+                      onChange={(event) => setWarningPercent(Number(event.target.value))}
+                      className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-cyber-surface-2 accent-cyber-accent"
+                      aria-label="Seuil d'alerte en pourcentage"
+                    />
+                  </section>
+
+                  <section className="border-t border-cyber-border/60 pt-6">
+                    <div className="flex items-start gap-3">
+                      <FolderCog className="mt-0.5 h-4 w-4 shrink-0 text-cyber-accent" aria-hidden="true" />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-cyber-text">Filtres du dossier</h3>
+                        <p className="mt-1 text-[11px] leading-normal text-cyber-text-3">
+                          Les dossiers `.git`, `venv` et les caches restent toujours exclus. Le fichier `.gitignore` complète ces filtres.
+                        </p>
+                        <label className="mt-3 flex items-center gap-2 text-xs text-cyber-text-2">
+                          <input
+                            type="checkbox"
+                            checked={gitignoreEnabled}
+                            disabled={isScanning}
+                            onChange={(event) => setGitignoreEnabled(event.target.checked)}
+                            className="h-4 w-4 accent-cyber-accent"
+                          />
+                          Respecter `.gitignore`
+                        </label>
+                      </div>
+                    </div>
+                  </section>
+
+                  <div className="border border-cyber-accent/15 bg-cyber-accent/[0.04] p-4">
+                    <p className="text-[11px] leading-relaxed text-cyber-text-2">
+                      ContextPacker traite les fichiers dans en local dans votre navigateur. Aucun dépôt distant ni détection automatique de secrets n'est utilisé.
                     </p>
                   </div>
-                </motion.div>
-              </>
-            ) : null}
-          </AnimatePresence>
+                </div>
+
+                <div className="border-t border-cyber-border p-4 text-center text-[10px] text-cyber-text-3">
+                  Les réglages sont sauvegardés sur cet appareil.
+                </div>
+              </motion.aside>
+            </>
+          ) : null}
+        </AnimatePresence>
       </ModalPortal>
     </>
   );

@@ -5,31 +5,25 @@ import { useStore } from '../store';
 
 afterEach(cleanup);
 
-const tree = {
-  name: 'demo',
-  path: '',
-  type: 'directory',
-  children: [
-    {
-      name: 'index.js',
-      path: 'index.js',
-      type: 'file',
-      extension: '.js',
-      size: 1,
-      lines: 1,
-      tokens: 1,
-      minifiedTokens: 1,
-      selectable: true,
-      blocked: false,
-    },
-  ],
+const file = {
+  name: 'index.js',
+  path: 'index.js',
+  type: 'file',
+  extension: '.js',
+  size: 1,
+  lines: 1,
+  tokens: 1,
+  minifiedTokens: 1,
+  selectable: true,
+  blocked: false,
 };
+const tree = { name: 'demo', path: '', type: 'directory', children: [file] };
 
 beforeEach(() => {
   useStore.setState({
     projectName: 'demo',
     tree,
-    files: [{ ...tree.children[0], content: 'const demo = true;', minifiedContent: 'const demo = true;' }],
+    files: [{ ...file, content: 'const demo = true;', minifiedContent: 'const demo=true;' }],
     selectedPaths: new Set(),
     minifyEnabled: false,
     gitignoreEnabled: true,
@@ -40,74 +34,34 @@ beforeEach(() => {
 });
 
 describe('Sidebar controls', () => {
-  it('starts with full-tree export enabled on a fresh store state and still allows manual toggling', () => {
-    useStore.setState(useStore.getInitialState(), true);
+  it('exposes compact formatting and filter states', () => {
     render(<Sidebar />);
-
-    const checkbox = screen.getByRole('checkbox', { name: /Arborescence complète/i });
-    expect(checkbox).toBeChecked();
-
-    fireEvent.click(checkbox);
-    expect(checkbox).not.toBeChecked();
-  });
-
-  it('uses clear labels and exposes toggle states', () => {
-    render(<Sidebar />);
-
     expect(screen.getByRole('button', { name: /Formatage compact/i })).toHaveAttribute('aria-pressed', 'false');
-    const gitignoreToggle = screen.getByRole('button', { name: /Désactiver \.gitignore/i });
-    expect(gitignoreToggle.getAttribute('title')).toMatch(/actualiser immédiatement/i);
-    expect(screen.getByRole('checkbox', { name: /Arborescence complète/i })).not.toBeChecked();
+    expect(screen.getByRole('button', { name: /D.sactiver \.gitignore/i })).toHaveAttribute('aria-busy', 'false');
+    expect(screen.getByRole('checkbox', { name: /Arborescence compl.te/i })).not.toBeChecked();
   });
 
-  it('disables the .gitignore action while a scan is running', () => {
+  it('toggles compact formatting', () => {
+    render(<Sidebar />);
+    const toggle = screen.getByRole('button', { name: /Formatage compact/i });
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    expect(useStore.getState().minifyEnabled).toBe(true);
+  });
+
+  it('disables the gitignore action while scanning', () => {
     useStore.setState({ isScanning: true });
     render(<Sidebar />);
-
-    const gitignoreToggle = screen.getByRole('button', { name: /Actualisation du projet en cours/i });
-    expect(gitignoreToggle).toBeDisabled();
-    expect(gitignoreToggle).toHaveAttribute('aria-busy', 'true');
+    const toggle = screen.getByRole('button', { name: /Actualisation du projet en cours/i });
+    expect(toggle).toBeDisabled();
+    expect(toggle).toHaveAttribute('aria-busy', 'true');
   });
 
-  it('uses the shared active style for the full-tree export toggle', () => {
+  it('keeps technical exclusions unavailable in the tree', () => {
+    const excluded = { ...file, name: '.git', path: '.git', selectable: false, blocked: true };
+    useStore.setState({ tree: { ...tree, children: [excluded] }, files: [excluded] });
     render(<Sidebar />);
-
-    const checkbox = screen.getByRole('checkbox', { name: /Arborescence complète/i });
-    const control = checkbox.closest('label');
-
-    expect(control).toHaveClass('bg-cyber-surface-2');
-    fireEvent.click(checkbox);
-
-    expect(checkbox).toBeChecked();
-    expect(control).toHaveClass('bg-cyber-accent/10');
-  });
-
-  it('keeps potential secrets permanently disabled', () => {
-    const secretFile = {
-      name: 'config.js',
-      path: 'config.js',
-      type: 'file',
-      extension: '.js',
-      size: 1,
-      lines: 1,
-      tokens: 1,
-      minifiedTokens: 1,
-      selectable: true,
-      blocked: false,
-      potentialSecrets: [{ kind: 'credential-assignment', line: 1 }],
-    };
-    useStore.setState({
-      tree: { ...tree, children: [secretFile] },
-      files: [{ ...secretFile, content: 'const apiKey = "value";', minifiedContent: 'const apiKey = "value";' }],
-      selectedPaths: new Set(),
-    });
-
-    render(<Sidebar />);
-
-    const secretCheckbox = screen.getByRole('button', { name: /secret potentiel bloqué et non sélectionnable/i });
-    expect(secretCheckbox).toBeDisabled();
-    expect(screen.queryByRole('button', { name: /autoriser/i })).not.toBeInTheDocument();
-    fireEvent.click(secretCheckbox);
-    expect(useStore.getState().selectedPaths).toEqual(new Set());
+    const excludedButton = screen.getByRole('button', { name: /exclu et non s.lectionnable/i });
+    expect(excludedButton).toBeDisabled();
   });
 });

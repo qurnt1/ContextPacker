@@ -1,25 +1,28 @@
 import ignore from 'ignore';
 import { DEFAULT_IGNORED_PATTERNS } from '../constants';
 
-export function createIgnoreFilter(gitignoreContent = '', options = {}) {
-  const {
-    enabled = true,
-    includeDefaults = true,
-  } = options;
+// These directories are implementation noise and must never enter a context,
+// even when a project disables its own .gitignore rules.
+const MANDATORY_IGNORED_PATTERNS = [
+  ...DEFAULT_IGNORED_PATTERNS,
+  '.venv',
+  '.pytest_cache',
+  '.mypy_cache',
+  '.ruff_cache',
+  '.hypothesis',
+  '.gradle',
+  '.nx',
+  '.pnpm-store',
+  '.eslintcache',
+];
 
-  if (!enabled) {
-    return {
-      ignores: () => false,
-    };
-  }
+export function createIgnoreFilter(gitignoreContent = '', { enabled = true } = {}) {
 
   const ig = ignore();
 
-  if (includeDefaults) {
-    DEFAULT_IGNORED_PATTERNS.forEach((pattern) => ig.add(pattern));
-  }
+  MANDATORY_IGNORED_PATTERNS.forEach((pattern) => ig.add(pattern));
 
-  if (gitignoreContent.trim()) {
+  if (enabled && gitignoreContent.trim()) {
     ig.add(gitignoreContent);
   }
 

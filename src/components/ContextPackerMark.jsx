@@ -1,6 +1,6 @@
 import { Zap } from 'lucide-react';
 
-export default function ContextPackerMark({ className = 'w-6 h-6', title }) {
+export default function ContextPackerMark({ className = 'h-6 w-6', title }) {
   return (
     <Zap
       className={className}

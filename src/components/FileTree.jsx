@@ -1,12 +1,11 @@
 import { memo, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   ChevronRight,
   ChevronDown,
   Folder,
   FolderOpen,
   Ban,
-  ShieldAlert,
   Check,
   Minus,
 } from 'lucide-react';
@@ -37,8 +36,7 @@ const FileTree = memo(function FileTree({
 }) {
   const isDirectory = node.type === 'directory';
   const expanded = isRoot || expandedPaths?.has(node.path) || (Boolean(searchQuery) && isDirectory && matchesSearch(node, searchQuery));
-  const isPotentialSecret = Boolean(node.potentialSecrets?.length);
-  const isBlocked = Boolean(node.blocked || node.selectable === false || isPotentialSecret);
+  const isBlocked = Boolean(node.blocked || node.selectable === false);
 
   const selectionState = useMemo(() => {
     if (!isDirectory) {
@@ -108,9 +106,7 @@ const FileTree = memo(function FileTree({
   }
 
   const FileIcon = isDirectory ? (expanded ? FolderOpen : Folder) : null;
-  const fileTypeIcon = isPotentialSecret ? (
-    <ShieldAlert className="w-3.5 h-3.5 flex-shrink-0 text-amber-300" aria-hidden="true" />
-  ) : isBlocked ? (
+  const fileTypeIcon = isBlocked ? (
     <Ban className="w-3.5 h-3.5 flex-shrink-0 text-red-400" aria-hidden="true" />
   ) : isDirectory ? (
     <FileIcon className="w-3.5 h-3.5 flex-shrink-0 text-cyber-accent/60" />
@@ -145,8 +141,8 @@ const FileTree = memo(function FileTree({
         <button
           onClick={handleCheckboxClick}
           disabled={isBlocked}
-          aria-label={isBlocked ? `${node.name}, ${isPotentialSecret ? 'secret potentiel bloqué et non sélectionnable' : 'bloqué et non sélectionnable'}` : `Sélectionner ${node.name}`}
-          title={isBlocked ? (isPotentialSecret ? 'Secret potentiel : bloqué par sécurité' : `Bloqué : ${node.blockedReason || 'fichier sensible'}`) : undefined}
+          aria-label={isBlocked ? `${node.name}, exclu et non sélectionnable` : `Sélectionner ${node.name}`}
+          title={isBlocked ? 'Fichier exclu du contexte' : undefined}
           className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-colors border ${
             selectionState === 'all'
               ? 'bg-cyber-accent/25 border-cyber-accent/50 text-cyber-accent'
@@ -155,8 +151,7 @@ const FileTree = memo(function FileTree({
                 : 'border-cyber-border hover:border-cyber-text-3'
           }`}
         >
-          {isPotentialSecret ? <ShieldAlert className="w-2.5 h-2.5 text-amber-300" /> : null}
-          {isBlocked && !isPotentialSecret ? <Ban className="w-2.5 h-2.5" /> : null}
+          {isBlocked ? <Ban className="w-2.5 h-2.5" /> : null}
           {!isBlocked && selectionState === 'all' ? <Check className="w-2.5 h-2.5" /> : null}
           {!isBlocked && selectionState === 'some' ? <Minus className="w-2.5 h-2.5" /> : null}
         </button>
@@ -166,8 +161,7 @@ const FileTree = memo(function FileTree({
         <span className="text-[12px] truncate flex-1 text-cyber-text-2 group-hover:text-cyber-text transition-colors" title={node.path}>
           {node.name}
         </span>
-        {isPotentialSecret ? <span className="text-[9px] text-amber-300/80 uppercase">secret bloqué</span> : null}
-        {isBlocked && !isPotentialSecret ? <span className="text-[9px] text-red-300/80 uppercase">bloqué</span> : null}
+        {isBlocked ? <span className="text-[9px] uppercase text-cyber-text-3">exclu</span> : null}
 
         {!isDirectory ? (
           <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">

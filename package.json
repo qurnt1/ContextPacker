@@ -1,7 +1,7 @@
 {
-  "name": "context-packer",
+  "name": "contextpacker",
   "private": true,
-  "version": "4.0.0",
+  "version": "5.0.0",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -15,11 +15,11 @@
   },
   "dependencies": {
     "diff": "^9.0.0",
-    "framer-motion": "^11.18.2",
     "ignore": "^6.0.2",
     "js-tiktoken": "^1.0.15",
     "lucide-react": "^0.468.0",
     "material-icon-theme": "^5.37.0",
+    "motion": "^13.2.0",
     "prism-react-renderer": "^2.4.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -28,6 +28,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.1",
+    "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.4",
@@ -42,6 +43,6 @@
     "postcss": "^8.5.26",
     "tailwindcss": "^3.4.19",
     "vite": "^6.4.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }

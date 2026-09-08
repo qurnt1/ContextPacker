@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import {
   CheckSquare,
   Square,
@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import FileTree from './FileTree';
 import { useStore } from '../store';
-import { isSelectionAllowed } from '../utils/securityPolicy';
+import { isSelectionAllowed } from '../utils/filePolicy';
 import { buildSelectionIndex, getSearchResultPaths } from '../utils/treeUtils';
 
 function sortNodes(nodes) {
