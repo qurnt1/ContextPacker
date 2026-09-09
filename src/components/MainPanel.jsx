@@ -47,12 +47,12 @@ export default function MainPanel() {
             <div className="px-6 text-center">
               <FileText className="mx-auto mb-5 h-16 w-16 text-cyber-accent/50" aria-hidden="true" />
               <p className="text-sm font-medium text-cyber-text-2">
-                {projectLoaded && files.length === 0 ? 'Aucun fichier admissible trouve' : 'Aucun fichier selectionne'}
+                {projectLoaded && files.length === 0 ? 'Aucun fichier admissible trouvé' : 'Aucun fichier sélectionné'}
               </p>
               <p className="mt-1.5 max-w-xs text-xs text-cyber-text-3">
                 {projectLoaded && files.length === 0
                   ? 'Ce projet ne contient aucun fichier texte compatible avec les filtres actuels.'
-                  : 'Selectionnez des fichiers dans le panneau lateral pour generer votre contexte.'}
+                  : 'Sélectionnez des fichiers dans le panneau latéral pour générer votre contexte.'}
               </p>
             </div>
           </div>
@@ -60,7 +60,7 @@ export default function MainPanel() {
           <div className="space-y-4 p-5">
             <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="card p-4">
               <p className="font-mono text-sm font-semibold text-cyber-accent">
-                [CONTEXTPACKER · {projectName}] · {formatNumber(totalTokens)} tokens · source preservee
+                [CONTEXTPACKER · {projectName}] · {formatNumber(totalTokens)} tokens · source préservée
               </p>
             </motion.div>
 

@@ -12,6 +12,9 @@ test('renders the local-only ContextPacker welcome screen', async ({ page }) => 
   const logo = page.getByRole('img', { name: 'ContextPacker' });
   await expect(logo).toBeVisible();
   await expect(logo).toHaveAttribute('src', /contextpacker-logo\.png/);
+  const sourceLink = page.getByRole('link', { name: /Gratuit et open source/i });
+  await expect(sourceLink).toHaveAttribute('href', 'https://github.com/qurnt1/ContextPacker');
+  await expect(sourceLink).toHaveAttribute('target', '_blank');
   await expect(page.getByRole('button', { name: /Ouvrir un dossier local/i })).toBeVisible();
   await expect(page.getByRole('heading', { name: /Tout le nécessaire pour préparer votre contexte IA/i })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Traitement local', exact: true })).toBeVisible();

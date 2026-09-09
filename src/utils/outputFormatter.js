@@ -30,7 +30,7 @@ export function generatePlainOutput(projectName, selectedFiles, totalTokens, min
   if (minifyEnabled) {
     output += `[ContextPacker] ${JSON.stringify({ project: projectName, tokens: exportSummary.totalTokens, files: exportSummary.files.length, source: 'preserved' })}\n`;
   } else {
-    output += `[CONTEXTPACKER - PROJET: ${projectName}] | TOKENS CONTENU: ${exportSummary.totalTokens} | SOURCE PRESERVEE: OUI\n\n`;
+    output += `[CONTEXTPACKER - PROJET: ${projectName}] | TOKENS CONTENU: ${exportSummary.totalTokens} | SOURCE PRÉSERVÉE: OUI\n\n`;
   }
 
   output += minifyEnabled ? '[TREE]\n' : '[STRUCTURE]\n';

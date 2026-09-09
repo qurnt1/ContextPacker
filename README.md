@@ -1,30 +1,34 @@
 # ContextPacker
 
-ContextPacker transforme un dossier local en contexte de code clair et compact, pret a etre utilise avec une IA. L'application fonctionne directement dans le navigateur et aide les developpeurs, etudiants et equipes a selectionner uniquement les fichiers utiles.
+ContextPacker transforme un dossier local en contexte de code clair et compact, prêt à être utilisé avec une IA. L'application fonctionne directement dans le navigateur et aide les développeurs, étudiants et équipes à sélectionner uniquement les fichiers utiles, sans envoyer les fichiers vers un serveur.
 
-![Ecran d'accueil de ContextPacker](./assets/accueil.png)
+![Écran d'accueil de ContextPacker](./assets/accueil.png)
 
 ## Fonctionnement
 
 1. Ouvrez un dossier local dans un navigateur Chromium compatible avec la File System Access API.
-2. Parcourez l'arborescence, recherchez des fichiers et selectionnez le contexte utile.
-3. Suivez le volume de tokens et activez le formatage compact lorsque cela reduit la taille.
-4. Copiez le contexte ou telechargez-le au format TXT ou Markdown.
+2. Parcourez l'arborescence, recherchez des fichiers et sélectionnez le contexte utile.
+3. Suivez le volume de tokens et activez le formatage compact lorsque cela réduit la taille.
+4. Copiez le contexte ou téléchargez-le au format TXT ou Markdown.
+
+## Compatibilité
+
+L'ouverture de dossiers utilise la File System Access API. Utilisez Chrome, Edge ou un autre navigateur basé sur Chromium récent pour accéder à cette fonctionnalité.
 
 ## Ce que ContextPacker conserve
 
-- Les fichiers sont lus et traites localement dans le navigateur.
+- Les fichiers sont lus et traités localement dans le navigateur.
 - Les dossiers `.git`, `venv`, `.venv`, `node_modules`, les caches, les builds, les binaires et les fichiers trop volumineux sont exclus du scan et de l'export.
-- Le fichier `.gitignore` du projet peut etre respecte ou ignore, sans desactiver les exclusions techniques obligatoires.
-- Le comptage de tokens utilise un tokenizer charge a la demande.
-- L'historique des dossiers locaux et les preferences sont conserves dans le navigateur.
+- Le fichier `.gitignore` du projet peut être respecté ou ignoré, sans désactiver les exclusions techniques obligatoires.
+- Le comptage de tokens utilise un tokenizer chargé à la demande.
+- L'historique des dossiers locaux et les préférences sont conservés dans le navigateur.
 
-ContextPacker ne detecte pas automatiquement les secrets dans le contenu. La selection et l'export restent sous le controle de l'utilisateur.
+ContextPacker ne détecte pas automatiquement les secrets dans le contenu. La sélection et l'export restent sous le contrôle de l'utilisateur.
 
-## Developpement
+## Développement
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/qurnt1/ContextPacker.git
 cd ContextPacker
 npm install
 npm run dev
@@ -39,10 +43,6 @@ npm run build
 npm run e2e
 ```
 
-## Deploiement
-
-Le projet est une application statique Vite. Le chemin de base actuel est `/ContextPacker/`. Adaptez-le au chemin public de votre hebergement avant la mise en ligne.
-
 ## Licence
 
-ContextPacker est distribue sous licence MIT. Voir [`LICENSE`](./LICENSE).
+ContextPacker est distribué sous licence MIT. Voir [`LICENSE`](./LICENSE).

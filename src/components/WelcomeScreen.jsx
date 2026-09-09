@@ -5,6 +5,7 @@ import {
   FileText,
   FolderTree,
   FolderOpen,
+  Github,
   Hash,
   History,
   Monitor,
@@ -228,6 +229,18 @@ export default function WelcomeScreen({ onShowOnboarding }) {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      <a
+        href="https://github.com/qurnt1/ContextPacker"
+        target="_blank"
+        rel="noreferrer"
+        className="absolute right-4 top-4 z-20 inline-flex items-center gap-1.5 rounded-md border border-cyber-border bg-cyber-surface/90 px-2.5 py-1.5 text-[11px] font-medium text-cyber-text-2 shadow-sm transition-colors hover:border-cyber-accent/30 hover:bg-cyber-surface hover:text-cyber-accent"
+        title="Voir le code source de ContextPacker sur GitHub"
+        aria-label="Gratuit et open source, voir le code source sur GitHub"
+      >
+        <Github className="h-3.5 w-3.5" aria-hidden="true" />
+        <span>Gratuit et open source</span>
+      </a>
+
       {isDragOver ? (
         <div className="absolute inset-0 z-30 flex items-center justify-center bg-cyber-accent/10 p-6" aria-live="polite">
           <div className="card w-full max-w-md border-2 border-dashed border-cyber-accent px-8 py-7 text-center">
@@ -249,7 +262,7 @@ export default function WelcomeScreen({ onShowOnboarding }) {
             </p>
           </div>
 
-          <div className="welcome-launch">
+          <div className="welcome-launch mt-6">
           <div className="welcome-card mx-auto w-full max-w-3xl rounded-lg p-5 text-left sm:p-7">
           {isScanning ? (
             <ScanProgress count={scanCount} total={scanTotal} currentFile={currentFile} />

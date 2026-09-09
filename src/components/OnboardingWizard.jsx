@@ -10,25 +10,25 @@ const STEPS = [
     icon: FolderOpen,
     content: (
       <div className="space-y-3 text-sm leading-relaxed text-cyber-text-2">
-        <p>ContextPacker transforme un dossier local en contexte pret a copier dans votre IA.</p>
+        <p>ContextPacker transforme un dossier local en contexte prêt à copier dans votre IA.</p>
         <ul className="space-y-1.5">
-          <li>Selectionnez un dossier local.</li>
-          <li>Glissez-deposez un dossier sur la page d'accueil.</li>
+          <li>Sélectionnez un dossier local.</li>
+          <li>Glissez-déposez un dossier sur la page d'accueil.</li>
           <li>Le scan reste dans votre navigateur.</li>
         </ul>
       </div>
     ),
   },
   {
-    title: 'Selectionner les fichiers',
+    title: 'Sélectionner les fichiers',
     icon: FileStack,
     content: (
       <div className="space-y-3 text-sm leading-relaxed text-cyber-text-2">
         <p>Gardez uniquement les fichiers utiles pour votre contexte.</p>
         <ul className="space-y-1.5">
-          <li>Parcourez l'arborescence dans le panneau lateral.</li>
+          <li>Parcourez l'arborescence dans le panneau latéral.</li>
           <li>Recherchez un fichier avec <kbd className="rounded bg-cyber-surface-2 px-1 py-0.5 font-mono text-[11px]">Ctrl+F</kbd>.</li>
-          <li>Selectionnez par extension ou avec <kbd className="rounded bg-cyber-surface-2 px-1 py-0.5 font-mono text-[11px]">Ctrl+A</kbd>.</li>
+          <li>Sélectionnez par extension ou avec <kbd className="rounded bg-cyber-surface-2 px-1 py-0.5 font-mono text-[11px]">Ctrl+A</kbd>.</li>
         </ul>
       </div>
     ),
@@ -38,11 +38,11 @@ const STEPS = [
     icon: ExternalLink,
     content: (
       <div className="space-y-3 text-sm leading-relaxed text-cyber-text-2">
-        <p>Copiez ou telechargez le contexte genere.</p>
+        <p>Copiez ou téléchargez le contexte généré.</p>
         <ul className="space-y-1.5">
           <li>Utilisez le format texte ou Markdown.</li>
-          <li>Activez <strong className="text-cyber-text">Formatage compact</strong> pour reduire les separateurs et les espaces inutiles.</li>
-          <li>Collez ensuite le resultat dans votre outil IA.</li>
+          <li>Activez <strong className="text-cyber-text">Formatage compact</strong> pour réduire les séparateurs et les espaces inutiles.</li>
+          <li>Collez ensuite le résultat dans votre outil IA.</li>
         </ul>
       </div>
     ),
@@ -92,7 +92,7 @@ export default function OnboardingWizard({ isOpen, onClose, onComplete }) {
                 data-testid="onboarding-dialog"
                 role="dialog"
                 aria-modal="true"
-                aria-label="Presentation de ContextPacker"
+                aria-label="Présentation de ContextPacker"
               >
                 <div className="flex items-center gap-3 border-b border-cyber-border px-5 py-4">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyber-accent/10">
@@ -107,7 +107,7 @@ export default function OnboardingWizard({ isOpen, onClose, onComplete }) {
                     type="button"
                     onClick={finish}
                     className="rounded-lg p-1.5 text-cyber-text-3 transition-colors hover:bg-cyber-surface-2 hover:text-cyber-text"
-                    aria-label="Fermer la presentation"
+                    aria-label="Fermer la présentation"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -124,7 +124,7 @@ export default function OnboardingWizard({ isOpen, onClose, onComplete }) {
                 </div>
 
                 <div className="flex items-center justify-between border-t border-cyber-border bg-cyber-surface-2/50 px-5 py-3.5">
-                  <div className="flex gap-1" aria-label="Progression de la presentation">
+                  <div className="flex gap-1" aria-label="Progression de la présentation">
                     {STEPS.map((item, index) => (
                       <span key={item.title} className={`h-2 w-2 rounded-full ${index === step ? 'bg-cyber-accent' : 'bg-cyber-border'}`} />
                     ))}
@@ -133,7 +133,7 @@ export default function OnboardingWizard({ isOpen, onClose, onComplete }) {
                     <button type="button" onClick={finish} className="rounded-lg px-3 py-1.5 text-xs text-cyber-text-3 hover:text-cyber-text">Passer</button>
                     {step > 0 ? (
                       <button type="button" onClick={() => setStep((value) => value - 1)} className="flex items-center gap-1 rounded-lg border border-cyber-border px-3 py-1.5 text-xs text-cyber-text-2 hover:border-cyber-accent/30 hover:text-cyber-accent">
-                        <ChevronLeft className="h-3.5 w-3.5" /> Precedent
+                        <ChevronLeft className="h-3.5 w-3.5" /> Précédent
                       </button>
                     ) : null}
                     <button type="button" onClick={() => (step < STEPS.length - 1 ? setStep((value) => value + 1) : finish())} className="flex items-center gap-1 rounded-lg bg-cyber-accent px-4 py-1.5 text-xs font-medium text-white hover:bg-cyber-accent/90">

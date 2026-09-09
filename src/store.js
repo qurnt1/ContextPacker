@@ -189,7 +189,7 @@ function createScanSlice(set, get) {
           projectId,
           scanRequestId: scan.requestId,
         });
-        if (!completed) return { ok: false, error: new Error('Scan remplace.'), aborted: true };
+        if (!completed) return { ok: false, error: new Error('Scan remplacé.'), aborted: true };
 
         await saveHandle(projectId, dirHandle);
         addRecentProject({
@@ -309,7 +309,7 @@ function createScanSlice(set, get) {
         }
         return {
           ok: false,
-          error: new Error("Impossible d'acceder au dossier. Reessayez depuis l'ecran d'accueil."),
+          error: new Error("Impossible d'accéder au dossier. Réessayez depuis l'écran d'accueil."),
           aborted: false,
         };
       } catch (error) {
