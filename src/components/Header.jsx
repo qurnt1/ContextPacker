@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { FolderOpen, Loader2, Keyboard, RefreshCw } from 'lucide-react';
+import { FolderOpen, Loader2, Keyboard, RefreshCw, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useStore } from '../store';
 import { useToast } from '../hooks/useToast';
@@ -7,18 +7,13 @@ import SettingsPanel from './SettingsPanel';
 import Toast from './Toast';
 import ContextPackerMark from './ContextPackerMark';
 import ModalPortal from './ModalPortal';
+import RefreshChangesList from './RefreshChangesList';
 import { formatNumber } from '../utils/helpers';
 
 const refreshDateFormatter = new Intl.DateTimeFormat('fr-FR', {
   dateStyle: 'medium',
   timeStyle: 'short',
 });
-
-const refreshKinds = {
-  added: 'Ajouté',
-  modified: 'Modifié',
-  removed: 'Supprimé',
-};
 
 function parseRefreshDate(value) {
   if (!value) return null;
@@ -27,11 +22,11 @@ function parseRefreshDate(value) {
 }
 
 function RefreshSummaryDialog({ summary, onClose, restoreFocusRef }) {
-  const changes = summary?.changes || [];
   const latestModified = parseRefreshDate(summary?.latestModifiedAt);
   const changedCount = summary?.totalChanged || 0;
   const totalAddedLines = summary?.totalAddedLines || 0;
   const totalRemovedLines = summary?.totalRemovedLines || 0;
+  const hasChanges = changedCount > 0 || (summary?.changeGroups?.length || 0) > 0;
 
   return (
     <ModalPortal isOpen={Boolean(summary)} onClose={onClose} zIndex={220} restoreFocusRef={restoreFocusRef}>
@@ -57,7 +52,7 @@ function RefreshSummaryDialog({ summary, onClose, restoreFocusRef }) {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.96 }}
                 transition={{ type: 'spring', damping: 26, stiffness: 380 }}
-                className="w-full max-w-[560px] overflow-hidden rounded-2xl border border-cyber-border bg-cyber-surface shadow-2xl"
+                className="flex max-h-[calc(100dvh-2rem)] w-full max-w-[760px] flex-col overflow-hidden rounded-2xl border border-cyber-border bg-cyber-surface shadow-2xl"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="refresh-summary-title"
@@ -68,7 +63,7 @@ function RefreshSummaryDialog({ summary, onClose, restoreFocusRef }) {
                     <p className="mt-1 text-[11px] text-cyber-text-3">
                       {changedCount === 0
                         ? 'Aucune différence détectée.'
-                        : `${changedCount} fichier${changedCount > 1 ? 's' : ''} modifié${changedCount > 1 ? 's' : ''}.`}
+                        : `${changedCount} changement${changedCount > 1 ? 's' : ''} détecté${changedCount > 1 ? 's' : ''}.`}
                     </p>
                   </div>
                   <button
@@ -77,11 +72,11 @@ function RefreshSummaryDialog({ summary, onClose, restoreFocusRef }) {
                     className="rounded-lg p-1.5 text-cyber-text-3 transition-colors hover:bg-cyber-surface-2 hover:text-cyber-text"
                     aria-label="Fermer le résumé d’actualisation"
                   >
-                    ×
+                    <X className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </div>
 
-                <div className="space-y-4 px-5 py-4">
+                <div className="flex min-h-0 flex-1 flex-col gap-4 px-5 py-4">
                   {latestModified ? (
                     <p className="text-xs text-cyber-text-2">
                       Dernier fichier modifié : <time dateTime={latestModified.toISOString()} className="font-medium text-cyber-text">{refreshDateFormatter.format(latestModified)}</time>
@@ -90,7 +85,7 @@ function RefreshSummaryDialog({ summary, onClose, restoreFocusRef }) {
 
                   {changedCount > 0 ? (
                     <>
-                      <dl className="grid grid-cols-3 gap-2 text-center text-[11px]">
+                      <dl className="grid grid-cols-1 gap-2 text-center text-[11px] sm:grid-cols-3">
                         <div className="rounded-lg bg-cyber-surface-2 px-2 py-2">
                           <dt className="text-cyber-text-3">Ajoutés</dt>
                           <dd className="mt-0.5 font-mono font-semibold text-cyber-text">{summary.addedFileCount || 0}</dd>
@@ -115,28 +110,7 @@ function RefreshSummaryDialog({ summary, onClose, restoreFocusRef }) {
                     </>
                   ) : null}
 
-                  {changes.length > 0 ? (
-                    <section aria-labelledby="refresh-summary-changes">
-                      <h3 id="refresh-summary-changes" className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-cyber-text-3">
-                        Toutes les différences
-                      </h3>
-                      <div
-                        className="max-h-[166px] overflow-y-auto rounded-lg border border-cyber-border bg-cyber-surface-2/50"
-                        tabIndex={0}
-                      >
-                        <ul className="divide-y divide-cyber-border/70">
-                          {changes.map((change) => (
-                            <li key={`${change.kind}:${change.path}`} className="flex items-center gap-3 px-3 py-2 text-xs">
-                              <span className="min-w-0 flex-1 truncate font-mono text-cyber-text-2" title={change.path}>{change.path}</span>
-                              <span className="hidden text-[10px] text-cyber-text-3 sm:inline">{refreshKinds[change.kind] || 'Modifié'}</span>
-                              <span className="font-mono tabular-nums text-emerald-300">+{change.addedLines || 0}</span>
-                              <span className="font-mono tabular-nums text-red-300">−{change.removedLines || 0}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </section>
-                  ) : null}
+                  {hasChanges ? <RefreshChangesList summary={summary} /> : null}
                 </div>
               </motion.div>
             </div>
