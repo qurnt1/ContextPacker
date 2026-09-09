@@ -3,9 +3,8 @@ import { isBinaryExtension, isBinaryContent } from './binaryDetector';
 import { getExtension } from './helpers';
 import { minifyCode } from './minifier';
 import { countTokens, initEncoding } from './tokenCounter';
+import { isSensitivePath } from './securityPolicy';
 import { MAX_FILE_SIZE, MAX_SCAN_FILES, MAX_SCAN_TOTAL_BYTES } from '../constants';
-import { getPotentialSecretMetadata, getSecurityMetadata } from './securityPolicy';
-import { detectPotentialSecrets } from './secretDetector';
 
 export async function scanDirectory(dirHandle, onProgress, options = {}) {
   const { applyGitignore = true, onFileStart, signal } = options;
@@ -24,10 +23,7 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
     // No .gitignore found
   }
 
-  const filter = createIgnoreFilter(gitignoreContent, {
-    enabled: applyGitignore,
-    includeDefaults: true,
-  });
+  const filter = createIgnoreFilter(gitignoreContent, { enabled: applyGitignore });
   const files = [];
   const tree = {
     name: projectName,
@@ -56,33 +52,8 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
       throwIfAborted(signal);
       const entryPath = basePath ? `${basePath}/${entry.name}` : entry.name;
 
-      const security = getSecurityMetadata(entryPath, entry.kind);
-      if (entry.kind === 'directory' && security.blocked) {
-        parentNode.children.push({
-          name: entry.name,
-          path: entryPath,
-          type: 'directory',
-          children: [],
-          ...security,
-        });
-        continue;
-      }
-
-      if (entry.kind === 'file' && security.blocked) {
-        parentNode.children.push({
-          name: entry.name,
-          path: entryPath,
-          type: 'file',
-          size: null,
-          lastModified: null,
-          potentialSecrets: [],
-          ...security,
-        });
-        continue;
-      }
-
       try {
-        if (filter.ignores(entryPath)) continue;
+        if (isSensitivePath(entryPath) || filter.ignores(entryPath)) continue;
       } catch {
         continue;
       }
@@ -111,7 +82,6 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
               type: 'file',
               size: file.size,
               lastModified: getLastModified(file),
-              potentialSecrets: [],
               selectable: false,
               blocked: false,
               blockedReason: 'size',
@@ -153,8 +123,6 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
       const tokens = countTokens(content);
       const minified = minifyCode(content, extension);
       const minifiedTokens = minified !== content ? countTokens(minified) : tokens;
-      const potentialSecrets = detectPotentialSecrets(content);
-      const potentialSecretSecurity = getPotentialSecretMetadata(potentialSecrets);
       const lastModified = getLastModified(candidate.file);
 
       files.push({
@@ -168,8 +136,9 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
         lines,
         tokens,
         minifiedTokens,
-        potentialSecrets,
-        ...potentialSecretSecurity,
+        selectable: true,
+        blocked: false,
+        traversed: true,
       });
 
       candidate.parentNode.children.push({
@@ -182,8 +151,9 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
         lines,
         tokens,
         minifiedTokens,
-        potentialSecrets,
-        ...potentialSecretSecurity,
+        selectable: true,
+        blocked: false,
+        traversed: true,
       });
     } catch (e) {
       console.warn(`Skipped ${candidate.entryPath}:`, e.message);

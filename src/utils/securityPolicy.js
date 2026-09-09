@@ -1,81 +1,45 @@
-const ALLOWED_ENV_FILES = new Set([
-  '.env.example',
-  '.env.sample',
-  '.env.template',
-  '.env.defaults',
+const SENSITIVE_DIRECTORY_NAMES = new Set(['.aws', '.ssh']);
+
+const PRIVATE_KEY_FILE_NAMES = new Set([
+  'id_rsa',
+  'id_dsa',
+  'id_ecdsa',
+  'id_ed25519',
+  'id_xmss',
 ]);
 
-const BLOCKED_DIRECTORY_NAMES = new Set(['.git', '.aws', '.ssh', '.venv', 'venv']);
-const BLOCKED_FILENAMES = new Set(['.npmrc', '.pypirc', 'id_rsa', 'id_ed25519']);
-const BLOCKED_EXTENSIONS = new Set(['.pem', '.key', '.p12', '.pfx', '.crt']);
+const PRIVATE_KEY_EXTENSIONS = new Set(['.pem', '.key', '.p12', '.pfx', '.ppk']);
 
-function normalizePath(path) {
-  return String(path || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
-}
+export const SENSITIVE_PATH_PATTERNS = Object.freeze([
+  '.env*',
+  '.aws',
+  '.ssh',
+  'credentials.json',
+  'id_rsa',
+  'id_dsa',
+  'id_ecdsa',
+  'id_ed25519',
+  'id_xmss',
+  '*.pem',
+  '*.key',
+  '*.p12',
+  '*.pfx',
+  '*.ppk',
+]);
 
-function basename(path) {
-  const parts = normalizePath(path).split('/');
-  return parts[parts.length - 1] || '';
-}
+export function isSensitivePath(path) {
+  const segments = String(path || '')
+    .replaceAll('\\', '/')
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => segment.toLowerCase());
 
-function isEnvFile(name) {
-  return /^\.env(?:\.|$)/i.test(name) && !ALLOWED_ENV_FILES.has(name.toLowerCase());
-}
+  return segments.some((segment) => {
+    if (segment.startsWith('.env')) return true;
+    if (SENSITIVE_DIRECTORY_NAMES.has(segment)) return true;
+    if (segment === 'credentials.json' || PRIVATE_KEY_FILE_NAMES.has(segment)) return true;
 
-function isCredentialFile(name) {
-  const lower = name.toLowerCase();
-  const extension = lower.includes('.') ? lower.slice(lower.lastIndexOf('.')) : '';
-  return (
-    BLOCKED_FILENAMES.has(lower) ||
-    BLOCKED_EXTENSIONS.has(extension) ||
-    /^credentials(?:\.[^.]+)?\.json$/i.test(name) ||
-    /^service[-_]account(?:\.[^.]+)?\.json$/i.test(name)
-  );
-}
-
-export function getSecurityMetadata(path, type = 'file') {
-  const normalized = normalizePath(path);
-  const parts = normalized.split('/').filter(Boolean);
-
-  if (type === 'directory' && parts.some((part) => BLOCKED_DIRECTORY_NAMES.has(part.toLowerCase()))) {
-    return { selectable: false, blocked: true, blockedReason: 'sensitive', traversed: false };
-  }
-
-  const insideBlockedDirectory = parts
-    .slice(0, -1)
-    .some((part) => BLOCKED_DIRECTORY_NAMES.has(part.toLowerCase()));
-  if (type === 'file' && (insideBlockedDirectory || isEnvFile(basename(normalized)) || isCredentialFile(basename(normalized)))) {
-    return { selectable: false, blocked: true, blockedReason: 'sensitive', traversed: false };
-  }
-
-  return { selectable: true, blocked: false, blockedReason: null, traversed: true };
-}
-
-export function isSelectableFile(file) {
-  return Boolean(file && file.selectable !== false && !file.blocked);
-}
-
-export function hasPotentialSecrets(file) {
-  return Boolean(file?.potentialSecrets?.length);
-}
-
-export function getPotentialSecretMetadata(potentialSecrets) {
-  if (!potentialSecrets?.length) {
-    return { selectable: true, blocked: false, blockedReason: null, traversed: true };
-  }
-
-  return {
-    selectable: false,
-    blocked: true,
-    blockedReason: 'potential-secret',
-    traversed: true,
-  };
-}
-
-export function isSelectionAllowed(file) {
-  return isSelectableFile(file) && !hasPotentialSecrets(file);
-}
-
-export function getBlockedDirectoryNames() {
-  return new Set(BLOCKED_DIRECTORY_NAMES);
+    const extensionIndex = segment.lastIndexOf('.');
+    return extensionIndex > 0 && PRIVATE_KEY_EXTENSIONS.has(segment.slice(extensionIndex));
+  });
 }

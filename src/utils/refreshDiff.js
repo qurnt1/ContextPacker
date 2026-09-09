@@ -1,5 +1,5 @@
 import { diffLines } from 'diff';
-import { isSelectionAllowed } from './securityPolicy';
+import { isSelectableFile } from './filePolicy';
 
 const MAX_EDIT_LENGTH = 20_000;
 
@@ -49,7 +49,7 @@ function indexFiles(files) {
 
 function latestModifiedAt(files) {
   const timestamps = (Array.isArray(files) ? files : [])
-    .filter(isSelectionAllowed)
+    .filter(isSelectableFile)
     .map((file) => file.lastModified)
     .filter(Number.isFinite);
   return timestamps.length > 0 ? Math.max(...timestamps) : null;
@@ -66,9 +66,93 @@ function createChange(path, kind, previousContent, currentContent) {
   };
 }
 
+function comparePaths(left, right) {
+  return left.localeCompare(right, 'fr', { numeric: true, sensitivity: 'base' });
+}
+
+function getDirectoryPaths(filePath) {
+  const segments = String(filePath || '').split('/').filter(Boolean);
+  return segments.slice(0, -1).map((_, index) => segments.slice(0, index + 1).join('/'));
+}
+
+function isWithinDirectory(filePath, directoryPath) {
+  return filePath.startsWith(`${directoryPath}/`);
+}
+
+function getCompleteDirectoryGroups(changes, previousByPath, currentByPath) {
+  const changeByPath = new Map(changes.map((change) => [change.path, change]));
+  const candidates = new Set(changes.flatMap((change) => getDirectoryPaths(change.path)));
+  const groups = [];
+
+  candidates.forEach((directoryPath) => {
+    for (const kind of ['added', 'removed']) {
+      const sourceFiles = kind === 'removed' ? previousByPath : currentByPath;
+      const oppositeFiles = kind === 'removed' ? currentByPath : previousByPath;
+      const sourcePaths = [...sourceFiles.keys()]
+        .filter((path) => isWithinDirectory(path, directoryPath))
+        .filter((path) => isSelectableFile(sourceFiles.get(path)));
+      const oppositePaths = [...oppositeFiles.keys()]
+        .filter((path) => isWithinDirectory(path, directoryPath))
+        .filter((path) => isSelectableFile(oppositeFiles.get(path)));
+
+      if (sourcePaths.length < 2 || oppositePaths.length > 0) continue;
+      if (!sourcePaths.every((path) => changeByPath.get(path)?.kind === kind)) continue;
+
+      groups.push({
+        path: directoryPath,
+        kind,
+        paths: sourcePaths,
+      });
+    }
+  });
+
+  groups.sort((left, right) => (
+    left.path.split('/').length - right.path.split('/').length || comparePaths(left.path, right.path)
+  ));
+
+  const selectedGroups = [];
+  groups.forEach((group) => {
+    if (selectedGroups.some((selected) => isWithinDirectory(group.path, selected.path))) return;
+    selectedGroups.push(group);
+  });
+  return selectedGroups;
+}
+
+function aggregateChanges(path, kind, changes, type) {
+  const sortedChanges = [...changes].sort((left, right) => comparePaths(left.path, right.path));
+  return {
+    type,
+    path,
+    kind,
+    fileCount: sortedChanges.length,
+    addedLines: sortedChanges.reduce((total, change) => total + change.addedLines, 0),
+    removedLines: sortedChanges.reduce((total, change) => total + change.removedLines, 0),
+    changedLines: sortedChanges.reduce((total, change) => total + change.changedLines, 0),
+    changes: sortedChanges,
+  };
+}
+
+function createChangeGroups(changes, previousByPath, currentByPath) {
+  const completeGroups = getCompleteDirectoryGroups(changes, previousByPath, currentByPath);
+  const changeByPath = new Map(changes.map((change) => [change.path, change]));
+  const groupedPaths = new Set(completeGroups.flatMap((group) => group.paths));
+  const groups = completeGroups.map((group) => aggregateChanges(
+    group.path,
+    group.kind,
+    group.paths.map((path) => changeByPath.get(path)),
+    'directory'
+  ));
+
+  changes
+    .filter((change) => !groupedPaths.has(change.path))
+    .forEach((change) => groups.push(aggregateChanges(change.path, change.kind, [change], 'file')));
+
+  return groups.sort((left, right) => comparePaths(left.path, right.path));
+}
+
 /**
  * Build a local, in-memory summary of a successful refresh.
- * Sensitive and non-selectable files never contribute to this view.
+ * Non-selectable files never contribute to this view.
  */
 export function createRefreshSummary(previousFiles, currentFiles) {
   const previousByPath = indexFiles(previousFiles);
@@ -83,8 +167,8 @@ export function createRefreshSummary(previousFiles, currentFiles) {
     const previous = previousByPath.get(path);
     const current = currentByPath.get(path);
 
-    // Do not reveal a path that is classified as blocked in either snapshot.
-    if ((previous && !isSelectionAllowed(previous)) || (current && !isSelectionAllowed(current))) continue;
+    // Keep the refresh summary aligned with the exportable file set.
+    if ((previous && !isSelectableFile(previous)) || (current && !isSelectableFile(current))) continue;
 
     if (!previous) {
       addedFileCount += 1;
@@ -120,5 +204,6 @@ export function createRefreshSummary(previousFiles, currentFiles) {
     totalRemovedLines,
     latestModifiedAt: latestModifiedAt(currentFiles),
     changes,
+    changeGroups: createChangeGroups(changes, previousByPath, currentByPath),
   };
 }

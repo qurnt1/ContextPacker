@@ -1,8 +1,8 @@
-import { hasPotentialSecrets, isSelectionAllowed, isSelectableFile } from './securityPolicy';
+import { isSelectableFile } from './filePolicy';
+import { isSensitivePath } from './securityPolicy';
 
 export function filterTreeForExport(node, selectedPaths = new Set(), includeFullTree = false) {
-  if (!node || node.blocked || node.selectable === false) return null;
-  if (hasPotentialSecrets(node)) return null;
+  if (!node || isSensitivePath(node.path) || node.blocked || node.selectable === false) return null;
   if (node.type === 'file') {
     return includeFullTree || selectedPaths.has(node.path) ? { ...node } : null;
   }
@@ -21,7 +21,7 @@ export function getSearchResultPaths(node, query = '') {
   function collectFiles(current) {
     if (!current) return;
     if (current.type === 'file') {
-      if (isSelectableFile(current) || current.blocked) paths.push(current.path);
+      if (isSelectableFile(current)) paths.push(current.path);
       return;
     }
     (current.children || []).forEach(collectFiles);
@@ -48,7 +48,7 @@ export function buildSelectionIndex(node, selectedPaths = new Set()) {
   function visit(current) {
     if (!current) return { selectableCount: 0, selectedCount: 0, paths: [] };
     if (current.type === 'file') {
-      const selectableCount = isSelectionAllowed(current) ? 1 : 0;
+      const selectableCount = isSelectableFile(current) ? 1 : 0;
       const selectedCount = selectableCount && selectedPaths.has(current.path) ? 1 : 0;
       const summary = { selectableCount, selectedCount, paths: selectableCount ? [current.path] : [] };
       index.set(current.path, summary);
@@ -125,7 +125,6 @@ export function buildTreeFromFiles(rootName, files, extraNodes = []) {
     selectable: file.selectable !== false,
     blocked: Boolean(file.blocked),
     blockedReason: file.blockedReason || null,
-    potentialSecrets: file.potentialSecrets || [],
     traversed: file.traversed !== false,
   })));
 

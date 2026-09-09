@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Hash, FileStack, AlignLeft, AlertTriangle } from 'lucide-react';
 import { formatNumber } from '../utils/helpers';
 import { isAboveWarningThreshold, useStore } from '../store';
 import ExportMenu from './ExportMenu';
 import LinearTokenProgress from './LinearTokenProgress';
-import { isSelectionAllowed } from '../utils/securityPolicy';
+import { isSelectionAllowed } from '../utils/filePolicy';
 
 export default function Dashboard() {
   const tokenLimit = useStore((s) => s.tokenLimit);
@@ -14,7 +14,6 @@ export default function Dashboard() {
   const selectedPaths = useStore((s) => s.selectedPaths);
   const minifyEnabled = useStore((s) => s.minifyEnabled);
   const warningPercent = useStore((s) => s.warningPercent);
-  const customThreshold = useStore((s) => s.customThreshold);
   const tree = useStore((s) => s.tree);
   const includeFullTreeInExport = useStore((s) => s.includeFullTreeInExport);
 
@@ -43,7 +42,7 @@ export default function Dashboard() {
   }, [selectedFiles, minifyEnabled, files]);
 
   const { totalTokens, fileCount, totalFiles, totalLines } = stats;
-  const isWarning = isAboveWarningThreshold(totalTokens, tokenLimit, warningPercent, customThreshold);
+  const isWarning = isAboveWarningThreshold(totalTokens, tokenLimit, warningPercent);
   const isOverflow = totalTokens > tokenLimit;
   const percentage = tokenLimit > 0 ? (totalTokens / tokenLimit) * 100 : 0;
 
@@ -57,13 +56,13 @@ export default function Dashboard() {
       initial={{ y: 12, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ delay: 0.15 }}
-      className="status-bar h-[58px] border-t border-cyber-border grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-center px-4 md:px-5 gap-4 transition-colors duration-300 z-20 flex-shrink-0"
+      className="status-bar grid min-h-[58px] flex-shrink-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-center gap-4 border-t border-cyber-border px-4 py-2 transition-colors duration-300 max-md:grid-cols-[minmax(0,1fr)_auto] md:h-[58px] md:px-5"
     >
       {/* Stats */}
-      <div className="flex items-center gap-4 flex-shrink-0">
+      <div className="col-span-2 flex min-w-0 w-full items-center justify-between gap-3 md:col-span-1 md:w-auto md:justify-start md:gap-4">
         <div className="flex items-center gap-2" title="Tokens de contenu (hors structure et métadonnées)">
-          <Hash className={`w-3.5 h-3.5 ${isOverflow ? 'text-red-400' : 'text-cyber-accent'}`} />
-          <span className={`font-mono text-sm font-bold tabular-nums ${isOverflow ? 'text-red-400' : 'text-cyber-text'}`}>
+          <Hash className={`w-3.5 h-3.5 ${isOverflow ? 'text-red-700' : 'text-cyber-accent'}`} />
+          <span className={`font-mono text-sm font-bold tabular-nums ${isOverflow ? 'text-red-700' : 'text-cyber-text'}`}>
             {formatNumber(totalTokens)}
           </span>
           <span className="text-[10px] text-cyber-text-3 font-medium uppercase tracking-wider">tokens contenu</span>
@@ -91,16 +90,16 @@ export default function Dashboard() {
       </div>
 
       {/* Linear progress bar */}
-      <div className="min-w-0 w-full max-w-lg justify-self-center flex items-center justify-center gap-3">
+      <div className="flex min-w-0 w-full max-w-lg items-center justify-self-center gap-2 md:justify-center md:gap-3">
         <span className="text-[10px] font-semibold text-cyber-text-3 uppercase tracking-wider flex-shrink-0">
           {limitLabel}
         </span>
         <LinearTokenProgress current={totalTokens} limit={tokenLimit} isWarning={isWarning} warningPercent={warningPercent} />
-        <span className={`text-[10px] font-mono font-bold tabular-nums flex-shrink-0 ${percentage > 100 ? 'text-red-400' : isWarning ? 'text-amber-400' : 'text-cyber-text-2'}`}>
+        <span className={`text-[10px] font-mono font-bold tabular-nums flex-shrink-0 ${percentage > 100 ? 'text-red-700' : isWarning ? 'text-amber-700' : 'text-cyber-text-2'}`}>
           {percentage.toFixed(0)}%
         </span>
         {isOverflow && (
-          <div className="flex items-center gap-1 text-red-400 flex-shrink-0">
+          <div className="flex items-center gap-1 text-red-700 flex-shrink-0">
             <AlertTriangle className="w-3 h-3" />
             <span className="text-[10px] font-bold">OVERFLOW</span>
           </div>

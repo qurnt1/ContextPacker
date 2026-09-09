@@ -17,41 +17,25 @@ beforeEach(() => {
     selectedPaths: new Set(),
     isScanning: false,
     onboardingDone: true,
-    githubToken: '',
   });
 });
 
-describe('App modal entry points', () => {
-  it('renders the ambient color layer behind the welcome screen', () => {
-    const { container } = render(<App />);
-
-    const atmosphere = container.querySelector('.welcome-atmosphere');
-    expect(atmosphere).toHaveAttribute('aria-hidden', 'true');
-    expect(atmosphere.querySelectorAll('.welcome-orb')).toHaveLength(3);
+describe('ContextPacker app entry points', () => {
+  it('renders the local-only welcome screen', () => {
+    render(<App />);
+    expect(screen.getByRole('heading', { name: 'ContextPacker', exact: true })).toBeVisible();
+    expect(screen.getByText(/L.ouverture de dossiers n.est pas disponible/i)).toBeVisible();
+    expect(screen.queryByRole('button', { name: /Projet/i })).not.toBeInTheDocument();
   });
 
   it('opens the onboarding guide from the welcome screen', async () => {
     render(<App />);
-
     fireEvent.click(screen.getByTestId('welcome-guide-button'));
-
     await waitFor(() => expect(screen.getByTestId('onboarding-dialog')).toBeVisible());
+    expect(screen.getByText(/Bienvenue dans ContextPacker/i)).toBeVisible();
   });
 
-  it('accepts a GitHub token from the welcome screen without persisting it', () => {
-    render(<App />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Projet GitHub' }));
-    fireEvent.change(screen.getByLabelText('Token GitHub (optionnel)'), {
-      target: { value: 'test-session-token' },
-    });
-
-    expect(useStore.getState().githubToken).toBe('test-session-token');
-    const persisted = JSON.parse(localStorage.getItem('cp-store-settings'));
-    expect(persisted.state).not.toHaveProperty('githubToken');
-  });
-
-  it('opens the keyboard shortcuts dialog from the project header', async () => {
+  it('opens keyboard help from the project header', async () => {
     useStore.setState({
       projectLoaded: true,
       projectName: 'demo',
@@ -60,10 +44,8 @@ describe('App modal entry points', () => {
       sourceMeta: { type: 'local', projectId: 'test-project' },
       selectedPaths: new Set(),
     });
-
     render(<App />);
     fireEvent.click(screen.getByTestId('shortcut-help-button'));
-
     await waitFor(() => expect(screen.getByTestId('shortcut-dialog')).toBeVisible());
   });
 
@@ -77,9 +59,9 @@ describe('App modal entry points', () => {
       selectedPaths: new Set(),
       sidebarWidth: 340,
     });
-
     render(<App />);
     const separator = screen.getByRole('separator');
+    expect(separator).toHaveClass('w-0');
     fireEvent.keyDown(separator, { key: 'ArrowRight' });
     expect(useStore.getState().sidebarWidth).toBe(356);
     fireEvent.keyDown(separator, { key: 'ArrowLeft' });

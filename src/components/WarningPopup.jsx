@@ -1,120 +1,112 @@
 import { useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { AlertTriangle, X } from 'lucide-react';
 import { formatNumber } from '../utils/helpers';
+import { isSelectionAllowed } from '../utils/filePolicy';
 import { useStore } from '../store';
-import { isSelectionAllowed } from '../utils/securityPolicy';
 import ModalPortal from './ModalPortal';
 
 export default function WarningPopup() {
-  const isOpen = useStore((s) => s.showWarning);
-  const pendingPaths = useStore((s) => s.pendingPaths);
-  const files = useStore((s) => s.files);
-  const minifyEnabled = useStore((s) => s.minifyEnabled);
-  const tokenLimit = useStore((s) => s.tokenLimit);
-  const warningPercent = useStore((s) => s.warningPercent);
-  const customThreshold = useStore((s) => s.customThreshold);
-  const confirmWarning = useStore((s) => s.confirmWarning);
-  const cancelWarning = useStore((s) => s.cancelWarning);
-  const warningKind = useStore((s) => s.warningKind);
+  const isOpen = useStore((state) => state.showWarning);
+  const pendingPaths = useStore((state) => state.pendingPaths);
+  const selectedPaths = useStore((state) => state.selectedPaths);
+  const files = useStore((state) => state.files);
+  const minifyEnabled = useStore((state) => state.minifyEnabled);
+  const tokenLimit = useStore((state) => state.tokenLimit);
+  const warningPercent = useStore((state) => state.warningPercent);
+  const confirmWarning = useStore((state) => state.confirmWarning);
+  const cancelWarning = useStore((state) => state.cancelWarning);
+  const warningKind = useStore((state) => state.warningKind);
   const isSettingsWarning = warningKind === 'settings';
+  const paths = pendingPaths || selectedPaths;
 
-  const totalTokens = useMemo(() => {
-    if (!pendingPaths) return 0;
-    return files
-      .filter((f) => isSelectionAllowed(f) && pendingPaths.has(f.path))
-      .reduce((sum, f) => sum + (minifyEnabled ? f.minifiedTokens : f.tokens), 0);
-  }, [pendingPaths, files, minifyEnabled]);
+  const totalTokens = useMemo(() => files
+    .filter((file) => isSelectionAllowed(file) && paths?.has(file.path))
+    .reduce((sum, file) => sum + (minifyEnabled ? file.minifiedTokens : file.tokens), 0),
+  [files, paths, minifyEnabled]);
 
   const percentUsed = tokenLimit > 0 ? ((totalTokens / tokenLimit) * 100).toFixed(1) : '0.0';
-  const reasons = [];
-  if (!isSettingsWarning && totalTokens > (tokenLimit * warningPercent) / 100) {
-    reasons.push(`Le total (${formatNumber(totalTokens)} tokens) dépasse ${warningPercent}% de votre limite de ${formatNumber(tokenLimit)} tokens.`);
-  }
-  if (!isSettingsWarning && customThreshold > 0 && totalTokens > customThreshold) {
-    reasons.push(`Le total dépasse votre seuil manuel de ${formatNumber(customThreshold)} tokens.`);
-  }
+  const message = `Le total (${formatNumber(totalTokens)} tokens) dépasse ${warningPercent}% de votre limite de ${formatNumber(tokenLimit)} tokens.`;
 
   return (
     <ModalPortal isOpen={isOpen} onClose={cancelWarning} zIndex={200}>
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200]"
-            aria-hidden="true"
-          />
-          <div
-            className="fixed inset-0 z-[201] grid place-items-center p-4"
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget) cancelWarning();
-            }}
-          >
+      <AnimatePresence>
+        {isOpen ? (
+          <>
             <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 400 }}
-            className="w-full max-w-[420px] overflow-hidden rounded-2xl border border-cyber-border bg-cyber-surface shadow-2xl"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="warning-popup-title"
-          >
-            {/* Header */}
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-cyber-border">
-              <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-amber-500/10">
-                <AlertTriangle className="w-[18px] h-[18px] text-amber-400" />
-              </div>
-              <div>
-                <h3 id="warning-popup-title" className="text-sm font-semibold text-cyber-text">{isSettingsWarning ? 'Seuil modifié' : 'Volume important détecté'}</h3>
-                <p className="text-[11px] text-cyber-text-3">{isSettingsWarning ? 'La sélection actuelle dépasse le nouveau seuil.' : `${percentUsed}% de la limite`}</p>
-              </div>
-              <button
-                onClick={cancelWarning}
-                aria-label="Fermer"
-                className="ml-auto p-1.5 rounded-lg hover:bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-text transition-colors"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[200] bg-slate-900/30 backdrop-blur-sm"
+              aria-hidden="true"
+            />
+            <div
+              className="fixed inset-0 z-[201] grid place-items-center p-4"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) cancelWarning();
+              }}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.97 }}
+                className="w-full max-w-[420px] overflow-hidden rounded-xl border border-cyber-border bg-cyber-surface shadow-2xl"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="warning-popup-title"
               >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+                <div className="flex items-center gap-3 border-b border-cyber-border px-5 py-4">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10">
+                    <AlertTriangle className="h-[18px] w-[18px] text-amber-600" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <h3 id="warning-popup-title" className="text-sm font-semibold text-cyber-text">
+                      {isSettingsWarning ? 'Seuil modifié' : 'Volume important'}
+                    </h3>
+                    <p className="text-[11px] text-cyber-text-3">
+                      {isSettingsWarning ? 'La sélection actuelle dépasse le nouveau seuil.' : `${percentUsed}% de la limite`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={cancelWarning}
+                    aria-label="Fermer"
+                    className="ml-auto rounded-lg p-1.5 text-cyber-text-3 transition-colors hover:bg-cyber-surface-2 hover:text-cyber-text"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
 
-            {/* Body */}
-            <div className="px-5 py-4 space-y-3">
-              {reasons.map((r, i) => (
-                <p key={i} className="text-xs text-cyber-text-2 leading-relaxed">
-                  {r}
-                </p>
-              ))}
-              <p className="text-xs text-cyber-text-3 mt-2">
-                {isSettingsWarning
-                  ? 'Vous pouvez poursuivre, mais le contexte dépasse le seuil configuré.'
-                  : 'Voulez-vous continuer avec cette sélection ?'}
-              </p>
-            </div>
+                <div className="space-y-3 px-5 py-4">
+                  <p className="text-xs leading-relaxed text-cyber-text-2">{message}</p>
+                  <p className="text-xs text-cyber-text-3">
+                    {isSettingsWarning
+                      ? 'Vous pouvez poursuivre, mais le contexte dépasse le seuil configuré.'
+                      : 'Voulez-vous continuer avec cette sélection ?'}
+                  </p>
+                </div>
 
-            {/* Actions */}
-            <div className="flex gap-2.5 px-5 py-4 border-t border-cyber-border bg-cyber-surface-2/50">
-              <button
-                onClick={cancelWarning}
-                className="flex-1 px-4 py-2.5 rounded-lg text-xs font-medium bg-cyber-surface-2 border border-cyber-border text-cyber-text-2 hover:text-cyber-text hover:border-cyber-text-3 transition-colors"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={isSettingsWarning ? cancelWarning : confirmWarning}
-                className="flex-1 px-4 py-2.5 rounded-lg text-xs font-medium bg-amber-500/15 text-amber-300 border border-amber-500/25 hover:bg-amber-500/25 transition-colors"
-              >
-                {isSettingsWarning ? 'Fermer' : 'Continuer'}
-              </button>
+                <div className="flex gap-2.5 border-t border-cyber-border bg-cyber-surface-2/50 px-5 py-4">
+                  <button
+                    type="button"
+                    onClick={cancelWarning}
+                    className="flex-1 rounded-lg border border-cyber-border bg-cyber-surface-2 px-4 py-2.5 text-xs font-medium text-cyber-text-2 transition-colors hover:border-cyber-text-3 hover:text-cyber-text"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    onClick={isSettingsWarning ? cancelWarning : confirmWarning}
+                    className="flex-1 rounded-lg border border-amber-500/25 bg-amber-500/10 px-4 py-2.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-500/20"
+                  >
+                    {isSettingsWarning ? 'Fermer' : 'Continuer'}
+                  </button>
+                </div>
+              </motion.div>
             </div>
-            </motion.div>
-          </div>
-        </>
-      )}
-    </AnimatePresence>
+          </>
+        ) : null}
+      </AnimatePresence>
     </ModalPortal>
   );
 }

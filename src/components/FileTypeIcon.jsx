@@ -80,6 +80,7 @@ const FileTypeIcon = memo(function FileTypeIcon({ fileName, extension, size = 15
       aria-hidden="true"
       className={`block flex-shrink-0 ${className}`}
       data-file-type={fileType.type}
+      fill="none"
       height={size}
       viewBox={brandSvg.viewBox}
       width={size}

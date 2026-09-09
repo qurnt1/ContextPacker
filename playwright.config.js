@@ -9,7 +9,7 @@ export default defineConfig({
   reporter: 'line',
   use: {
     baseURL: `http://127.0.0.1:${e2ePort}/ContextPacker/`,
-    colorScheme: 'dark',
+    colorScheme: 'light',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

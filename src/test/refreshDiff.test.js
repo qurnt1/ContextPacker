@@ -43,17 +43,13 @@ describe('createRefreshSummary', () => {
     ]));
   });
 
-  it('returns every sorted change and ignores blocked files', () => {
+  it('returns every sorted change and ignores excluded files', () => {
     const previous = [
-      file('secret.js', 'const key = "old";\n', 1, {
-        potentialSecrets: [{ kind: 'credential-assignment', line: 1 }],
-      }),
+      file('.git/config', 'do not include\n', 1, { selectable: false, blocked: true }),
       ...Array.from({ length: 6 }, (_, index) => file(`old-${index}.js`, 'old\n', index + 2)),
     ];
     const current = [
-      file('secret.js', 'const key = "new";\n', 20, {
-        potentialSecrets: [{ kind: 'credential-assignment', line: 1 }],
-      }),
+      file('.git/config', 'still excluded\n', 20, { selectable: false, blocked: true }),
       ...Array.from({ length: 6 }, (_, index) => file(`old-${index}.js`, `${'line\n'.repeat(index + 1)}`, index + 30)),
     ];
 
@@ -61,9 +57,41 @@ describe('createRefreshSummary', () => {
 
     expect(summary.totalChanged).toBe(6);
     expect(summary.changes).toHaveLength(6);
-    expect(summary.changes.map((change) => change.path)).not.toContain('secret.js');
+    expect(summary.changes.map((change) => change.path)).not.toContain('.git/config');
     expect(summary.changes[0]).toMatchObject({ path: 'old-5.js', changedLines: 7 });
     expect(summary.changes.at(-1)).toMatchObject({ path: 'old-0.js', changedLines: 2 });
+  });
+
+  it('groups complete directory changes and keeps root files visible', () => {
+    const previous = [
+      file('website/src/App.jsx', 'old\n', 1),
+      file('website/package.json', 'old\n', 2),
+      file('tests/test_core.py', 'old\n', 3),
+      file('tests/test_ui.py', 'old\n', 4),
+      file('package-lock.json', 'old\n', 5),
+    ];
+
+    const summary = createRefreshSummary(previous, []);
+
+    expect(summary.changeGroups.map(({ type, path, kind, fileCount }) => ({ type, path, kind, fileCount }))).toEqual([
+      { type: 'file', path: 'package-lock.json', kind: 'removed', fileCount: 1 },
+      { type: 'directory', path: 'tests', kind: 'removed', fileCount: 2 },
+      { type: 'directory', path: 'website', kind: 'removed', fileCount: 2 },
+    ]);
+    expect(summary.changeGroups.find((group) => group.path === 'tests').changes.map((change) => change.path)).toEqual([
+      'tests/test_core.py',
+      'tests/test_ui.py',
+    ]);
+  });
+
+  it('does not collapse a directory when one of its files survives', () => {
+    const summary = createRefreshSummary(
+      [file('src/removed.js', 'old\n', 1), file('src/kept.js', 'same\n', 2)],
+      [file('src/kept.js', 'same\n', 3)]
+    );
+
+    expect(summary.changeGroups.every((group) => group.type === 'file')).toBe(true);
+    expect(summary.changeGroups.map((group) => group.path)).toEqual(['src/removed.js']);
   });
 
   it('does not report a diff when only modification metadata changes', () => {

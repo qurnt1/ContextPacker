@@ -1,18 +1,16 @@
-import { motion } from 'framer-motion';
-import { FolderOpen, Github, AlertTriangle, Trash2, Star } from 'lucide-react';
+import { AlertTriangle, FolderOpen, Loader2, Star, Trash2 } from 'lucide-react';
 
 function formatRelative(iso) {
   if (!iso) return '';
   const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "à l'instant";
-  if (mins < 60) return `il y a ${mins} min`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `il y a ${hours}h`;
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "à l'instant";
+  if (minutes < 60) return `il y a ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `il y a ${hours} h`;
   const days = Math.floor(hours / 24);
-  if (days < 30) return `il y a ${days}j`;
-  const months = Math.floor(days / 30);
-  return `il y a ${months} mois`;
+  if (days < 30) return `il y a ${days} j`;
+  return `il y a ${Math.floor(days / 30)} mois`;
 }
 
 export default function RecentProjectItem({
@@ -26,86 +24,57 @@ export default function RecentProjectItem({
   isFavorite,
   onToggleFavorite,
 }) {
-  const isGithub = item.type === 'github';
   const handleOpen = () => {
     if (!disabled) needsPermission ? onRelocate?.(item) : onOpen(item);
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`group flex items-center gap-2 px-3 py-2 rounded-xl border transition-all cursor-pointer ${
-        isOpening
-          ? 'border-cyber-accent/40 bg-cyber-accent/5'
-          : 'border-cyber-border bg-cyber-surface/60 hover:border-cyber-accent/25 hover:bg-cyber-surface'
-      } ${disabled ? 'opacity-50 pointer-events-none' : ''}`}
-    >
-      {/* Favorite star */}
+    <div className={`group flex min-w-0 items-center gap-2 rounded-lg border bg-cyber-surface px-3 py-2 transition ${isOpening ? 'border-cyber-accent/50 bg-cyber-accent/5' : 'border-cyber-border hover:border-cyber-accent/35'} ${disabled ? 'pointer-events-none opacity-50' : ''}`}>
       <button
-        onClick={(e) => { e.stopPropagation(); onToggleFavorite?.(item.key); }}
+        type="button"
+        onClick={(event) => { event.stopPropagation(); onToggleFavorite?.(item.key); }}
         disabled={disabled}
-        className={`p-0.5 rounded transition-colors flex-shrink-0 ${
-          isFavorite
-            ? 'text-amber-400 hover:text-amber-300'
-            : 'text-cyber-text-3 hover:text-amber-400 opacity-0 group-hover:opacity-100'
-        }`}
+        className={`shrink-0 rounded p-0.5 transition-colors ${isFavorite ? 'text-amber-600' : 'text-cyber-text-3 opacity-0 hover:text-amber-600 group-hover:opacity-100'}`}
         title={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+        aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
       >
-        <Star className={`w-3.5 h-3.5 ${isFavorite ? 'fill-current' : ''}`} />
+        <Star className={`h-3.5 w-3.5 ${isFavorite ? 'fill-current' : ''}`} aria-hidden="true" />
       </button>
 
       <button
         type="button"
         onClick={handleOpen}
         disabled={disabled}
-        className="flex items-center gap-2 flex-1 min-w-0 text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyber-accent/60"
+        className="flex min-w-0 flex-1 items-center gap-2 rounded text-left focus-visible:outline-none"
       >
-      {/* Icon */}
-      <div className={`flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${
-        isGithub ? 'bg-purple-500/10 text-purple-400' : 'bg-cyber-accent/10 text-cyber-accent'
-      }`}>
-        {isGithub ? <Github className="w-4 h-4" /> : <FolderOpen className="w-4 h-4" />}
-      </div>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <p className="text-xs font-medium text-cyber-text truncate" title={item.name}>
-            {item.name}
-          </p>
-          {isGithub && item.ref && (
-            <span className="text-[9px] font-mono text-cyber-text-3 bg-cyber-surface-2 px-1 py-0.5 rounded flex-shrink-0 hidden sm:inline" title={item.ref}>
-              {item.ref}
-            </span>
-          )}
-        </div>
-        <p className="text-[10px] text-cyber-text-3 mt-0.5">
-          {isGithub ? 'GitHub' : 'Local'}
-          {item.fileCount != null ? ` · ${item.fileCount} fichiers` : ''}
-          {item.openedAt ? ` · ${formatRelative(item.openedAt)}` : ''}
-        </p>
-      </div>
-
-      {/* Permission warning */}
-      {needsPermission && (
-        <span className="text-amber-500 flex-shrink-0" title="Permission d'accès au dossier requise">
-          <AlertTriangle className="w-3.5 h-3.5" />
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-cyber-accent/10 text-cyber-accent">
+          {isOpening ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <FolderOpen className="h-4 w-4" aria-hidden="true" />}
         </span>
-      )}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-xs font-medium text-cyber-text" title={item.name}>{item.name}</span>
+          <span className="mt-0.5 block truncate text-[10px] text-cyber-text-3">
+            Dossier local
+            {item.fileCount != null ? ` · ${item.fileCount} fichiers` : ''}
+            {item.openedAt ? ` · ${formatRelative(item.openedAt)}` : ''}
+          </span>
+        </span>
+        {needsPermission ? (
+          <span className="shrink-0 text-amber-700" title="Permission d’accès au dossier requise">
+            <AlertTriangle className="h-3.5 w-3.5" aria-label="Permission requise" />
+          </span>
+        ) : null}
       </button>
 
-      {/* Actions */}
-      <div className="flex items-center gap-1 flex-shrink-0">
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(item.key); }}
-          disabled={disabled}
-          className="p-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-cyber-surface-2 text-cyber-text-3 hover:text-red-400 transition-all"
-          title="Retirer de l'historique"
-        >
-          <Trash2 className="w-3 h-3" />
-        </button>
-      </div>
-    </motion.div>
+      <button
+        type="button"
+        onClick={(event) => { event.stopPropagation(); onDelete(item.key); }}
+        disabled={disabled}
+        className="shrink-0 rounded p-1 text-cyber-text-3 opacity-0 transition hover:bg-cyber-surface-2 hover:text-red-700 group-hover:opacity-100"
+        title="Retirer de l’historique"
+        aria-label={`Retirer ${item.name} de l’historique`}
+      >
+        <Trash2 className="h-3 w-3" aria-hidden="true" />
+      </button>
+    </div>
   );
 }

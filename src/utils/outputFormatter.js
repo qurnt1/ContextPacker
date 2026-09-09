@@ -1,5 +1,5 @@
 import { filterTreeForExport, sortTreeChildren } from './treeUtils';
-import { isSelectionAllowed } from './securityPolicy';
+import { isSelectableFile } from './filePolicy';
 
 export function getExportFileData(file, compact) {
   const content = compact ? (file.minifiedContent ?? file.content ?? '') : (file.content ?? '');
@@ -9,7 +9,7 @@ export function getExportFileData(file, compact) {
 
 export function getExportSummary(selectedFiles, totalTokens, compact) {
   const sourceFiles = Array.isArray(selectedFiles) ? selectedFiles : [];
-  const files = sourceFiles.filter(isSelectionAllowed);
+  const files = sourceFiles.filter(isSelectableFile);
   const computedTokens = files.reduce(
     (sum, file) => sum + getExportFileData(file, compact).tokens,
     0
@@ -28,9 +28,9 @@ export function generatePlainOutput(projectName, selectedFiles, totalTokens, min
   let output = '';
 
   if (minifyEnabled) {
-    output += `[CP] ${JSON.stringify({ project: projectName, tokens: exportSummary.totalTokens, files: exportSummary.files.length, source: 'preserved' })}\n`;
+    output += `[ContextPacker] ${JSON.stringify({ project: projectName, tokens: exportSummary.totalTokens, files: exportSummary.files.length, source: 'preserved' })}\n`;
   } else {
-    output += `[CONTEXTPACKER - PROJET: ${projectName}] | TOKENS CONTENU: ${exportSummary.totalTokens} | SOURCE PRESERVEE: OUI\n\n`;
+    output += `[CONTEXTPACKER - PROJET: ${projectName}] | TOKENS CONTENU: ${exportSummary.totalTokens} | SOURCE PRÉSERVÉE: OUI\n\n`;
   }
 
   output += minifyEnabled ? '[TREE]\n' : '[STRUCTURE]\n';

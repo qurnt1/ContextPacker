@@ -1,187 +1,80 @@
 import { test, expect } from '@playwright/test';
 
-const commitSha = 'a'.repeat(40);
-const featureCommitSha = 'c'.repeat(40);
-const treeSha = 'b'.repeat(40);
-
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.setItem('cp-store-settings', JSON.stringify({ state: { onboardingDone: true }, version: 1 }));
-  });
-  await page.route('https://api.github.com/**', async (route) => {
-    const url = new URL(route.request().url());
-    const path = decodeURIComponent(url.pathname);
-    let body;
-
-    if (/^\/repos\/acme\/demo$/.test(path)) {
-      body = { private: false, default_branch: 'main' };
-    } else if (path.endsWith('/branches')) {
-      body = [
-        { name: 'main', protected: false, commit: { sha: commitSha } },
-        { name: 'feature/ui', protected: false, commit: { sha: featureCommitSha } },
-      ];
-    } else if (path.includes('/git/ref/heads/')) {
-      body = { object: { sha: path.endsWith('/feature/ui') ? featureCommitSha : commitSha } };
-    } else if (path.includes('/git/commits/')) {
-      body = { tree: { sha: treeSha } };
-    } else if (path.includes('/git/trees/')) {
-      body = {
-        tree: [
-          { path: 'README.md', type: 'blob', size: 32 },
-          { path: 'src/App.jsx', type: 'blob', size: 48 },
-        ],
-        truncated: false,
-      };
-    } else {
-      await route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ message: 'Not mocked' }) });
-      return;
-    }
-
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
-  });
-
-  await page.route('https://raw.githubusercontent.com/**', async (route) => {
-    const path = new URL(route.request().url()).pathname;
-    const content = path.endsWith('/README.md') ? '# demo\n' : 'export default function App() { return null; }\n';
-    await route.fulfill({ status: 200, contentType: 'text/plain', body: content });
+    localStorage.setItem('contextpacker-settings', JSON.stringify({ state: { onboardingDone: true }, version: 3 }));
   });
 });
 
-async function openGithubProject(page, branch = '') {
+test('renders the local-only ContextPacker welcome screen', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'ContextPacker', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Projet GitHub' }).click();
-  await page.getByPlaceholder('https://github.com/owner/repo').fill('acme/demo');
+  const logo = page.getByRole('img', { name: 'ContextPacker' });
+  await expect(logo).toBeVisible();
+  await expect(logo).toHaveAttribute('src', /contextpacker-logo\.png/);
+  const sourceLink = page.getByRole('link', { name: /Gratuit et open source/i });
+  await expect(sourceLink).toHaveAttribute('href', 'https://github.com/qurnt1/ContextPacker');
+  await expect(sourceLink).toHaveAttribute('target', '_blank');
+  await expect(page.getByRole('button', { name: /Ouvrir un dossier local/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Tout le nécessaire pour préparer votre contexte IA/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Traitement local', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Projet/i })).toHaveCount(0);
+});
 
-  if (branch) {
-    const branchButton = page.getByRole('button', { name: /Sélectionner une branche/ });
-    await expect(branchButton).toContainText('main');
-    await branchButton.click();
-    await page.getByRole('option', { name: new RegExp(branch) }).click();
-    await expect(branchButton).toContainText(branch);
-  }
-
-  await expect(page.getByRole('button', { name: 'Charger le projet GitHub' })).toBeEnabled();
-  const refRequest = branch
-    ? page.waitForRequest((request) => decodeURIComponent(new URL(request.url()).pathname).endsWith(`/git/ref/heads/${branch}`))
-    : null;
-  await page.getByRole('button', { name: 'Charger le projet GitHub' }).click();
-  if (refRequest) await refRequest;
-  await expect(page.getByRole('button', { name: /ContextPacker/ }).first()).toBeVisible();
-  await expect(page.getByText('README.md')).toBeVisible();
-  await expect(page.getByText('src')).toBeVisible();
-}
-
-test('accepts a session-only GitHub token from the welcome screen', async ({ page }) => {
+test('opens the local directory picker from the welcome action', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__directoryPickerCalls = 0;
+    window.showDirectoryPicker = async () => {
+      window.__directoryPickerCalls += 1;
+      const error = new DOMException('cancelled', 'AbortError');
+      throw error;
+    };
+  });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Projet GitHub' }).click();
-
-  const tokenInput = page.getByLabel('Token GitHub (optionnel)');
-  await expect(tokenInput).toHaveAttribute('type', 'password');
-  await tokenInput.fill('test-session-token');
-  await expect(tokenInput).toHaveValue('test-session-token');
-
-  const persisted = await page.evaluate(() => JSON.parse(localStorage.getItem('cp-store-settings')));
-  expect(persisted.state.githubToken).toBeUndefined();
+  await page.getByRole('button', { name: /Ouvrir un dossier local/i }).click();
+  await expect.poll(() => page.evaluate(() => window.__directoryPickerCalls)).toBe(1);
 });
 
-test('opens a mocked GitHub project and keeps the workbench usable', async ({ page }) => {
-  await openGithubProject(page);
-  await expect(page.getByText('Formatage compact')).toBeVisible();
+test('keeps the welcome presentation below the initial viewport', async ({ page }) => {
+  await page.addInitScript(() => {
+    const recentProjects = Array.from({ length: 6 }, (_, index) => ({
+      id: `project-${index}`,
+      key: `local:project-${index}`,
+      type: 'local',
+      name: `demo-${index}`,
+      fileCount: index + 1,
+      totalTokens: 100,
+      openedAt: new Date(Date.now() - index * 1000).toISOString(),
+    }));
+    localStorage.setItem('contextpacker-settings', JSON.stringify({
+      state: { recentProjects, favoriteProjects: [], onboardingDone: true },
+      version: 3,
+    }));
+  });
+  await page.goto('/');
 
-  const gitignoreToggle = page.getByRole('button', { name: /Désactiver \.gitignore/i }).first();
-  await gitignoreToggle.hover();
-  await expect(gitignoreToggle).toHaveAttribute('title', /actualiser immédiatement/);
+  await expect(page.getByRole('heading', { name: 'Dossiers récents', exact: true })).toBeVisible();
+  await expect(page.locator('[aria-labelledby="recent-projects-title"] > div > div')).toHaveCount(4);
+  const featuresBox = await page.getByRole('heading', { name: /Tout le nécessaire pour préparer votre contexte IA/i }).boundingBox();
+  expect(featuresBox?.y).toBeGreaterThanOrEqual(await page.evaluate(() => innerHeight));
 
-  const statusBar = page.locator('.status-bar');
-  const statusBarBox = await statusBar.boundingBox();
-  const exportButtonBox = await page.getByRole('button', { name: 'Exporter' }).boundingBox();
-  expect(statusBarBox).not.toBeNull();
-  expect(exportButtonBox).not.toBeNull();
-  expect(exportButtonBox.x + exportButtonBox.width).toBeGreaterThan(statusBarBox.x + statusBarBox.width - 40);
-  expect(exportButtonBox.x + exportButtonBox.width).toBeLessThanOrEqual(statusBarBox.x + statusBarBox.width + 1);
+  const cue = page.getByRole('button', { name: 'Voir la pr\u00e9sentation' });
+  const cueBox = await cue.boundingBox();
+  const footerBox = await page.locator('.welcome-launch > .flex.flex-wrap').boundingBox();
+  expect(cueBox?.y ?? 0).toBeGreaterThanOrEqual((footerBox?.y ?? 0) + (footerBox?.height ?? 0));
 
-  await expect(page.locator('[data-file-type="readme"]').first()).toBeVisible();
-  await expect(page.locator('[data-file-type="readme"]').first()).toHaveAttribute('viewBox', '0 0 16 16');
-  await expect(page.locator('[data-file-type="react"]').first()).toBeVisible();
-  await expect(page.locator('[data-file-type="react"]').first()).toHaveAttribute('viewBox', '0 0 32 32');
-
-  await page.getByRole('button', { name: /Sélectionner README.md/ }).click();
-  await expect(page.getByText('Prévisualisation')).toBeVisible();
-
-  await page.getByTestId('shortcut-help-button').click();
-  const shortcutDialog = page.getByTestId('shortcut-dialog');
-  await expect(shortcutDialog).toBeVisible();
-  const shortcutBox = await shortcutDialog.boundingBox();
-  const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
-  expect(shortcutBox).not.toBeNull();
-  expect(Math.abs((shortcutBox.x + shortcutBox.width / 2) - viewport.width / 2)).toBeLessThan(3);
-  expect(Math.abs((shortcutBox.y + shortcutBox.height / 2) - viewport.height / 2)).toBeLessThan(3);
-  await page.keyboard.press('Escape');
-  await expect(shortcutDialog).toBeHidden();
+  await cue.click();
+  await page.waitForFunction(() => document.querySelector('.welcome-shell')?.scrollTop > 0);
+  await expect(page.getByRole('heading', { name: /Tout le n\u00e9cessaire pour pr\u00e9parer votre contexte IA/i })).toBeInViewport();
+  await expect(cue).toHaveCount(0);
 });
 
-test('covers branch selection, compact mode, responsive layout, exports, and return home', async ({ page }) => {
-  await openGithubProject(page, 'feature/ui');
-
-  const compactToggle = page.getByRole('button', { name: /Formatage compact/ });
-  await compactToggle.click();
-  await expect(compactToggle).toHaveAttribute('aria-pressed', 'true');
-
-  await page.getByRole('button', { name: /Sélectionner README\.md/ }).click();
-  await page.getByRole('button', { name: /Sélectionner App\.jsx/ }).click();
-  await expect(page.getByText('Prévisualisation')).toBeVisible();
-
-  const collapseButton = page.getByRole('button', { name: /Masquer le panneau latéral/ });
-  await collapseButton.click();
-  await expect(page.getByRole('button', { name: /Afficher le panneau latéral/ })).toBeVisible();
-  await page.getByRole('button', { name: /Afficher le panneau latéral/ }).click();
-  await expect(page.getByRole('button', { name: /Masquer le panneau latéral/ })).toBeVisible();
-
-  for (const width of [1366, 1920]) {
-    await page.setViewportSize({ width, height: 768 });
-    const progress = page.getByRole('progressbar', { name: 'Utilisation des tokens' });
-    const box = await progress.boundingBox();
-    expect(box).not.toBeNull();
-    expect(Math.abs((box.x + box.width / 2) - width / 2)).toBeLessThan(120);
-  }
-
-  const exportButton = page.getByRole('button', { name: 'Exporter' });
-  await exportButton.click();
-  const menu = page.getByRole('menu');
-  const [txtDownload] = await Promise.all([
-    page.waitForEvent('download'),
-    menu.getByRole('menuitem', { name: /Télécharger \.txt/ }).click(),
-  ]);
-  expect(txtDownload.suggestedFilename()).toMatch(/\.txt$/);
-
-  await exportButton.click();
-  const [markdownDownload] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByRole('menu').getByRole('menuitem', { name: /Télécharger \.md/ }).click(),
-  ]);
-  expect(markdownDownload.suggestedFilename()).toMatch(/\.md$/);
-
-  await page.getByRole('button', { name: /ContextPacker/ }).first().click();
-  await expect(page.getByRole('heading', { name: 'ContextPacker', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Accueil' })).toHaveCount(0);
-
-  await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole('heading', { name: 'ContextPacker', exact: true })).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
-});
-
-test('keeps the welcome modal keyboard accessible', async ({ page }) => {
+test('opens and closes the onboarding guide', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('welcome-guide-button').click();
   const dialog = page.getByTestId('onboarding-dialog');
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('button', { name: /Fermer/ })).toBeFocused();
-  const dialogBox = await dialog.boundingBox();
-  const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
-  expect(dialogBox).not.toBeNull();
-  expect(Math.abs((dialogBox.x + dialogBox.width / 2) - viewport.width / 2)).toBeLessThan(3);
-  expect(Math.abs((dialogBox.y + dialogBox.height / 2) - viewport.height / 2)).toBeLessThan(3);
+  await expect(dialog.getByText(/Bienvenue dans ContextPacker/i)).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
 });
