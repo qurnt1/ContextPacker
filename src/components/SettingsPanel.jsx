@@ -123,7 +123,7 @@ export default function SettingsPanel() {
                       <div className="min-w-0 flex-1">
                         <h3 className="text-xs font-bold uppercase tracking-wider text-cyber-text">Filtres du dossier</h3>
                         <p className="mt-1 text-[11px] leading-normal text-cyber-text-3">
-                          Les dossiers `.git`, `venv` et les caches restent toujours exclus. Le fichier `.gitignore` complète ces filtres.
+                          Les dossiers `.git`, `venv`, `.aws` et `.ssh`, ainsi que les fichiers `.env*`, les clés privées et `credentials.json`, restent toujours exclus. Le fichier `.gitignore` complète ces filtres.
                         </p>
                         <label className="mt-3 flex items-center gap-2 text-xs text-cyber-text-2">
                           <input

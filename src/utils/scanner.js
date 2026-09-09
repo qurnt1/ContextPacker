@@ -3,6 +3,7 @@ import { isBinaryExtension, isBinaryContent } from './binaryDetector';
 import { getExtension } from './helpers';
 import { minifyCode } from './minifier';
 import { countTokens, initEncoding } from './tokenCounter';
+import { isSensitivePath } from './securityPolicy';
 import { MAX_FILE_SIZE, MAX_SCAN_FILES, MAX_SCAN_TOTAL_BYTES } from '../constants';
 
 export async function scanDirectory(dirHandle, onProgress, options = {}) {
@@ -52,7 +53,7 @@ export async function scanDirectory(dirHandle, onProgress, options = {}) {
       const entryPath = basePath ? `${basePath}/${entry.name}` : entry.name;
 
       try {
-        if (filter.ignores(entryPath)) continue;
+        if (isSensitivePath(entryPath) || filter.ignores(entryPath)) continue;
       } catch {
         continue;
       }

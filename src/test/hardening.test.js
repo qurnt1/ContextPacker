@@ -69,6 +69,41 @@ describe('ContextPacker export rules', () => {
     expect(isSelectableFile({ selectable: true, blocked: false })).toBe(true);
     expect(isSelectableFile({ selectable: false, blocked: true })).toBe(false);
     expect(isSelectableFile({ selectable: true, blocked: true })).toBe(false);
+    expect(isSelectableFile({ path: 'config/.env.local', selectable: true, blocked: false })).toBe(false);
+    expect(isSelectableFile({ path: '.ssh/id_ed25519', selectable: true, blocked: false })).toBe(false);
+  });
+
+  it('never exports sensitive paths even when they are present in stale state', () => {
+    const sensitiveFile = {
+      name: 'credentials.json',
+      path: 'config/credentials.json',
+      size: 10,
+      tokens: 2,
+      content: 'secret-value',
+    };
+    const staleTree = {
+      name: 'demo',
+      path: '',
+      type: 'directory',
+      children: [
+        { name: 'credentials.json', path: 'config/credentials.json', type: 'file', selectable: true, blocked: false },
+        { name: 'selected.js', path: 'selected.js', type: 'file', selectable: true, blocked: false },
+      ],
+    };
+
+    const output = generatePlainOutput(
+      'demo',
+      [...selectedFiles, sensitiveFile],
+      4,
+      false,
+      staleTree,
+      new Set(['selected.js', 'config/credentials.json']),
+      true
+    );
+
+    expect(output).toContain('selected.js');
+    expect(output).not.toContain('credentials.json');
+    expect(output).not.toContain('secret-value');
   });
 
   it('counts an export result once and sanitizes download names', async () => {

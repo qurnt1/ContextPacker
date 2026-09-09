@@ -1,7 +1,8 @@
 import { isSelectableFile } from './filePolicy';
+import { isSensitivePath } from './securityPolicy';
 
 export function filterTreeForExport(node, selectedPaths = new Set(), includeFullTree = false) {
-  if (!node || node.blocked || node.selectable === false) return null;
+  if (!node || isSensitivePath(node.path) || node.blocked || node.selectable === false) return null;
   if (node.type === 'file') {
     return includeFullTree || selectedPaths.has(node.path) ? { ...node } : null;
   }

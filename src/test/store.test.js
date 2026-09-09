@@ -72,6 +72,8 @@ describe('store local workflow', () => {
     useStore.setState({ files: [
       { path: 'config.js', tokens: 10, minifiedTokens: 8, content: 'const apiKey = "example";' },
       { path: 'public.js', tokens: 10, minifiedTokens: 8 },
+      { path: '.env.local', tokens: 10, minifiedTokens: 8 },
+      { path: 'credentials.json', tokens: 10, minifiedTokens: 8 },
     ] });
     useStore.getState().selectAll();
     expect(useStore.getState().selectedPaths).toEqual(new Set(['config.js', 'public.js']));

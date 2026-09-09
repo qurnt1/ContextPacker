@@ -43,12 +43,33 @@ describe('scanDirectory', () => {
     const git = directoryEntry('.git', [fileEntry('config', 'do not read')]);
     const venv = directoryEntry('venv', [fileEntry('python', 'do not read')]);
     const cache = directoryEntry('.pytest_cache', [fileEntry('state', 'do not read')]);
-    const root = directoryEntry('demo', [git, venv, cache, fileEntry('image.png', 'not scanned'), fileEntry('main.js', 'const ok = true;')]);
-    const result = await scanDirectory(root);
+    const aws = directoryEntry('.aws', [fileEntry('credentials', 'do not read')]);
+    const ssh = directoryEntry('.ssh', [fileEntry('id_ed25519', 'do not read')]);
+    const envFile = fileEntry('.env.local', 'do not read');
+    const credentialsFile = fileEntry('credentials.json', 'do not read');
+    const privateKey = fileEntry('server.pem', 'do not read');
+    const root = directoryEntry('demo', [
+      git,
+      venv,
+      cache,
+      aws,
+      ssh,
+      envFile,
+      credentialsFile,
+      privateKey,
+      fileEntry('image.png', 'not scanned'),
+      fileEntry('main.js', 'const ok = true;'),
+    ]);
+    const result = await scanDirectory(root, undefined, { applyGitignore: false });
     expect(result.files.map((file) => file.path)).toEqual(['main.js']);
     expect(git.values).not.toHaveBeenCalled();
     expect(venv.values).not.toHaveBeenCalled();
     expect(cache.values).not.toHaveBeenCalled();
+    expect(aws.values).not.toHaveBeenCalled();
+    expect(ssh.values).not.toHaveBeenCalled();
+    expect(envFile.getFile).not.toHaveBeenCalled();
+    expect(credentialsFile.getFile).not.toHaveBeenCalled();
+    expect(privateKey.getFile).not.toHaveBeenCalled();
   });
 
   it('keeps JSON and CSV text files, including empty files and timestamps', async () => {

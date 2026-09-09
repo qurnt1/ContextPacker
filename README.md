@@ -23,7 +23,7 @@ L'ouverture de dossiers utilise la File System Access API. Utilisez Chrome, Edge
 - Le comptage de tokens utilise un tokenizer chargé à la demande.
 - L'historique des dossiers locaux et les préférences sont conservés dans le navigateur.
 
-ContextPacker ne détecte pas automatiquement les secrets dans le contenu. La sélection et l'export restent sous le contrôle de l'utilisateur.
+ContextPacker n'analyse pas le contenu à la recherche de secrets. Les chemins connus comme `.env*`, `.aws`, `.ssh`, `credentials.json` et les fichiers de clés privées sont exclus avant lecture, même si `.gitignore` est désactivé.
 
 ## Développement
 
