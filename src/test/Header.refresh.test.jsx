@@ -55,4 +55,21 @@ describe('Header refresh summary', () => {
     expect(changesSection.querySelector('[tabindex="0"]')).toHaveClass('max-h-[166px]', 'overflow-y-auto');
     await waitFor(() => expect(useStore.getState().handleRefresh).toHaveBeenCalledOnce());
   });
+
+  it('shows an error when opening a local folder fails', async () => {
+    useStore.setState({
+      handleOpenLocal: vi.fn().mockResolvedValue({
+        ok: false,
+        aborted: false,
+        error: new Error('Sélecteur de dossier indisponible.'),
+      }),
+    });
+    render(<Header onShowHelp={vi.fn()} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Ouvrir local/i }));
+    });
+
+    await waitFor(() => expect(screen.getByText('Sélecteur de dossier indisponible.')).toBeVisible());
+  });
 });

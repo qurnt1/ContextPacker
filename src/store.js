@@ -13,6 +13,34 @@ import { isSelectableFile } from './utils/filePolicy';
 
 const DEFAULT_TOKEN_LIMIT = 1_000_000;
 const MAX_RECENT_PROJECTS = 10;
+const FINALISATION_DELAY_MS = 500;
+
+function waitForFinalisation(signal) {
+  return new Promise((resolve, reject) => {
+    let timeoutId;
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      signal?.removeEventListener('abort', handleAbort);
+    };
+    const handleAbort = () => {
+      cleanup();
+      const error = new Error('Analyse annulée.');
+      error.name = 'AbortError';
+      reject(error);
+    };
+
+    if (signal?.aborted) {
+      handleAbort();
+      return;
+    }
+
+    timeoutId = setTimeout(() => {
+      cleanup();
+      resolve();
+    }, FINALISATION_DELAY_MS);
+    signal?.addEventListener('abort', handleAbort, { once: true });
+  });
+}
 
 function stableProjectKey(projectId) {
   return `local:${projectId || ''}`;
@@ -152,6 +180,8 @@ function createScanSlice(set, get) {
           onFileStart: (name) => set({ currentFile: name }),
           signal: scan.signal,
         });
+        const { scanTotal } = get();
+        if (scanTotal > 0) await waitForFinalisation(scan.signal);
         const completed = completeScan({
           name: result.name,
           files: result.files,

@@ -40,14 +40,16 @@ export default function SettingsPanel() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
                 onClick={() => setIsOpen(false)}
-                className="fixed inset-0 z-[9998] bg-slate-900/25 backdrop-blur-sm"
+                className="mobile-panel-backdrop fixed inset-0 z-[9998]"
               />
               <motion.aside
                 initial={{ x: '100%' }}
                 animate={{ x: 0 }}
                 exit={{ x: '100%' }}
-                className="fixed bottom-0 right-0 top-0 z-[9999] flex w-full max-w-[380px] flex-col border-l border-cyber-border bg-cyber-surface shadow-2xl"
+                transition={{ type: 'tween', duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                className="fixed bottom-0 right-0 top-0 z-[9999] flex w-full max-w-none flex-col border-l border-cyber-border bg-cyber-surface shadow-2xl sm:max-w-[380px]"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="settings-title"
@@ -69,7 +71,7 @@ export default function SettingsPanel() {
                   </button>
                 </div>
 
-                <div className="flex-1 space-y-7 overflow-y-auto p-5">
+                <div className="flex-1 space-y-7 overflow-y-auto overscroll-contain p-5">
                   <section>
                     <h3 className="text-xs font-bold uppercase tracking-wider text-cyber-text">Limite de tokens</h3>
                     <p className="mb-3 mt-1 text-[11px] leading-normal text-cyber-text-3">
@@ -139,7 +141,7 @@ export default function SettingsPanel() {
 
                   <div className="border border-cyber-accent/15 bg-cyber-accent/[0.04] p-4">
                     <p className="text-[11px] leading-relaxed text-cyber-text-2">
-                      ContextPacker traite les fichiers dans en local dans votre navigateur. Aucun dépôt distant ni détection automatique de secrets n'est utilisé.
+                      ContextPacker traite les fichiers en local dans votre navigateur. Aucun de vos fichiers n'est envoyé vers un serveur distant.
                     </p>
                   </div>
                 </div>

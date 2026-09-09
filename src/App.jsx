@@ -81,16 +81,30 @@ function AppInner() {
             transition={{ duration: 0.35, ease: 'easeInOut' }}
           >
             <Header onShowHelp={openHelp} />
-            <div className="flex flex-1 overflow-hidden">
-              <div id="sidebar" style={{ width: effectiveSidebarWidth }} className="flex-shrink-0 transition-[width] duration-200 overflow-hidden">
+            <div className="relative flex min-h-0 flex-1 overflow-hidden">
+              {!sidebarCollapsed && (
+                <button
+                  type="button"
+                  onClick={() => useStore.getState().toggleSidebar()}
+                  aria-label="Fermer le panneau latéral"
+                  className="mobile-panel-backdrop absolute inset-0 z-30 hidden max-md:block"
+                />
+              )}
+              <div
+                id="sidebar"
+                style={{ '--sidebar-width': `${effectiveSidebarWidth}px` }}
+                className={`sidebar-frame flex-shrink-0 overflow-hidden ${sidebarCollapsed ? 'is-collapsed' : ''}`}
+              >
                 <Sidebar />
               </div>
               {!sidebarCollapsed && (
-                <div className="w-1.5 flex-shrink-0 cursor-col-resize hover:bg-cyber-accent/30 active:bg-cyber-accent/50 transition-colors relative group" onPointerDown={handleResizeStart} onKeyDown={handleResizeKeyDown} role="separator" aria-label="Redimensionner le panneau latéral" aria-orientation="vertical" aria-valuemin={180} aria-valuemax={600} aria-valuenow={sidebarWidth} tabIndex={0}>
-                  <div className="absolute inset-y-0 -left-1 -right-1" />
+                <div className="relative z-10 w-0 flex-shrink-0 cursor-col-resize transition-colors hover:bg-cyber-accent/30 active:bg-cyber-accent/50 group" onPointerDown={handleResizeStart} onKeyDown={handleResizeKeyDown} role="separator" aria-label="Redimensionner le panneau latéral" aria-orientation="vertical" aria-valuemin={180} aria-valuemax={600} aria-valuenow={sidebarWidth} tabIndex={0}>
+                  <div className="absolute inset-y-0 -left-2 -right-2" />
                 </div>
               )}
-              <MainPanel />
+              <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+                <MainPanel />
+              </div>
             </div>
             <Dashboard />
           </motion.div>

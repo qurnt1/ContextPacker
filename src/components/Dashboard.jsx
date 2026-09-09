@@ -56,10 +56,10 @@ export default function Dashboard() {
       initial={{ y: 12, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ delay: 0.15 }}
-      className="status-bar h-[58px] border-t border-cyber-border grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-center px-4 md:px-5 gap-4 transition-colors duration-300 z-20 flex-shrink-0"
+      className="status-bar grid min-h-[58px] flex-shrink-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-center gap-4 border-t border-cyber-border px-4 py-2 transition-colors duration-300 max-md:grid-cols-[minmax(0,1fr)_auto] md:h-[58px] md:px-5"
     >
       {/* Stats */}
-      <div className="flex items-center gap-4 flex-shrink-0">
+      <div className="col-span-2 flex min-w-0 w-full items-center justify-between gap-3 md:col-span-1 md:w-auto md:justify-start md:gap-4">
         <div className="flex items-center gap-2" title="Tokens de contenu (hors structure et métadonnées)">
           <Hash className={`w-3.5 h-3.5 ${isOverflow ? 'text-red-700' : 'text-cyber-accent'}`} />
           <span className={`font-mono text-sm font-bold tabular-nums ${isOverflow ? 'text-red-700' : 'text-cyber-text'}`}>
@@ -90,7 +90,7 @@ export default function Dashboard() {
       </div>
 
       {/* Linear progress bar */}
-      <div className="min-w-0 w-full max-w-lg justify-self-center flex items-center justify-center gap-3">
+      <div className="flex min-w-0 w-full max-w-lg items-center justify-self-center gap-2 md:justify-center md:gap-3">
         <span className="text-[10px] font-semibold text-cyber-text-3 uppercase tracking-wider flex-shrink-0">
           {limitLabel}
         </span>

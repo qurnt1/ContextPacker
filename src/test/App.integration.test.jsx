@@ -61,6 +61,7 @@ describe('ContextPacker app entry points', () => {
     });
     render(<App />);
     const separator = screen.getByRole('separator');
+    expect(separator).toHaveClass('w-0');
     fireEvent.keyDown(separator, { key: 'ArrowRight' });
     expect(useStore.getState().sidebarWidth).toBe(356);
     fireEvent.keyDown(separator, { key: 'ArrowLeft' });

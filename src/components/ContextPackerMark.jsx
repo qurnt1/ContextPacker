@@ -1,11 +1,12 @@
-import { Zap } from 'lucide-react';
-
 export default function ContextPackerMark({ className = 'h-6 w-6', title }) {
+  const logoSrc = `${import.meta.env.BASE_URL}contextpacker-logo.png`;
+
   return (
-    <Zap
+    <img
+      src={logoSrc}
       className={className}
-      role={title ? 'img' : undefined}
-      aria-label={title}
+      alt={title || ''}
+      title={title || undefined}
       aria-hidden={title ? undefined : true}
     />
   );

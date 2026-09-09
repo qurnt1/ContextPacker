@@ -26,6 +26,15 @@ describe('file type icons', () => {
     expect(icon).toBeInTheDocument();
     expect(icon).toHaveAttribute('title', 'Docker');
   });
+
+  it.each([
+    ['README.md', '.md'],
+    ['requirements.txt', '.txt'],
+    ['settings.ini', '.ini'],
+  ])('keeps the %s icon background transparent', (fileName, extension) => {
+    const { container } = render(<FileTypeIcon fileName={fileName} extension={extension} />);
+    expect(container.querySelector('svg')).toHaveAttribute('fill', 'none');
+  });
 });
 
 describe('FileTree file type icons', () => {

@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
+  ChevronDown,
+  FileText,
+  FolderTree,
   FolderOpen,
+  Hash,
   History,
   Monitor,
+  Scissors,
   ShieldCheck,
   Star,
   Upload,
@@ -14,8 +19,47 @@ import RecentProjectItem from './RecentProjectItem';
 import ContextPackerMark from './ContextPackerMark';
 import { ScanProgress } from './LinearTokenProgress';
 
-const isSupported = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
-const MAX_VISIBLE = 6;
+const isSupported = typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function';
+const MAX_VISIBLE = 4;
+
+const FEATURES = [
+  {
+    title: 'Contexte sélectionné',
+    description: 'Choisissez les fichiers et dossiers utiles pour donner à votre assistant IA une vue claire de votre projet.',
+    icon: FolderOpen,
+    tone: 'text-cyber-accent',
+  },
+  {
+    title: 'Traitement local',
+    description: 'Vos fichiers restent dans votre navigateur. Les dossiers .git, venv et les caches restent exclus.',
+    icon: ShieldCheck,
+    tone: 'text-cyan-700',
+  },
+  {
+    title: 'Arborescence du projet',
+    description: 'Conservez une structure lisible dans l’export pour aider l’IA à comprendre les relations entre vos fichiers.',
+    icon: FolderTree,
+    tone: 'text-violet-700',
+  },
+  {
+    title: 'Formats de sortie',
+    description: 'Exportez votre contexte en texte brut ou en Markdown selon l’assistant et le workflow utilisés.',
+    icon: FileText,
+    tone: 'text-cyber-accent',
+  },
+  {
+    title: 'Formatage compact',
+    description: 'Réduisez les séparateurs et espaces inutiles pour préparer un contexte plus efficace en tokens.',
+    icon: Scissors,
+    tone: 'text-cyan-700',
+  },
+  {
+    title: 'Estimation des tokens',
+    description: 'Suivez le volume de votre sélection et sa position par rapport à la limite choisie.',
+    icon: Hash,
+    tone: 'text-violet-700',
+  },
+];
 
 export default function WelcomeScreen({ onShowOnboarding }) {
   const handleOpenLocal = useStore((s) => s.handleOpenLocal);
@@ -35,6 +79,27 @@ export default function WelcomeScreen({ onShowOnboarding }) {
   const [openingKey, setOpeningKey] = useState(null);
   const [permissionItems, setPermissionItems] = useState(new Set());
   const [errorItem, setErrorItem] = useState(null);
+  const welcomeShellRef = useRef(null);
+  const presentationRef = useRef(null);
+  const [showScrollCue, setShowScrollCue] = useState(true);
+
+  useEffect(() => {
+    const shell = welcomeShellRef.current;
+    if (!shell) return undefined;
+
+    const handleScroll = () => setShowScrollCue(shell.scrollTop < 24);
+    handleScroll();
+    shell.addEventListener('scroll', handleScroll, { passive: true });
+    return () => shell.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToPresentation = () => {
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    presentationRef.current?.scrollIntoView({
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      block: 'start',
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -156,7 +221,8 @@ export default function WelcomeScreen({ onShowOnboarding }) {
 
   return (
     <div
-      className="welcome-shell flex-1 flex items-center justify-center relative"
+      ref={welcomeShellRef}
+      className="welcome-shell relative flex flex-1 items-start justify-center"
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -172,17 +238,19 @@ export default function WelcomeScreen({ onShowOnboarding }) {
         </div>
       ) : null}
 
-      <div className="welcome-content z-10 mx-auto max-w-4xl px-4 py-10 text-center sm:px-6 md:py-14">
-        <div className="mb-5 inline-flex h-14 w-14 items-center justify-center rounded-xl bg-cyber-accent/10 text-cyber-accent shadow-sm">
-          <ContextPackerMark className="h-7 w-7" title="ContextPacker" />
-        </div>
+      <div className="welcome-content short-height-padding z-10 mx-auto max-w-4xl px-4 py-10 text-center sm:px-6 md:py-14">
+        <div className="welcome-primary">
+          <div className="welcome-identity mx-auto max-w-3xl">
+            <ContextPackerMark className="mx-auto mb-5 h-[120px] w-[120px] object-contain" title="ContextPacker" />
 
-        <h1 className="welcome-title mb-4 text-5xl font-bold text-cyber-text sm:text-6xl">ContextPacker</h1>
-        <p className="mx-auto mb-8 max-w-2xl text-base leading-relaxed text-cyber-text-2 sm:text-lg">
-          Transformez un dossier local en contexte clair, sélectionné et prêt à copier dans votre IA.
-        </p>
+            <h1 className="welcome-title mb-4 text-5xl font-bold text-cyber-text sm:text-6xl">ContextPacker</h1>
+            <p className="mx-auto max-w-2xl text-base leading-relaxed text-cyber-text-2 sm:text-lg">
+              Transformez un dossier local en contexte clair, sélectionné et prêt à copier dans votre IA.
+            </p>
+          </div>
 
-        <div className="welcome-card mx-auto w-full max-w-3xl p-5 text-left sm:p-7">
+          <div className="welcome-launch">
+          <div className="welcome-card mx-auto w-full max-w-3xl rounded-lg p-5 text-left sm:p-7">
           {isScanning ? (
             <ScanProgress count={scanCount} total={scanTotal} currentFile={currentFile} />
           ) : (
@@ -190,7 +258,7 @@ export default function WelcomeScreen({ onShowOnboarding }) {
               {isSupported ? (
                 <button
                   type="button"
-                  onClick={() => handleOpenLocal()}
+                  onClick={() => { void handleOpenLocal(); }}
                   disabled={isScanning}
                   className="flex w-full items-center justify-center gap-3 rounded-lg bg-cyber-accent px-6 py-4 font-semibold text-white shadow-sm transition hover:bg-cyber-accent/90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -216,76 +284,142 @@ export default function WelcomeScreen({ onShowOnboarding }) {
               {scanError}
             </div>
           ) : null}
+          </div>
+
+          {errorItem ? (
+            <div className="mx-auto mt-3 w-full max-w-3xl rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-center text-xs text-red-800" role="alert">
+              Impossible de rouvrir ce dossier. Relocalisez-le pour continuer.
+            </div>
+          ) : null}
+
+          {hasHistory ? (
+            <div className="mx-auto mt-7 w-full max-w-3xl text-left">
+              {visibleFavorites.length > 0 ? (
+                <section aria-labelledby="favorite-projects-title">
+                  <h2 id="favorite-projects-title" className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-cyber-text-3">
+                    <Star className="h-3 w-3 text-amber-600" aria-hidden="true" /> Favoris
+                  </h2>
+                  <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {visibleFavorites.map((item) => (
+                      <RecentProjectItem
+                        key={item.key}
+                        item={item}
+                        onOpen={handleRecentOpen}
+                        onDelete={removeRecentProject}
+                        onRelocate={handleRelocate}
+                        disabled={isScanning}
+                        isOpening={openingKey === item.key}
+                        needsPermission={permissionItems.has(item.key)}
+                        isFavorite
+                        onToggleFavorite={toggleFavorite}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {visibleRecents.length > 0 ? (
+                <section aria-labelledby="recent-projects-title">
+                  <h2 id="recent-projects-title" className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-cyber-text-3">
+                    <History className="h-3 w-3" aria-hidden="true" /> Dossiers récents
+                  </h2>
+                  <div className="grid max-h-72 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
+                    {visibleRecents.map((item) => (
+                      <RecentProjectItem
+                        key={item.key}
+                        item={item}
+                        onOpen={handleRecentOpen}
+                        onDelete={removeRecentProject}
+                        onRelocate={handleRelocate}
+                        disabled={isScanning}
+                        isOpening={openingKey === item.key}
+                        needsPermission={permissionItems.has(item.key)}
+                        isFavorite={false}
+                        onToggleFavorite={toggleFavorite}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs font-medium text-cyber-text-3">
+            <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-cyber-accent" aria-hidden="true" /> Traitement local</span>
+            <span aria-hidden="true">•</span>
+            <span>Aucun fichier envoyé</span>
+            <span aria-hidden="true">•</span>
+            <button type="button" data-testid="welcome-guide-button" onClick={onShowOnboarding} className="transition-colors hover:text-cyber-accent">
+              Guide de démarrage
+            </button>
+          </div>
+
+          {showScrollCue ? (
+            <button
+              type="button"
+              onClick={scrollToPresentation}
+              className="welcome-scroll-cue"
+              title="Voir la présentation"
+              aria-label="Voir la présentation"
+            >
+              <ChevronDown className="h-4 w-4" aria-hidden="true" />
+            </button>
+          ) : null}
+          </div>
         </div>
 
-        {errorItem ? (
-          <div className="mx-auto mt-3 w-full max-w-3xl rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-center text-xs text-red-800" role="alert">
-            Impossible de rouvrir ce dossier. Relocalisez-le pour continuer.
+        <section ref={presentationRef} className="mx-auto mt-8 w-full max-w-4xl scroll-mt-4 text-left" aria-labelledby="welcome-features-title">
+          <div className="max-w-2xl">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyber-accent">ContextPacker</p>
+            <h2 id="welcome-features-title" className="mt-2 text-2xl font-semibold text-cyber-text sm:text-3xl">
+              Tout le nécessaire pour préparer votre contexte IA
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-cyber-text-2 sm:text-base">
+              ContextPacker facilite le partage de votre code avec vos assistants IA tout en vous laissant le contrôle sur les fichiers transmis.
+            </p>
           </div>
-        ) : null}
 
-        {hasHistory ? (
-          <div className="mx-auto mt-7 w-full max-w-3xl text-left">
-            {visibleFavorites.length > 0 ? (
-              <section aria-labelledby="favorite-projects-title">
-                <h2 id="favorite-projects-title" className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-cyber-text-3">
-                  <Star className="h-3 w-3 text-amber-600" aria-hidden="true" /> Favoris
-                </h2>
-                <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {visibleFavorites.map((item) => (
-                    <RecentProjectItem
-                      key={item.key}
-                      item={item}
-                      onOpen={handleRecentOpen}
-                      onDelete={removeRecentProject}
-                      onRelocate={handleRelocate}
-                      disabled={isScanning}
-                      isOpening={openingKey === item.key}
-                      needsPermission={permissionItems.has(item.key)}
-                      isFavorite
-                      onToggleFavorite={toggleFavorite}
-                    />
-                  ))}
+          <div className="mt-8 grid gap-x-10 sm:grid-cols-2">
+            {FEATURES.map(({ title, description, icon: Icon, tone }) => (
+              <article key={title} className="border-t border-cyber-border py-5">
+                <div className="flex items-start gap-3">
+                  <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${tone}`} aria-hidden="true" />
+                  <div>
+                    <h3 className="text-sm font-semibold text-cyber-text">{title}</h3>
+                    <p className="mt-1.5 text-xs leading-relaxed text-cyber-text-2">{description}</p>
+                  </div>
                 </div>
-              </section>
-            ) : null}
-
-            {visibleRecents.length > 0 ? (
-              <section aria-labelledby="recent-projects-title">
-                <h2 id="recent-projects-title" className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-cyber-text-3">
-                  <History className="h-3 w-3" aria-hidden="true" /> Dossiers récents
-                </h2>
-                <div className="grid max-h-72 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
-                  {visibleRecents.map((item) => (
-                    <RecentProjectItem
-                      key={item.key}
-                      item={item}
-                      onOpen={handleRecentOpen}
-                      onDelete={removeRecentProject}
-                      onRelocate={handleRelocate}
-                      disabled={isScanning}
-                      isOpening={openingKey === item.key}
-                      needsPermission={permissionItems.has(item.key)}
-                      isFavorite={false}
-                      onToggleFavorite={toggleFavorite}
-                    />
-                  ))}
-                </div>
-              </section>
-            ) : null}
+              </article>
+            ))}
           </div>
-        ) : null}
+        </section>
 
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs font-medium text-cyber-text-3">
-          <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-cyber-accent" aria-hidden="true" /> Traitement local</span>
-          <span aria-hidden="true">•</span>
-          <span>Aucun fichier envoyé</span>
-          <span aria-hidden="true">•</span>
-          <button type="button" data-testid="welcome-guide-button" onClick={onShowOnboarding} className="transition-colors hover:text-cyber-accent">
-            Guide de démarrage
-          </button>
-        </div>
+        <section className="mx-auto mt-12 w-full max-w-4xl border-t border-cyber-border pt-10 text-left" aria-labelledby="welcome-how-title">
+          <h2 id="welcome-how-title" className="text-2xl font-semibold text-cyber-text sm:text-3xl">Comment ça marche</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-cyber-text-2 sm:text-base">
+            Préparez un contexte plus précis pour vos demandes de développement en trois étapes simples.
+          </p>
+          <ol className="mt-7 grid gap-6 sm:grid-cols-3">
+            <li className="border-l-2 border-cyber-accent pl-4">
+              <span className="font-mono text-xs font-bold text-cyber-accent">01</span>
+              <h3 className="mt-2 text-sm font-semibold text-cyber-text">Ouvrez un dossier</h3>
+              <p className="mt-1.5 text-xs leading-relaxed text-cyber-text-2">Sélectionnez un dossier local ou glissez-le dans la zone prévue.</p>
+            </li>
+            <li className="border-l-2 border-cyan-500 pl-4">
+              <span className="font-mono text-xs font-bold text-cyan-700">02</span>
+              <h3 className="mt-2 text-sm font-semibold text-cyber-text">Ajustez la sélection</h3>
+              <p className="mt-1.5 text-xs leading-relaxed text-cyber-text-2">Filtrez les fichiers, activez le formatage compact et vérifiez les tokens.</p>
+            </li>
+            <li className="border-l-2 border-violet-500 pl-4">
+              <span className="font-mono text-xs font-bold text-violet-700">03</span>
+              <h3 className="mt-2 text-sm font-semibold text-cyber-text">Copiez le contexte</h3>
+              <p className="mt-1.5 text-xs leading-relaxed text-cyber-text-2">Exportez en TXT ou Markdown puis transmettez uniquement ce dont l’IA a besoin.</p>
+            </li>
+          </ol>
+        </section>
+
       </div>
+
     </div>
   );
 }

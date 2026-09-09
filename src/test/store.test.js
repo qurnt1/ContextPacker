@@ -122,6 +122,32 @@ describe('store local workflow', () => {
     expect(scanDirectory).toHaveBeenCalledWith(handle, expect.any(Function), expect.objectContaining({ applyGitignore: true }));
   });
 
+  it('keeps the finalisation state visible before completing a scan', async () => {
+    vi.useFakeTimers();
+    try {
+      scanDirectory.mockImplementationOnce(async (_handle, onProgress) => {
+        onProgress(1, 1);
+        return {
+          name: 'test-project',
+          files: [{ path: 'index.js', selectable: true }],
+          tree: { name: 'test-project', path: '', type: 'directory', children: [] },
+        };
+      });
+
+      const promise = useStore.getState().scanFromHandle(mockDirHandle('demo'));
+      await vi.advanceTimersByTimeAsync(499);
+      expect(useStore.getState().isScanning).toBe(true);
+      expect(useStore.getState().projectLoaded).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(1);
+      const result = await promise;
+      expect(result.ok).toBe(true);
+      expect(useStore.getState().projectLoaded).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('reopens a stored local project and cleans its history', async () => {
     const result = await useStore.getState().handleReopenLocal({ id: 'project-id', key: 'local:project-id', name: 'demo' });
     expect(result.ok).toBe(true);

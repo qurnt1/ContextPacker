@@ -35,7 +35,7 @@ export default function MainPanel() {
 
   return (
     <div className="workspace-panel flex flex-1 flex-col overflow-hidden">
-      <div className="panel-toolbar flex items-center gap-2 border-b border-cyber-border px-5 py-3">
+      <div className="panel-toolbar flex h-12 min-h-12 shrink-0 items-center gap-2 border-b border-cyber-border px-5 py-0">
         <Eye className="h-4 w-4 text-cyber-accent" aria-hidden="true" />
         <span className="text-sm font-medium text-cyber-text-2">Prévisualisation</span>
         {!isEmpty ? <span className="font-mono text-xs text-cyber-text-3">· {selectedFiles.length} fichier{selectedFiles.length > 1 ? 's' : ''} · {formatNumber(totalTokens)} tokens</span> : null}
@@ -43,7 +43,7 @@ export default function MainPanel() {
 
       <div className="flex-1 overflow-y-auto">
         {isEmpty ? (
-          <div className="flex h-full items-center justify-center text-cyber-text-3">
+          <div className="grid min-h-full w-full place-items-center overflow-y-auto p-6 text-cyber-text-3">
             <div className="px-6 text-center">
               <FileText className="mx-auto mb-5 h-16 w-16 text-cyber-accent/50" aria-hidden="true" />
               <p className="text-sm font-medium text-cyber-text-2">

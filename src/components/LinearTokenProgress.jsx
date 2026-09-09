@@ -35,7 +35,7 @@ export function ScanProgress({ count = 0, total = 0, currentFile = '' }) {
 
       <div className="flex items-center gap-1.5" aria-label="Étapes du scan">
         {SCAN_STAGES.map(({ key, label, icon: Icon }, index) => {
-          const isDone = index < stageIndex;
+          const isDone = index < stageIndex || (key === 'finalisation' && count >= total);
           const isActive = index === stageIndex;
           return (
             <div key={key} className={`flex min-w-0 flex-1 items-center gap-1.5 text-[10px] font-medium ${isDone ? 'scan-step-done' : isActive ? 'scan-step-active' : 'text-cyber-text-3'}`} aria-current={isActive ? 'step' : undefined}>

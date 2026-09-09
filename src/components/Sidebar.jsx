@@ -210,26 +210,21 @@ export default function Sidebar() {
       transition={{ duration: 0.3 }}
       className="app-sidebar w-full h-full flex flex-col border-r border-cyber-border overflow-hidden transition-colors duration-300"
     >
-      {/* The application wordmark lives in the header; only keep the sidebar control here. */}
-      <div className="flex justify-end px-4 py-2.5 border-b border-cyber-border">
+      <div className="flex h-12 min-h-12 shrink-0 items-center justify-between gap-2 border-b border-cyber-border px-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <Package className="h-4 w-4 shrink-0 text-cyber-accent" aria-hidden="true" />
+          <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-cyber-text">{projectName}</h2>
+        </div>
         <button
           onClick={toggleSidebar}
           title="Masquer le panneau latéral"
           aria-label="Masquer le panneau latéral"
           aria-expanded={true}
           aria-controls="sidebar"
-          className="p-1 rounded-md hover:bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-accent transition-colors"
+          className="shrink-0 rounded-md p-1.5 text-cyber-text-3 transition-colors hover:bg-cyber-surface-2 hover:text-cyber-accent"
         >
           <PanelLeftClose className="w-4 h-4" />
         </button>
-      </div>
-
-      {/* Project info */}
-      <div className="p-4 border-b border-cyber-border">
-        <div className="flex items-center gap-2 min-w-0">
-          <Package className="w-4 h-4 text-cyber-accent flex-shrink-0" />
-          <h2 className="font-semibold text-sm text-cyber-text truncate">{projectName}</h2>
-        </div>
       </div>
 
       {/* Search */}
@@ -260,10 +255,10 @@ export default function Sidebar() {
       {/* Controls */}
       <div className="p-3 border-b border-cyber-border space-y-2">
         <div className="flex gap-1.5">
-          <button onClick={selectAll} className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded-md bg-cyber-surface-2 hover:bg-cyber-accent/10 text-cyber-text-2 hover:text-cyber-accent border border-transparent hover:border-cyber-accent/20 transition-all">
+          <button onClick={selectAll} className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent bg-cyber-surface-2 px-2.5 py-1.5 text-[11px] text-cyber-text-2 transition-colors hover:border-cyber-accent/20 hover:bg-cyber-accent/10 hover:text-cyber-accent">
             <CheckSquare className="w-3 h-3" />Tout sélectionner
           </button>
-          <button onClick={deselectAll} className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded-md bg-cyber-surface-2 hover:bg-red-500/8 text-cyber-text-2 hover:text-red-400 border border-transparent hover:border-red-500/20 transition-all">
+          <button onClick={deselectAll} className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent bg-cyber-surface-2 px-2.5 py-1.5 text-[11px] text-cyber-text-2 transition-colors hover:border-red-500/20 hover:bg-red-500/8 hover:text-red-700">
             <Square className="w-3 h-3" />Tout désélectionner
           </button>
         </div>
@@ -275,17 +270,17 @@ export default function Sidebar() {
             aria-label={gitignoreActionLabel}
             title={gitignoreActionLabel}
             aria-busy={isScanning}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded-md transition-all disabled:cursor-not-allowed disabled:opacity-45 ${gitignoreEnabled ? 'bg-cyber-accent/10 text-cyber-accent border border-cyber-accent/20' : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:text-cyber-text-2'}`}
+            className={`flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md border px-2 py-1.5 text-[10px] transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${gitignoreEnabled ? 'border-cyber-accent/20 bg-cyber-accent/10 text-cyber-accent' : 'border-transparent bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-text-2'}`}
           >
-            <GitBranch className="w-3 h-3" />.gitignore
+            <GitBranch className="h-3 w-3 shrink-0" /><span className="truncate whitespace-nowrap">.gitignore</span>
             {gitignoreEnabled ? <ToggleRight className="w-4 h-4 text-cyber-accent" /> : <ToggleLeft className="w-4 h-4" />}
           </button>
-          <button onClick={() => setMinifyEnabled((v) => !v)} aria-pressed={minifyEnabled} className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded-md transition-all ${minifyEnabled ? 'bg-cyber-accent/10 text-cyber-accent border border-cyber-accent/20' : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:text-cyber-text-2'}`} title="Réduit les métadonnées et séparateurs de l’export. Les JSON valides sont compactés, les autres sources restent intactes.">
-            <Scissors className="w-3 h-3" />Formatage compact
+          <button onClick={() => setMinifyEnabled((v) => !v)} aria-pressed={minifyEnabled} className={`flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md border px-2 py-1.5 text-[10px] transition-colors ${minifyEnabled ? 'border-cyber-accent/20 bg-cyber-accent/10 text-cyber-accent' : 'border-transparent bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-text-2'}`} title="Réduit les métadonnées et séparateurs de l’export. Les JSON valides sont compactés, les autres sources restent intactes.">
+            <Scissors className="h-3 w-3 shrink-0" /><span className="truncate whitespace-nowrap">Formatage compact</span>
             {minifyEnabled ? <ToggleRight className="w-4 h-4 text-cyber-accent" /> : <ToggleLeft className="w-4 h-4" />}
           </button>
         </div>
-        <label className={`flex w-full items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded-md transition-all cursor-pointer focus-within:ring-2 focus-within:ring-cyber-accent/50 focus-within:ring-offset-1 focus-within:ring-offset-cyber-surface ${includeFullTreeInExport ? 'bg-cyber-accent/10 text-cyber-accent border border-cyber-accent/20' : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:text-cyber-text-2'}`} title="Inclut aussi les dossiers et fichiers non sélectionnés dans la structure de l’export.">
+        <label className={`flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] transition-colors focus-within:ring-2 focus-within:ring-cyber-accent/50 focus-within:ring-offset-1 focus-within:ring-offset-cyber-surface ${includeFullTreeInExport ? 'border-cyber-accent/20 bg-cyber-accent/10 text-cyber-accent' : 'border-transparent bg-cyber-surface-2 text-cyber-text-3 hover:text-cyber-text-2'}`} title="Inclut aussi les dossiers et fichiers non sélectionnés dans la structure de l’export.">
           <input
             type="checkbox"
             checked={includeFullTreeInExport}
@@ -307,7 +302,7 @@ export default function Sidebar() {
               const { total, selected } = counts;
               const allSelected = selected === total;
               return (
-                <button key={ext} onClick={() => toggleExtension(ext)} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono transition-all ${allSelected ? 'bg-cyber-accent/15 text-cyber-accent border border-cyber-accent/25' : selected > 0 ? 'bg-cyber-accent/8 text-cyber-accent/70 border border-cyber-accent/15' : 'bg-cyber-surface-2 text-cyber-text-3 border border-transparent hover:border-cyber-border'}`}>
+                <button key={ext} onClick={() => toggleExtension(ext)} className={`inline-flex items-center gap-1 rounded px-2 py-0.5 font-mono text-[11px] transition-colors ${allSelected ? 'border border-cyber-accent/25 bg-cyber-accent/15 text-cyber-accent' : selected > 0 ? 'border border-cyber-accent/15 bg-cyber-accent/8 text-cyber-accent/70' : 'border border-transparent bg-cyber-surface-2 text-cyber-text-3 hover:border-cyber-border'}`}>
                   <span>{ext || '(aucune)'}</span>
                   <span className="text-[9px] opacity-50">{selected}/{total}</span>
                 </button>

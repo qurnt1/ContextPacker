@@ -176,6 +176,14 @@ export default function Header({ onShowHelp }) {
     }
   };
 
+  const doOpenLocal = async () => {
+    if (isScanning) return;
+    const result = await handleOpenLocal();
+    if (!result?.ok && !result?.aborted) {
+      showToast(result?.error?.message || "Impossible d'ouvrir ce dossier.", 'error');
+    }
+  };
+
   return (
     <>
       <motion.header
@@ -186,13 +194,14 @@ export default function Header({ onShowHelp }) {
       {/* Left: logo + name only */}
       <div className="flex items-center gap-2 min-w-0">
         <button
+          type="button"
           onClick={resetProject}
           disabled={isScanning}
           title="Retour à l'écran d'accueil"
           className="flex items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-cyber-surface-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <div className="flex items-center justify-center w-6 h-6 rounded-md bg-cyber-accent/10">
-            <ContextPackerMark className="h-3.5 w-3.5 text-cyber-accent" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-cyber-accent/10">
+            <ContextPackerMark className="h-6 w-6 text-cyber-accent" />
           </div>
           <span className="text-sm font-bold tracking-tight whitespace-nowrap">
             <span className="text-cyber-text">Copy</span>
@@ -232,7 +241,8 @@ export default function Header({ onShowHelp }) {
         </button>
 
         <button
-          onClick={handleOpenLocal}
+          type="button"
+          onClick={() => { void doOpenLocal(); }}
           disabled={isScanning}
           title="Ouvrir un dossier local"
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg text-cyber-accent hover:bg-cyber-accent/10 border border-cyber-accent/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
