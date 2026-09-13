@@ -32,7 +32,7 @@ const FEATURES = [
   },
   {
     title: 'Traitement local',
-    description: 'Vos fichiers restent dans votre navigateur. Les dossiers .git, venv et les caches restent exclus.',
+    description: 'Vos fichiers restent en local dans votre navigateur, aucune communication de vos données avec un serveur externe n’est effectuée.',
     icon: ShieldCheck,
     tone: 'text-cyan-700',
   },
@@ -56,7 +56,7 @@ const FEATURES = [
   },
   {
     title: 'Estimation des tokens',
-    description: 'Suivez le volume de votre sélection et sa position par rapport à la limite choisie.',
+    description: 'Suivez le volume de tokens de votre sélection et sa position par rapport à la limite choisie dans les paramètres.',
     icon: Hash,
     tone: 'text-violet-700',
   },
@@ -357,12 +357,10 @@ export default function WelcomeScreen({ onShowOnboarding }) {
             </div>
           ) : null}
 
-          <div className="mt-2 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs font-medium text-cyber-text-3">
-            <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-cyber-accent" aria-hidden="true" /> Traitement local</span>
-            <span aria-hidden="true">•</span>
-            <span>Aucun fichier envoyé</span>
-            <span aria-hidden="true">•</span>
-            <button type="button" data-testid="welcome-guide-button" onClick={onShowOnboarding} className="transition-colors hover:text-cyber-accent">
+          <div data-testid="welcome-meta" className="mt-2 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-3 text-xs font-medium text-cyber-text-3 sm:gap-x-5">
+            <span className="inline-flex min-w-0 items-center justify-self-end gap-1.5 text-right"><ShieldCheck className="h-3.5 w-3.5 shrink-0 text-cyber-accent" aria-hidden="true" /> Traitement 100% local</span>
+            <span aria-hidden="true" className="justify-self-center">•</span>
+            <button type="button" data-testid="welcome-guide-button" onClick={onShowOnboarding} className="justify-self-start text-left transition-colors hover:text-cyber-accent">
               Guide de démarrage
             </button>
           </div>
