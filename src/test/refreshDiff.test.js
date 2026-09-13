@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRefreshSummary } from '../utils/refreshDiff';
+import { buildTreeFromFiles } from '../utils/treeUtils';
 
 function file(path, content, lastModified, extra = {}) {
   return {
@@ -60,6 +61,35 @@ describe('createRefreshSummary', () => {
     expect(summary.changes.map((change) => change.path)).not.toContain('.git/config');
     expect(summary.changes[0]).toMatchObject({ path: 'old-5.js', changedLines: 7 });
     expect(summary.changes.at(-1)).toMatchObject({ path: 'old-0.js', changedLines: 2 });
+  });
+
+  it('builds a copyable diff with the complete current tree', () => {
+    const previous = [
+      file('src/modified.js', 'before\n', 1),
+      file('src/removed.js', 'removed\n', 2),
+    ];
+    const current = [
+      file('src/modified.js', 'after\n', 3),
+      file('src/added.js', 'added\n', 4),
+      file('docs/guide.md', 'unchanged\n', 5),
+      file('.env.local', 'SECRET=hidden\n', 6),
+    ];
+    const currentTree = buildTreeFromFiles('demo', current);
+
+    const summary = createRefreshSummary(previous, current, currentTree);
+    const [treeSection, patchSection] = summary.diffText.split('[DIFF DES FICHIERS]');
+
+    expect(treeSection).toContain('[ARBORESCENCE COMPLÈTE]');
+    expect(treeSection).toContain('demo/');
+    expect(treeSection).toContain('guide.md');
+    expect(treeSection).not.toContain('.env.local');
+    expect(patchSection).toContain('--- a/src/modified.js');
+    expect(patchSection).toContain('+++ b/src/modified.js');
+    expect(patchSection).toContain('--- /dev/null');
+    expect(patchSection).toContain('+++ b/src/added.js');
+    expect(patchSection).toContain('--- a/src/removed.js');
+    expect(patchSection).toContain('+++ /dev/null');
+    expect(summary.diffText).not.toContain('SECRET=hidden');
   });
 
   it('groups complete directory changes and keeps root files visible', () => {

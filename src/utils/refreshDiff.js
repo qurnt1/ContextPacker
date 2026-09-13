@@ -1,13 +1,19 @@
-import { diffLines } from 'diff';
+import { createTwoFilesPatch, diffLines } from 'diff';
+import { generateTreeText } from './outputFormatter';
+import { buildTreeFromFiles, filterTreeForExport } from './treeUtils';
 import { isSelectableFile } from './filePolicy';
 
 const MAX_EDIT_LENGTH = 20_000;
 
 function countLines(content) {
-  const normalized = String(content ?? '').replace(/\r\n?/g, '\n');
+  const normalized = normalizeContent(content);
   if (!normalized) return 0;
   const lines = normalized.split('\n');
   return normalized.endsWith('\n') ? lines.length - 1 : lines.length;
+}
+
+function normalizeContent(content) {
+  return String(content ?? '').replace(/\r\n?/g, '\n');
 }
 
 function countChangedLines(previousContent, currentContent) {
@@ -64,6 +70,52 @@ function createChange(path, kind, previousContent, currentContent) {
     removedLines,
     changedLines: addedLines + removedLines,
   };
+}
+
+function createFilePatch(change, previousFile, currentFile) {
+  const oldPath = change.kind === 'added' ? '/dev/null' : `a/${change.path}`;
+  const newPath = change.kind === 'removed' ? '/dev/null' : `b/${change.path}`;
+  return createTwoFilesPatch(
+    oldPath,
+    newPath,
+    normalizeContent(previousFile?.content),
+    normalizeContent(currentFile?.content),
+    '',
+    '',
+    { context: 3 }
+  );
+}
+
+function getExportTree(currentTree, currentFiles) {
+  const files = Array.isArray(currentFiles) ? currentFiles : [];
+  const tree = currentTree || buildTreeFromFiles(
+    'Projet',
+    files.filter(isSelectableFile)
+  );
+  return filterTreeForExport(tree, new Set(), true);
+}
+
+function createRefreshDiff(changes, previousByPath, currentByPath, currentTree, currentFiles) {
+  if (changes.length === 0) return '';
+
+  const tree = getExportTree(currentTree, currentFiles);
+  const treeText = tree
+    ? `${tree.name}/\n${generateTreeText(tree, '', true, true)}`
+    : '(Aucun fichier exportable)\n';
+  const patches = changes
+    .map((change) => createFilePatch(
+      change,
+      previousByPath.get(change.path),
+      currentByPath.get(change.path)
+    ))
+    .filter(Boolean);
+
+  return [
+    '[ARBORESCENCE COMPLÈTE]',
+    treeText.trimEnd(),
+    '[DIFF DES FICHIERS]',
+    patches.join('\n'),
+  ].join('\n\n') + '\n';
 }
 
 function comparePaths(left, right) {
@@ -154,7 +206,7 @@ function createChangeGroups(changes, previousByPath, currentByPath) {
  * Build a local, in-memory summary of a successful refresh.
  * Non-selectable files never contribute to this view.
  */
-export function createRefreshSummary(previousFiles, currentFiles) {
+export function createRefreshSummary(previousFiles, currentFiles, currentTree = null) {
   const previousByPath = indexFiles(previousFiles);
   const currentByPath = indexFiles(currentFiles);
   const allPaths = new Set([...previousByPath.keys(), ...currentByPath.keys()]);
@@ -205,5 +257,6 @@ export function createRefreshSummary(previousFiles, currentFiles) {
     latestModifiedAt: latestModifiedAt(currentFiles),
     changes,
     changeGroups: createChangeGroups(changes, previousByPath, currentByPath),
+    diffText: createRefreshDiff(changes, previousByPath, currentByPath, currentTree, currentFiles),
   };
 }

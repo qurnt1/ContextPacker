@@ -1,8 +1,9 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { FolderOpen, Loader2, Keyboard, RefreshCw, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { Check, Copy, FolderOpen, Loader2, Keyboard, RefreshCw, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { useToast } from '../hooks/useToast';
+import { copyToClipboard } from '../utils/clipboard';
 import SettingsPanel from './SettingsPanel';
 import Toast from './Toast';
 import ContextPackerMark from './ContextPackerMark';
@@ -21,12 +22,30 @@ function parseRefreshDate(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function RefreshSummaryDialog({ summary, onClose, restoreFocusRef }) {
+function RefreshSummaryDialog({ summary, onClose, restoreFocusRef, onCopyDiff }) {
   const latestModified = parseRefreshDate(summary?.latestModifiedAt);
   const changedCount = summary?.totalChanged || 0;
   const totalAddedLines = summary?.totalAddedLines || 0;
   const totalRemovedLines = summary?.totalRemovedLines || 0;
   const hasChanges = changedCount > 0 || (summary?.changeGroups?.length || 0) > 0;
+  const [copyState, setCopyState] = useState('idle');
+  const canCopy = Boolean(summary?.diffText) && hasChanges;
+
+  useEffect(() => {
+    setCopyState('idle');
+  }, [summary]);
+
+  const handleCopyDiff = async () => {
+    if (!canCopy || copyState === 'copying') return;
+
+    setCopyState('copying');
+    try {
+      const copied = await onCopyDiff(summary.diffText);
+      setCopyState(copied ? 'copied' : 'error');
+    } catch {
+      setCopyState('error');
+    }
+  };
 
   return (
     <ModalPortal isOpen={Boolean(summary)} onClose={onClose} zIndex={220} restoreFocusRef={restoreFocusRef}>
@@ -66,14 +85,35 @@ function RefreshSummaryDialog({ summary, onClose, restoreFocusRef }) {
                         : `${changedCount} changement${changedCount > 1 ? 's' : ''} détecté${changedCount > 1 ? 's' : ''}.`}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="rounded-lg p-1.5 text-cyber-text-3 transition-colors hover:bg-cyber-surface-2 hover:text-cyber-text"
-                    aria-label="Fermer le résumé d’actualisation"
-                  >
-                    <X className="h-4 w-4" aria-hidden="true" />
-                  </button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {canCopy ? (
+                      <button
+                        type="button"
+                        onClick={() => { void handleCopyDiff(); }}
+                        disabled={copyState === 'copying'}
+                        className="flex items-center gap-1.5 rounded-lg border border-cyber-border px-2.5 py-1.5 text-[11px] font-medium text-cyber-text-2 transition-colors hover:border-cyber-accent/40 hover:bg-cyber-surface-2 hover:text-cyber-accent disabled:cursor-wait disabled:opacity-60"
+                        aria-label={copyState === 'copied' ? 'Diff copié' : 'Copier le diff'}
+                        title="Copier le diff complet"
+                      >
+                        {copyState === 'copying' ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                        ) : copyState === 'copied' ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                        )}
+                        <span>{copyState === 'copied' ? 'Diff copié' : copyState === 'copying' ? 'Copie...' : 'Copier le diff'}</span>
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="rounded-lg p-1.5 text-cyber-text-3 transition-colors hover:bg-cyber-surface-2 hover:text-cyber-text"
+                      aria-label="Fermer le résumé d’actualisation"
+                    >
+                      <X className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex min-h-0 flex-1 flex-col gap-4 px-5 py-4">
@@ -131,6 +171,12 @@ export default function Header({ onShowHelp }) {
   const refreshButtonRef = useRef(null);
   const [toast, showToast] = useToast();
 
+  const copyRefreshDiff = async (diffText) => {
+    const copied = await copyToClipboard(diffText);
+    if (!copied) showToast('Impossible de copier le diff.', 'error');
+    return copied;
+  };
+
   const doRefresh = async () => {
     if (refreshing || isScanning) return;
     setRefreshing(true);
@@ -178,8 +224,8 @@ export default function Header({ onShowHelp }) {
             <ContextPackerMark className="h-6 w-6 text-cyber-accent" />
           </div>
           <span className="text-sm font-bold tracking-tight whitespace-nowrap">
-            <span className="text-cyber-text">Copy</span>
-            <span className="text-cyber-accent">ForAI</span>
+            <span className="text-cyber-text">Context</span>
+            <span className="text-cyber-accent">Packer</span>
           </span>
         </button>
       </div>
@@ -233,6 +279,7 @@ export default function Header({ onShowHelp }) {
         summary={refreshSummary}
         onClose={() => setRefreshSummary(null)}
         restoreFocusRef={refreshButtonRef}
+        onCopyDiff={copyRefreshDiff}
       />
     </>
   );

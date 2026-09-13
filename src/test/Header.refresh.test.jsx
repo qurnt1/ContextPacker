@@ -1,10 +1,17 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Header from '../components/Header';
+import { copyToClipboard } from '../utils/clipboard';
 import { useStore } from '../store';
+
+vi.mock('../utils/clipboard', () => ({
+  copyToClipboard: vi.fn(),
+}));
 
 describe('Header refresh summary', () => {
   beforeEach(() => {
+    copyToClipboard.mockReset();
+    copyToClipboard.mockResolvedValue(true);
     useStore.setState({
       isScanning: false,
       handleOpenLocal: vi.fn(),
@@ -18,6 +25,7 @@ describe('Header refresh summary', () => {
           totalAddedLines: 17,
           totalRemovedLines: 6,
           latestModifiedAt: 1_725_000_000_000,
+          diffText: '[ARBORESCENCE COMPLÈTE]\nprojet/\n[DIFF DES FICHIERS]\n--- a/src/app.js\n+++ b/src/app.js\n',
           changes: [
             { path: 'src/app.js', kind: 'modified', addedLines: 4, removedLines: 2, changedLines: 6 },
             { path: 'src/new.js', kind: 'added', addedLines: 3, removedLines: 0, changedLines: 3 },
@@ -53,6 +61,11 @@ describe('Header refresh summary', () => {
     expect(dialog).toHaveTextContent('−6 lignes');
     const changesSection = screen.getByRole('region', { name: 'Toutes les différences' });
     expect(changesSection.querySelector('[tabindex="0"]')).toHaveClass('min-h-0', 'flex-1', 'overflow-y-auto');
+    fireEvent.click(screen.getByRole('button', { name: 'Copier le diff' }));
+    await waitFor(() => expect(copyToClipboard).toHaveBeenCalledWith(
+      '[ARBORESCENCE COMPLÈTE]\nprojet/\n[DIFF DES FICHIERS]\n--- a/src/app.js\n+++ b/src/app.js\n'
+    ));
+    expect(await screen.findByRole('button', { name: 'Diff copié' })).toBeInTheDocument();
     await waitFor(() => expect(useStore.getState().handleRefresh).toHaveBeenCalledOnce());
   });
 
@@ -146,6 +159,19 @@ describe('Header refresh summary', () => {
 
     fireEvent.change(screen.getByRole('searchbox', { name: 'Rechercher dans les différences' }), { target: { value: 'app.js' } });
     expect(screen.getByText('Aucune différence pour ce filtre.')).toBeInTheDocument();
+  });
+
+  it('shows an error when copying the diff fails', async () => {
+    copyToClipboard.mockResolvedValue(false);
+    render(<Header onShowHelp={vi.fn()} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Actualiser/i }));
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copier le diff' }));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Impossible de copier le diff.'));
   });
 
   it('shows an error when opening a local folder fails', async () => {

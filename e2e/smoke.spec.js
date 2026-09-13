@@ -60,7 +60,7 @@ test('keeps the welcome presentation below the initial viewport', async ({ page 
 
   const cue = page.getByRole('button', { name: 'Voir la pr\u00e9sentation' });
   const cueBox = await cue.boundingBox();
-  const footerBox = await page.locator('.welcome-launch > .flex.flex-wrap').boundingBox();
+  const footerBox = await page.getByTestId('welcome-meta').boundingBox();
   expect(cueBox?.y ?? 0).toBeGreaterThanOrEqual((footerBox?.y ?? 0) + (footerBox?.height ?? 0));
 
   await cue.click();

@@ -302,7 +302,7 @@ function createScanSlice(set, get) {
               const { createRefreshSummary } = await import('./utils/refreshDiff');
               return {
                 ...result,
-                refreshSummary: createRefreshSummary(previousFiles, result.value.files),
+                refreshSummary: createRefreshSummary(previousFiles, result.value.files, result.value.tree),
               };
             }
           }
