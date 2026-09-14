@@ -9,7 +9,7 @@ const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8')
 
 export default defineConfig({
   plugins: [react()],
-  base: '/ContextPacker/',
+  base: './',
   build: {
     // The o200k_base rank table is intentionally kept in an on-demand chunk.
     chunkSizeWarningLimit: 2500,

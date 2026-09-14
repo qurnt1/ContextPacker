@@ -39,9 +39,6 @@ jobs:
       - name: Run end-to-end tests
         run: npm run e2e
 
-      - name: Build project
-        run: npm run build
-
   # ── Deploy to GitHub Pages (main branch only) ───────────
   deploy:
     if: github.ref == 'refs/heads/main'

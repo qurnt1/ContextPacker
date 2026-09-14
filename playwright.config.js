@@ -8,17 +8,31 @@ export default defineConfig({
   fullyParallel: true,
   reporter: 'line',
   use: {
-    baseURL: `http://127.0.0.1:${e2ePort}/ContextPacker/`,
     colorScheme: 'light',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'root',
+      testMatch: /root-deployment\.spec\.js/,
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: `http://127.0.0.1:${e2ePort}/`,
+      },
+    },
+    {
+      name: 'github-pages',
+      testIgnore: /root-deployment\.spec\.js/,
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: `http://127.0.0.1:${e2ePort}/ContextPacker/`,
+      },
+    },
   ],
   webServer: {
-    command: `npx vite --host 127.0.0.1 --port ${e2ePort}`,
-    url: `http://127.0.0.1:${e2ePort}/ContextPacker/`,
-    reuseExistingServer: !process.env.CI,
+    command: `npm run build && node e2e/preview-server.mjs --port=${e2ePort}`,
+    url: `http://127.0.0.1:${e2ePort}/`,
+    reuseExistingServer: false,
   },
 });
