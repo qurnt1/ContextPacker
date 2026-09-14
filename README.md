@@ -1,8 +1,4 @@
 <!-- HEADER DE LA PAGE -->
-<p align="center">
-  <img src="./assets/accueil.png" alt="Écran d'accueil de ContextPacker" width="100%" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin-bottom: 20px;">
-</p>
-
 <h1 align="center">📦 ContextPacker</h1>
 
 <p align="center">
@@ -15,6 +11,9 @@
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License MIT">
 </p>
 
+<p align="center">
+  <img src="./assets/accueil.png" alt="Écran d'accueil de ContextPacker" width="100%" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin-bottom: 20px;">
+</p>
 ---
 
 ### 💡 Qu'est-ce que c'est ?
