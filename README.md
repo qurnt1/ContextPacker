@@ -14,6 +14,7 @@
 <p align="center">
   <img src="./assets/accueil.png" alt="Écran d'accueil de ContextPacker" width="100%" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin-bottom: 20px;">
 </p>
+
 ---
 
 ### 💡 Qu'est-ce que c'est ?
