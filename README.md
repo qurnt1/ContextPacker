@@ -2,7 +2,7 @@
 
 ContextPacker transforme un dossier local en contexte de code clair et compact, prêt à être utilisé avec une IA. L'application fonctionne directement dans le navigateur et aide les développeurs, étudiants et équipes à sélectionner uniquement les fichiers utiles, sans envoyer les fichiers vers un serveur.
 
-![Écran d'accueil de ContextPacker](./assets/accueil.png)
+<img src="./assets/accueil.png" alt="Écran d'accueil de ContextPacker" style="border-radius: 10%;">
 
 ## Fonctionnement
 
